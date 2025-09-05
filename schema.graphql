@@ -1,0 +1,254 @@
+type Account {
+  # id is the address of the account
+  id: ID!
+  # markets created by this account
+  marketsCreated: [Market!]! @derivedFrom(field: "creator")
+  # trading activities by this account
+  trades: [Trade!]! @derivedFrom(field: "user")
+  # loans taken by this account
+  loans: [Loan!]! @derivedFrom(field: "borrower")
+  # staking activities by this account
+  stakes: [Stake!]! @derivedFrom(field: "user")
+  # presale participations by this account
+  presaleParticipations: [PresaleParticipation!]! @derivedFrom(field: "user")
+  # balance of tokens held
+  balance: BigInt!
+  # total volume traded
+  totalVolume: BigInt!
+  # total fees paid
+  totalFeesPaid: BigInt!
+}
+
+type Market {
+  # id is the market address
+  id: ID!
+  # market name
+  name: String!
+  # market symbol
+  symbol: String!
+  # market description
+  description: String!
+  # creator of the market
+  creator: Account!
+  # factory that created this market
+  factory: Factory!
+  # reserve token address
+  reserveToken: String!
+  # initial price
+  initialPrice: BigInt!
+  # current price
+  currentPrice: BigInt!
+  # floor price
+  floorPrice: BigInt!
+  # total supply
+  totalSupply: BigInt!
+  # max supply
+  maxSupply: BigInt!
+  # trading fee in basis points
+  tradingFeeBps: BigInt!
+  # max LTV ratio
+  maxLTV: BigInt!
+  # market state
+  state: String!
+  # creation timestamp
+  createdAt: BigInt!
+  # trades in this market
+  trades: [Trade!]! @derivedFrom(field: "market")
+  # floor elevations for this market
+  floorElevations: [FloorElevation!]! @derivedFrom(field: "market")
+  # fee distributions for this market
+  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market")
+}
+
+type Trade {
+  # id is the transaction hash + log index
+  id: ID!
+  # market where trade occurred
+  market: Market!
+  # user who made the trade
+  user: Account!
+  # trade type (buy/sell)
+  tradeType: String!
+  # token amount
+  tokenAmount: BigInt!
+  # reserve amount
+  reserveAmount: BigInt!
+  # fee paid
+  fee: BigInt!
+  # new price after trade
+  newPrice: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+}
+
+type FloorElevation {
+  # id is the transaction hash + log index
+  id: ID!
+  # market where elevation occurred
+  market: Market!
+  # old floor price
+  oldFloorPrice: BigInt!
+  # new floor price
+  newFloorPrice: BigInt!
+  # amount deployed
+  deployedAmount: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+}
+
+type FeeDistribution {
+  # id is the transaction hash + log index
+  id: ID!
+  # market where distribution occurred
+  market: Market!
+  # floor amount
+  floorAmount: BigInt!
+  # staking amount
+  stakingAmount: BigInt!
+  # treasury amount
+  treasuryAmount: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+}
+
+type Loan {
+  # id is the transaction hash + log index
+  id: ID!
+  # borrower
+  borrower: Account!
+  # credit facility that originated this loan
+  facility: CreditFacility!
+  # collateral amount
+  collateralAmount: BigInt!
+  # borrow amount
+  borrowAmount: BigInt!
+  # origination fee
+  originationFee: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+  # loan status
+  status: String!
+}
+
+type Stake {
+  # id is the transaction hash + log index
+  id: ID!
+  # user who staked
+  user: Account!
+  # staking contract
+  contract: StakingContract!
+  # amount staked
+  amount: BigInt!
+  # lock duration
+  lockDuration: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+  # stake status
+  status: String!
+}
+
+type PresaleParticipation {
+  # id is the transaction hash + log index
+  id: ID!
+  # user who participated
+  user: Account!
+  # presale contract
+  presale: PreSaleContract!
+  # amount invested
+  amount: BigInt!
+  # leverage used
+  leverage: BigInt!
+  # timestamp
+  timestamp: BigInt!
+  # transaction hash
+  transactionHash: String!
+}
+
+type Factory {
+  # id is the factory address
+  id: ID!
+  # total markets created
+  totalMarkets: BigInt!
+  # creation fee
+  creationFee: BigInt!
+  # fee collector
+  feeCollector: String!
+  # markets created
+  markets: [Market!]! @derivedFrom(field: "factory")
+}
+
+type CreditFacility {
+  # id is the facility address
+  id: ID!
+  # collateral token
+  collateralToken: String!
+  # borrow token
+  borrowToken: String!
+  # total loans originated
+  totalLoans: BigInt!
+  # total volume borrowed
+  totalVolume: BigInt!
+  # loans originated
+  loans: [Loan!]! @derivedFrom(field: "facility")
+}
+
+type StakingContract {
+  # id is the staking contract address
+  id: ID!
+  # staking token
+  stakingToken: String!
+  # reward token
+  rewardToken: String!
+  # total staked
+  totalStaked: BigInt!
+  # total rewards distributed
+  totalRewards: BigInt!
+  # stakes in this contract
+  stakes: [Stake!]! @derivedFrom(field: "contract")
+}
+
+type PreSaleContract {
+  # id is the presale contract address
+  id: ID!
+  # sale token
+  saleToken: String!
+  # purchase token
+  purchaseToken: String!
+  # start time
+  startTime: BigInt!
+  # end time
+  endTime: BigInt!
+  # max leverage
+  maxLeverage: BigInt!
+  # total raised
+  totalRaised: BigInt!
+  # total participants
+  totalParticipants: BigInt!
+  # participations in this presale
+  participations: [PresaleParticipation!]! @derivedFrom(field: "presale")
+}
+
+type YieldStrategy {
+  # id is the strategy address
+  id: ID!
+  # asset being managed
+  asset: String!
+  # total deployed
+  totalDeployed: BigInt!
+  # total harvested
+  totalHarvested: BigInt!
+  # performance fee
+  performanceFee: BigInt!
+  # strategy status
+  status: String!
+}
