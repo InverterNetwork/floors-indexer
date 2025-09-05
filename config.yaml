@@ -8,7 +8,7 @@ networks:
   - id: 31337 # Local Anvil
     start_block: 0
     rpc_config:
-      url: http://localhost:8545
+      url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
       - name: FloorMarketFactory
         address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
