@@ -1,66 +1,47 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 name: floormarkets-indexer
 description: Floor Markets DeFi Platform Indexer
+unordered_multichain_mode: true
 field_selection:
   transaction_fields:
     - 'hash'
+contracts:
+  - name: ModuleFactory
+    abi_file_path: abis/ModuleFactory_v1.json
+    handler: src/index.ts
+    events:
+      - event: ModuleCreated
+
+  - name: FloorMarket
+    abi_file_path: abis/BC_Discrete_Redeeming_VirtualSupply_v1.json
+    handler: src/index.ts
+    events:
+      - event: TokensBought
+      - event: TokensSold
+      - event: VirtualCollateralAmountAdded
+      - event: VirtualCollateralAmountSubtracted
+
+  - name: CreditFacility
+    abi_file_path: abis/CreditFacility_v1.json
+    handler: src/index.ts
+    events:
+      - event: LoanCreated
+      - event: LoanRepaid
+      - event: LoanClosed
+      - event: IssuanceTokensLocked
+      - event: IssuanceTokensUnlocked
+
 networks:
   - id: 31337 # Local Anvil
     start_block: 0
     rpc_config:
       url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
-      - name: FloorMarketFactory
+      - name: ModuleFactory
         address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'MarketCreated(address indexed market, address indexed creator, address indexed reserveToken, string name, string symbol, uint256 creationFee)'
-          - event: 'MarketCreationFeeUpdated(uint256 oldFee, uint256 newFee)'
-          - event: 'FeeCollectorUpdated(address oldCollector, address newCollector)'
-
+      # FloorMarket and CreditFacility contracts are discovered dynamically via ModuleCreated events
+      # They don't need addresses here - they'll be registered as events are processed
       - name: FloorMarket
-        address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'Buy(address indexed user, uint256 tokenAmount, uint256 reserveAmount, uint256 fee, uint256 newPrice)'
-          - event: 'Sell(address indexed user, uint256 tokenAmount, uint256 reserveAmount, uint256 fee, uint256 newPrice)'
-          - event: 'FloorElevated(uint256 oldFloorPrice, uint256 newFloorPrice, uint256 deployedAmount)'
-          - event: 'FeeDistributed(uint256 floorAmount, uint256 stakingAmount, uint256 treasuryAmount)'
-
+        address:
       - name: CreditFacility
-        address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'LoanOriginated(address indexed borrower, uint256 collateralAmount, uint256 borrowAmount, uint256 originationFee)'
-          - event: 'LoanRepaid(address indexed borrower, uint256 repayAmount, uint256 collateralReturned)'
-          - event: 'CreditLimitUpdated(address indexed user, uint256 oldLimit, uint256 newLimit)'
-
-      - name: Staking
-        address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'Staked(address indexed user, uint256 amount, uint256 lockDuration)'
-          - event: 'Unstaked(address indexed user, uint256 amount, uint256 penalty)'
-          - event: 'RewardsClaimed(address indexed user, uint256 amount)'
-          - event: 'StakingParametersUpdated(uint256 minDuration, uint256 penaltyBps, uint256 feeShare)'
-
-      - name: PreSale
-        address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'PresaleStarted(uint256 startTime, uint256 endTime, uint256 maxLeverage)'
-          - event: 'PresaleParticipated(address indexed user, uint256 amount, uint256 leverage)'
-          - event: 'PresaleEnded(uint256 totalRaised, uint256 totalParticipants)'
-
-      - name: YieldStrategy
-        address: '0x0000000000000000000000000000000000000000' # Will be updated after deployment
-        handler: src/EventHandlers.ts
-        events:
-          - event: 'StrategyDeployed(uint256 amount, address indexed strategy, uint256 allocation)'
-          - event: 'YieldHarvested(uint256 amount, uint256 performanceFee)'
-          - event: 'StrategyReallocated(address indexed oldStrategy, address indexed newStrategy, uint256 amount)'
-
-# Unordered multichain mode allows you to index events from multiple chains
-# in realtime but doesn't guarentee ordering between chains
-# https://docs.envio.dev/docs/HyperIndex/multichain-indexing#unordered-multichain-mode
-unordered_multichain_mode: true
+        address:
