@@ -71,18 +71,16 @@ FloorMarketFactory.MarketCreated.handler(async ({ event, context }) => {
 /**
  * @notice Event handler for MarketCreationFeeUpdated event
  */
-FloorMarketFactory.MarketCreationFeeUpdated.handler(
-  async ({ event, context }) => {
-    const factory = await context.Factory.get(event.srcAddress)
-    if (factory) {
-      const updatedFactory = {
-        ...factory,
-        creationFee: event.params.newFee,
-      }
-      context.Factory.set(updatedFactory)
+FloorMarketFactory.MarketCreationFeeUpdated.handler(async ({ event, context }) => {
+  const factory = await context.Factory.get(event.srcAddress)
+  if (factory) {
+    const updatedFactory = {
+      ...factory,
+      creationFee: event.params.newFee,
     }
+    context.Factory.set(updatedFactory)
   }
-)
+})
 
 /**
  * @notice Event handler for FeeCollectorUpdated event
