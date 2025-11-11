@@ -9,7 +9,10 @@
     "codegen": "envio codegen",
     "dev": "envio dev",
     "start": "envio start",
-    "test": "pnpm mocha"
+    "test": "pnpm mocha",
+    "db-up": "cd generated && pnpm db-up && cd -",
+    "db-down": "cd generated && pnpm db-down && cd -",
+    "db-setup": "cd generated && pnpm db-setup && cd -"
   },
   "devDependencies": {
     "@types/chai": "^4.3.11",

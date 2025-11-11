@@ -38,7 +38,7 @@ networks:
       url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
       - name: ModuleFactory
-        address: '0x273970F6c0F549738D08af40aebE18f4B69Fe646' # Will be updated after deployment
+        address: '0x2d3f5330c00b8fd269a9e7ebb7a7a7a70c321948' # Updated from latest deployment
       # FloorMarket and CreditFacility contracts are discovered dynamically via ModuleCreated events
       # They don't need addresses here - they'll be registered as events are processed
       - name: FloorMarket
