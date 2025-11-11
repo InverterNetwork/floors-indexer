@@ -1,0 +1,971 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "trustedForwarder_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "authorizer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "borrow",
+    "inputs": [
+      {
+        "name": "requestedLoanAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "borrowFor",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "requestedLoanAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "buyAndBorrow",
+    "inputs": [
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "leverage_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "consolidate_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loanIds_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "buyAndBorrowFor",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "leverage_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "consolidate_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loanIds_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "consolidateLoans",
+    "inputs": [
+      {
+        "name": "loanIds_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "newLoanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "feeTreasury",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "floor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBorrowingFeeRate",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "feeRate_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLoan",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loan_",
+        "type": "tuple",
+        "internalType": "struct ICreditFacility_v1.Loan",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "borrower",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "lockedIssuanceTokens",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "floorPriceAtBorrow",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "remainingLoanAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "isActive",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLoanToValueRatio",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "ratio_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getMaxLeverage",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "maxLeverage_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserLoanIds",
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loanIds_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserLoans",
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "loans_",
+        "type": "tuple[]",
+        "internalType": "struct ICreditFacility_v1.Loan[]",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "borrower",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "lockedIssuanceTokens",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "floorPriceAtBorrow",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "remainingLoanAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "isActive",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "init",
+    "inputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "configData_",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isTrustedForwarder",
+    "inputs": [
+      {
+        "name": "forwarder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "rebalanceLoan",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "releasedCollateralAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "repay",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "repaymentAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setBorrowingFeeRate",
+    "inputs": [
+      {
+        "name": "newFeeRate_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setLoanToValueRatio",
+    "inputs": [
+      {
+        "name": "newLoanToValueRatio_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMaxLeverage",
+    "inputs": [
+      {
+        "name": "newMaxLeverage_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId_",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferLoan",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newBorrower_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "trustedForwarder",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "BorrowingFeeRateUpdated",
+    "inputs": [
+      {
+        "name": "newFeeRate_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DynamicFeeCalculatorUpdated",
+    "inputs": [
+      {
+        "name": "newCalculator_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "IssuanceTokensLocked",
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "IssuanceTokensUnlocked",
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanClosed",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "borrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "issuanceTokensUnlocked_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanCreated",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "borrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "loanAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "floorPriceAtBorrow_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanRebalanced",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "oldLockedIssuanceTokens_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newLockedIssuanceTokens_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "oldFloorPrice_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "currentFloorPrice_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "releasedCollateralAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanRepaid",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "borrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "repaymentAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanToValueRatioUpdated",
+    "inputs": [
+      {
+        "name": "newRatio_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoanTransferred",
+    "inputs": [
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "previousBorrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newBorrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LoansConsolidated",
+    "inputs": [
+      {
+        "name": "borrower_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldLoanIds_",
+        "type": "uint256[]",
+        "indexed": false,
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "newLoanId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalCollateralAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalLockedIssuanceTokens_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MaxLeverageUpdated",
+    "inputs": [
+      {
+        "name": "newMaxLeverage_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ModuleInitialized",
+    "inputs": [
+      {
+        "name": "floor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "configData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CallerNotPermissioned",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_BorrowAmountTooSmall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_FloorPriceNotIncreased",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InsufficientCollateralForLeverage",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InsufficientIssuanceTokensReceived",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InsufficientLoansToConsolidate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidBorrowAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidFeeCalculatorAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidFeeRate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidLeverage",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidLoanId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidLoansForConsolidation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidReceiver",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidTokenReceiver",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_InvalidTransferRecipient",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_LoanToValueRatioTooHigh",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_NoCollateralAvailable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_NoIssuanceTokensReceived",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_NoLoansToConsolidate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_NoSegmentsConfigured",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
+]

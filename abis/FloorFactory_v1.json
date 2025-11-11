@@ -1,0 +1,495 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "trustedForwarder_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "acceptOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createFloor",
+    "inputs": [
+      {
+        "name": "floorConfig_",
+        "type": "tuple",
+        "internalType": "struct IFloorFactory_v1.ModuleConfig",
+        "components": [
+          {
+            "name": "metadata",
+            "type": "tuple",
+            "internalType": "struct IModuleFactory_v1.Metadata",
+            "components": [
+              {
+                "name": "majorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "patchVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "url",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "title",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "configData",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      },
+      {
+        "name": "authorizerConfig_",
+        "type": "tuple",
+        "internalType": "struct IFloorFactory_v1.ModuleConfig",
+        "components": [
+          {
+            "name": "metadata",
+            "type": "tuple",
+            "internalType": "struct IModuleFactory_v1.Metadata",
+            "components": [
+              {
+                "name": "majorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "patchVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "url",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "title",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "configData",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      },
+      {
+        "name": "feeTreasuryConfig_",
+        "type": "tuple",
+        "internalType": "struct IFloorFactory_v1.ModuleConfig",
+        "components": [
+          {
+            "name": "metadata",
+            "type": "tuple",
+            "internalType": "struct IModuleFactory_v1.Metadata",
+            "components": [
+              {
+                "name": "majorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "patchVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "url",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "title",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "configData",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      },
+      {
+        "name": "moduleConfigs_",
+        "type": "tuple[]",
+        "internalType": "struct IFloorFactory_v1.ModuleConfig[]",
+        "components": [
+          {
+            "name": "metadata",
+            "type": "tuple",
+            "internalType": "struct IModuleFactory_v1.Metadata",
+            "components": [
+              {
+                "name": "majorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minorVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "patchVersion",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "url",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "title",
+                "type": "string",
+                "internalType": "string"
+              }
+            ]
+          },
+          {
+            "name": "configData",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "floorAddress_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getFloorByID",
+    "inputs": [
+      {
+        "name": "id_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "floorAddress_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getFloorIDCounter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "counter_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getModuleFactory",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "moduleFactoryAddress_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "init",
+    "inputs": [
+      {
+        "name": "governor_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "moduleFactory_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isTrustedForwarder",
+    "inputs": [
+      {
+        "name": "forwarder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingOwner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId_",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "supportsInterface_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "trustedForwarder",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "FloorCreated",
+    "inputs": [
+      {
+        "name": "floorId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "floorProxy_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FloorFactoryInitialized",
+    "inputs": [
+      {
+        "name": "moduleFactory_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferStarted",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "FloorFactory__InvalidAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FloorFactory__InvalidId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OwnableInvalidOwner",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OwnableUnauthorizedAccount",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
+]

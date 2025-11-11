@@ -1,0 +1,1035 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "trustedForwarder_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "authorizer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "buy",
+    "inputs": [
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "buyFor",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "calculatePurchaseReturn",
+    "inputs": [
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "mintAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "calculateSaleReturn",
+    "inputs": [
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "redeemAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "closeBuy",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "closeSell",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "depositCollateralFrom",
+    "inputs": [
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "feeTreasury",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "floor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBuyFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "buyFee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getCollateralToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "collateralToken_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getFloorPrice",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getIssuanceToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "token_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSegments",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32[]",
+        "internalType": "PackedSegment[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSellFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "fee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getStaticPriceForBuying",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "buyPrice_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getStaticPriceForSelling",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "sellPrice_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getVirtualCollateralSupply",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "init",
+    "inputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "configData_",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isBuyOpen",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "isOpen_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isSellOpen",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "isOpen_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isTrustedForwarder",
+    "inputs": [
+      {
+        "name": "forwarder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "openBuy",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "openSell",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "reconfigureSegments",
+    "inputs": [
+      {
+        "name": "newSegments_",
+        "type": "bytes32[]",
+        "internalType": "PackedSegment[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sell",
+    "inputs": [
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sellTo",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setBuyFee",
+    "inputs": [
+      {
+        "name": "fee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSellFee",
+    "inputs": [
+      {
+        "name": "fee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setVirtualCollateralSupply",
+    "inputs": [
+      {
+        "name": "virtualSupply_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "trustedForwarder",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawCollateralTo",
+    "inputs": [
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BuyFeeUpdated",
+    "inputs": [
+      {
+        "name": "newBuyFee_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "oldBuyFee_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BuyingDisabled",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BuyingEnabled",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CollateralDeposited",
+    "inputs": [
+      {
+        "name": "sender_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newVirtualSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CollateralTokenSet",
+    "inputs": [
+      {
+        "name": "collateralToken_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "decimals_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CollateralWithdrawn",
+    "inputs": [
+      {
+        "name": "recipient_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newVirtualSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "IssuanceTokenSet",
+    "inputs": [
+      {
+        "name": "issuanceToken_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "decimals_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ModuleInitialized",
+    "inputs": [
+      {
+        "name": "floor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "configData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SegmentsSet",
+    "inputs": [
+      {
+        "name": "segments_",
+        "type": "bytes32[]",
+        "indexed": false,
+        "internalType": "PackedSegment[]"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SellFeeUpdated",
+    "inputs": [
+      {
+        "name": "newSellFee_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "oldSellFee_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SellingDisabled",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SellingEnabled",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TokensBought",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "receivedAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TokensSold",
+    "inputs": [
+      {
+        "name": "receiver_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "depositAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "receivedAmount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "seller_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VirtualCollateralAmountAdded",
+    "inputs": [
+      {
+        "name": "amountAdded_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VirtualCollateralAmountSubtracted",
+    "inputs": [
+      {
+        "name": "amountSubtracted_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VirtualCollateralSupplySet",
+    "inputs": [
+      {
+        "name": "newSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "oldSupply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__InsufficientIssuanceToSell",
+    "inputs": [
+      {
+        "name": "requested_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "available_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__InvalidPriceProgression",
+    "inputs": [
+      {
+        "name": "segmentIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "previousSegmentFinalPrice_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "nextSegmentInitialPrice_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__NoSegmentsConfigured",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__SingleStepMustBeFlat",
+    "inputs": [
+      {
+        "name": "segmentIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__SupplyExceedsCurveCapacity",
+    "inputs": [
+      {
+        "name": "providedSupply_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maxCapacity_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__TooManySegments",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__ZeroCollateralInput",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DiscreteCurveMathLib__ZeroIssuanceInput",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvarianceCheckFailed",
+    "inputs": [
+      {
+        "name": "newCalculatedReserve_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "currentVirtualCollateralSupply_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Module__CallerNotPermissioned",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__BuyingFunctionaltiesClosed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__InsufficientOutputAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__InvalidDepositAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__InvalidFeePercentage",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__InvalidMinAmountOut",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__InvalidRecipient",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__IssuanceBase__TradeAmountTooLow",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__RedeemingIssuanceBase__InsufficientCollateralForProjectFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__RedeemingIssuanceBase__SellingFunctionaltiesClosed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__VirtualCollateralSupplyBase__AddResultsInOverflow",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__VirtualCollateralSupplyBase__SubtractResultsInUnderflow",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__VirtualCollateralSupplyBase__VirtualSupplyCannotBeZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
+]
