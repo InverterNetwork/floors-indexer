@@ -5,11 +5,23 @@ import {
 } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
+  getOrCreateToken,
+  getOrCreateAccount,
+  formatAmount,
 } from './helpers'
+import type {
+  Market_t,
+  MarketState_t,
+} from '../generated/src/db/Entities.gen'
+import type {
+  MarketStatus_t,
+} from '../generated/src/db/Enums.gen'
 
 /**
  * @notice Event handler for ModuleCreated event
- * Populates ModuleRegistry with module addresses as they are created
+ * 1. Populates ModuleRegistry with module addresses as they are created
+ * 2. Creates Market and MarketState entities when BC (bonding curve) module is detected
+ * This ensures trading handlers have the required data to process events
  */
 ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
   // ModuleCreated event has: orchestrator, module, metadata
@@ -41,8 +53,58 @@ ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
   }
 
   context.ModuleRegistry.set(registry)
-})
 
-// Note: Market creation is tracked via ModuleCreated events from ModuleFactory
-// When a floor/market module is created, we populate ModuleRegistry
-// Market entities will be created when we detect the BC_* module type
+  // When the BC (bonding curve) module is created, bootstrap Market and MarketState entities
+  // This ensures trading handlers can find these entities when TokensBought/TokensSold events arrive
+  if (moduleType === 'fundingManager' && !existingRegistry?.fundingManager) {
+    // Create or get tokens (use empty address as placeholders - metadata could have token info)
+    const reserveToken = await getOrCreateToken(context, '')
+    const issuanceToken = await getOrCreateToken(context, '')
+    
+    // Create creator account (orchestrator/market creator)
+    const creator = await getOrCreateAccount(context, orchestrator)
+
+    // Bootstrap Market entity
+    const market: Market_t = {
+      id: marketId,
+      name: 'Market',  // TODO: Extract from deployment metadata
+      symbol: 'MKT',   // TODO: Extract from deployment metadata
+      description: '',
+      creator_id: creator.id,
+      factory_id: '', // Will be populated later if factory events are indexed
+      reserveToken_id: reserveToken.id,
+      issuanceToken_id: issuanceToken.id,
+      initialPriceRaw: 0n,
+      initialPriceFormatted: '0',
+      tradingFeeBps: 0n,
+      maxLTV: 0n,
+      maxSupplyRaw: 0n,
+      maxSupplyFormatted: '0',
+      createdAt: BigInt(event.block.timestamp),
+    }
+    context.Market.set(market)
+
+    // Bootstrap MarketState entity
+    const marketState: MarketState_t = {
+      id: marketId,
+      market_id: marketId,
+      currentPriceRaw: 0n,
+      currentPriceFormatted: '0',
+      floorPriceRaw: 0n,
+      floorPriceFormatted: '0',
+      totalSupplyRaw: 0n,
+      totalSupplyFormatted: '0',
+      marketSupplyRaw: 0n,
+      marketSupplyFormatted: '0',
+      floorSupplyRaw: 0n,
+      floorSupplyFormatted: '0',
+      status: 'ACTIVE' as MarketStatus_t,
+      isBuyOpen: true,
+      isSellOpen: true,
+      lastTradeTimestamp: 0n,
+      lastElevationTimestamp: 0n,
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    }
+    context.MarketState.set(marketState)
+  }
+})

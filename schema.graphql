@@ -41,18 +41,18 @@ enum CandlePeriod {
 # User Group (Query only when wallet connected)
 type Account {
   id: ID!
-  marketsCreated: [Market!]! @derivedFrom(field: "creator")
-  trades: [Trade!]! @derivedFrom(field: "user")
-  loans: [Loan!]! @derivedFrom(field: "borrower")
-  stakes: [Stake!]! @derivedFrom(field: "user")
-  presaleParticipations: [PresaleParticipation!]! @derivedFrom(field: "user")
-  userMarketPositions: [UserMarketPosition!]! @derivedFrom(field: "user")
+  marketsCreated: [Market!]! @derivedFrom(field: "creator_id")
+  trades: [Trade!]! @derivedFrom(field: "user_id")
+  loans: [Loan!]! @derivedFrom(field: "borrower_id")
+  stakes: [Stake!]! @derivedFrom(field: "user_id")
+  presaleParticipations: [PresaleParticipation!]! @derivedFrom(field: "user_id")
+  userMarketPositions: [UserMarketPosition!]! @derivedFrom(field: "user_id")
 }
 
 type UserMarketPosition {
   id: ID!
-  user: Account!
-  market: Market!
+  user_id: ID!
+  market_id: ID!
   fTokenBalanceRaw: BigInt!
   fTokenBalanceFormatted: String!
   reserveBalanceRaw: BigInt!
@@ -94,10 +94,10 @@ type Market {
   name: String!
   symbol: String!
   description: String!
-  creator: Account!
-  factory: FactoryContract!
-  reserveToken: Token!
-  issuanceToken: Token!
+  creator_id: ID!
+  factory_id: ID!
+  reserveToken_id: ID!
+  issuanceToken_id: ID!
   initialPriceRaw: BigInt!
   initialPriceFormatted: String!
   tradingFeeBps: BigInt!
@@ -105,9 +105,9 @@ type Market {
   maxSupplyRaw: BigInt!
   maxSupplyFormatted: String!
   createdAt: BigInt!
-  trades: [Trade!]! @derivedFrom(field: "market")
-  floorElevations: [FloorElevation!]! @derivedFrom(field: "market")
-  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market")
+  trades: [Trade!]! @derivedFrom(field: "market_id")
+  floorElevations: [FloorElevation!]! @derivedFrom(field: "market_id")
+  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market_id")
 }
 
 type ModuleRegistry {
@@ -130,36 +130,36 @@ type FactoryContract {
   creationFeeFormatted: String!
   feeCollector: String!
   createdAt: BigInt!
-  markets: [Market!]! @derivedFrom(field: "factory")
+  markets: [Market!]! @derivedFrom(field: "factory_id")
 }
 
 type CreditFacilityContract {
   id: ID!
-  collateralToken: Token!
-  borrowToken: Token!
+  collateralToken_id: ID!
+  borrowToken_id: ID!
   totalLoans: BigInt!
   totalVolumeRaw: BigInt!
   totalVolumeFormatted: String!
   createdAt: BigInt!
-  loans: [Loan!]! @derivedFrom(field: "facility")
+  loans: [Loan!]! @derivedFrom(field: "facility_id")
 }
 
 type StakingContract {
   id: ID!
-  stakingToken: Token!
-  rewardToken: Token!
+  stakingToken_id: ID!
+  rewardToken_id: ID!
   totalStakedRaw: BigInt!
   totalStakedFormatted: String!
   totalRewardsRaw: BigInt!
   totalRewardsFormatted: String!
   createdAt: BigInt!
-  stakes: [Stake!]! @derivedFrom(field: "contract")
+  stakes: [Stake!]! @derivedFrom(field: "contract_id")
 }
 
 type PreSaleContract {
   id: ID!
-  saleToken: Token!
-  purchaseToken: Token!
+  saleToken_id: ID!
+  purchaseToken_id: ID!
   startTime: BigInt!
   endTime: BigInt!
   maxLeverage: BigInt!
@@ -167,7 +167,7 @@ type PreSaleContract {
   totalRaisedFormatted: String!
   totalParticipants: BigInt!
   createdAt: BigInt!
-  participations: [PresaleParticipation!]! @derivedFrom(field: "presale")
+  participations: [PresaleParticipation!]! @derivedFrom(field: "presale_id")
 }
 
 # Dynamic Group (Poll frequently, small payloads)
@@ -194,8 +194,8 @@ type MarketState {
 
 type Trade {
   id: ID!
-  market: Market!
-  user: Account!
+  market_id: ID!
+  user_id: ID!
   tradeType: TradeType!
   tokenAmountRaw: BigInt!
   tokenAmountFormatted: String!
@@ -211,7 +211,7 @@ type Trade {
 
 type FloorElevation {
   id: ID!
-  market: Market!
+  market_id: ID!
   oldFloorPriceRaw: BigInt!
   oldFloorPriceFormatted: String!
   newFloorPriceRaw: BigInt!
@@ -224,7 +224,7 @@ type FloorElevation {
 
 type FeeDistribution {
   id: ID!
-  market: Market!
+  market_id: ID!
   floorAmountRaw: BigInt!
   floorAmountFormatted: String!
   stakingAmountRaw: BigInt!
@@ -237,8 +237,8 @@ type FeeDistribution {
 
 type Loan {
   id: ID!
-  borrower: Account!
-  facility: CreditFacilityContract!
+  borrower_id: ID!
+  facility_id: ID!
   collateralAmountRaw: BigInt!
   collateralAmountFormatted: String!
   borrowAmountRaw: BigInt!
@@ -252,8 +252,8 @@ type Loan {
 
 type Stake {
   id: ID!
-  user: Account!
-  contract: StakingContract!
+  user_id: ID!
+  contract_id: ID!
   amountRaw: BigInt!
   amountFormatted: String!
   lockDuration: BigInt!
@@ -264,8 +264,8 @@ type Stake {
 
 type PresaleParticipation {
   id: ID!
-  user: Account!
-  presale: PreSaleContract!
+  user_id: ID!
+  presale_id: ID!
   amountRaw: BigInt!
   amountFormatted: String!
   leverage: BigInt!
@@ -275,7 +275,7 @@ type PresaleParticipation {
 
 type MarketSnapshot {
   id: ID!
-  market: Market!
+  market_id: ID!
   timestamp: BigInt!
   priceRaw: BigInt!
   priceFormatted: String!
@@ -292,7 +292,7 @@ type MarketSnapshot {
 
 type PriceCandle {
   id: ID!
-  market: Market!
+  market_id: ID!
   period: CandlePeriod!
   timestamp: BigInt!
   openRaw: BigInt!
