@@ -68,19 +68,25 @@ ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
   )
 
   try {
-    // The marketId should be the orchestrator (the floor/market contract)
-    // NOT the BC module - they are different contracts
-    const marketId = orchestrator.toLowerCase()
+    // CRITICAL: The registry ID must match the Market ID for consistency
+    // For fundingManager modules: use the BC module address as the market ID
+    // For other modules: use the orchestrator address
+    let registryId = orchestrator.toLowerCase()
+    if (moduleType === 'fundingManager') {
+      registryId = module.toLowerCase()
+    }
 
-    context.log.info(`[ModuleCreated] Using marketId=${marketId} for orchestrator=${orchestrator}`)
+    context.log.info(
+      `[ModuleCreated] Using registryId=${registryId} | type=${moduleType} | orchestrator=${orchestrator} | module=${module}`
+    )
 
     // Get or create ModuleRegistry for this market
-    const existingRegistry = await context.ModuleRegistry.get(marketId)
+    const existingRegistry = await context.ModuleRegistry.get(registryId)
 
     // Create or update registry with new module address
     const registry = {
-      id: marketId,
-      market_id: marketId,
+      id: registryId,
+      market_id: registryId,
       fundingManager:
         moduleType === 'fundingManager' ? module : existingRegistry?.fundingManager || '',
       authorizer: moduleType === 'authorizer' ? module : existingRegistry?.authorizer || '',
@@ -94,7 +100,7 @@ ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
     }
 
     context.ModuleRegistry.set(registry)
-    context.log.info(`[ModuleCreated] ✅ ModuleRegistry updated | ${marketId}`)
+    context.log.info(`[ModuleCreated] ✅ ModuleRegistry updated | ${registryId}`)
 
     // When BC (bonding curve) module is created, bootstrap Market and MarketState
     // IMPORTANT: Market ID = BC module address (where events emit from), not orchestrator!

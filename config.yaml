@@ -38,10 +38,7 @@ networks:
       url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
       - name: ModuleFactory
-        address: '0x2d3f5330c00b8fd269a9e7ebb7a7a7a70c321948' # Updated from latest deployment
-      # FloorMarket contracts (BC modules) are dynamically discovered via ModuleCreated events
-      # The fundingManager field in ModuleRegistry contains the BC module address
-      # Envio will need these addresses to listen for TokensBought/TokensSold events
+        address: '0x2d3f5330c00b8fd269a9e7ebb7a7a7a70c321948'
       - name: FloorMarket
         address:
       - name: CreditFacility
