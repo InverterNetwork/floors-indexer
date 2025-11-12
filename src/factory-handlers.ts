@@ -45,23 +45,20 @@ ModuleFactory.ModuleCreated.handler(
     const title = metadata[4]
     const moduleType = extractModuleType(title)
 
-    let registryId = orchestrator.toLowerCase()
-    if (moduleType === 'fundingManager') {
-      registryId = module.toLowerCase()
-    }
+    // Always use orchestrator as the market ID (registry ID)
+    const marketId = orchestrator.toLowerCase()
 
     // Get or create ModuleRegistry for this market using helper
     const registry = await getOrCreateModuleRegistry(
       context,
-      registryId,
+      marketId,
       moduleType,
       module,
       BigInt(event.block.timestamp)
     )
 
-    if (moduleType === 'fundingManager' && !registry.fundingManager) {
-      const bcMarketId = module.toLowerCase()
-
+    // If this is a fundingManager module, create the Market and MarketState
+    if (moduleType === 'fundingManager') {
       // Try to fetch token addresses from the BC contract via RPC
       const tokenAddresses = await fetchTokenAddressesFromBC(event.chainId, module as `0x${string}`)
 
@@ -73,12 +70,12 @@ ModuleFactory.ModuleCreated.handler(
         issuanceTokenId = tokenAddresses.issuanceToken
       }
 
-      // Use the helper to create Market and MarketState properly
-      // This handles defensive creation and token fallbacks
+      // Use the orchestrator as market ID (not BC module address)
+      // This ensures Market.id matches ModuleRegistry.id
       const result = await getOrCreateMarket(
         context,
         event.chainId,
-        bcMarketId,
+        marketId,
         BigInt(event.block.timestamp),
         reserveTokenId,
         issuanceTokenId,

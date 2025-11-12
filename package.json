@@ -7,7 +7,7 @@
     "watch": "tsc --watch",
     "mocha": "ts-mocha test/**/*.ts",
     "codegen": "envio codegen",
-    "dev": "envio dev",
+    "dev": "LOG_LEVEL=debug LOG_STRATEGY=console-pretty TUI_OFF=true envio dev",
     "start": "envio start",
     "test": "pnpm mocha",
     "db-up": "cd generated && pnpm db-up && cd -",

@@ -38,7 +38,9 @@ enum CandlePeriod {
   ONE_DAY
 }
 
-# User Group (Query only when wallet connected)
+# User Group
+# ------------------------------------------------------------
+
 type Account {
   id: ID!
   marketsCreated: [Market!]! @derivedFrom(field: "creator_id")
@@ -51,160 +53,175 @@ type Account {
 
 type UserMarketPosition {
   id: ID!
+
   user_id: ID!
   market_id: ID!
+
   fTokenBalanceRaw: BigInt!
   fTokenBalanceFormatted: String!
+
   reserveBalanceRaw: BigInt!
   reserveBalanceFormatted: String!
+
   totalDebtRaw: BigInt!
   totalDebtFormatted: String!
+
   lockedCollateralRaw: BigInt!
   lockedCollateralFormatted: String!
+
   stakedAmountRaw: BigInt!
   stakedAmountFormatted: String!
+
   claimableRewardsRaw: BigInt!
   claimableRewardsFormatted: String!
+
   presaleDepositRaw: BigInt!
   presaleDepositFormatted: String!
+
   presaleLeverage: BigInt!
+
   lastUpdatedAt: BigInt!
 }
 
-type UserPortfolioSummary {
-  id: ID!
-  user_id: ID!
-  totalPortfolioValueRaw: BigInt!
-  totalPortfolioValueFormatted: String!
-  totalDebtRaw: BigInt!
-  totalDebtFormatted: String!
-  totalCollateralValueRaw: BigInt!
-  totalCollateralValueFormatted: String!
-  totalStakedValueRaw: BigInt!
-  totalStakedValueFormatted: String!
-  activeMarkets: BigInt!
-  activeLoans: BigInt!
-  activeStakes: BigInt!
-  lastUpdatedAt: BigInt!
-}
-
-# Static Group (Fetch once, cache client-side)
-type Market {
-  id: ID!
-  name: String!
-  symbol: String!
-  description: String!
-  creator_id: ID!
-  factory_id: ID!
-  reserveToken_id: ID!
-  issuanceToken_id: ID!
-  initialPriceRaw: BigInt!
-  initialPriceFormatted: String!
-  tradingFeeBps: BigInt!
-  maxLTV: BigInt!
-  maxSupplyRaw: BigInt!
-  maxSupplyFormatted: String!
-  createdAt: BigInt!
-  trades: [Trade!]! @derivedFrom(field: "market_id")
-  floorElevations: [FloorElevation!]! @derivedFrom(field: "market_id")
-  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market_id")
-}
+# Contracts
+# ------------------------------------------------------------
 
 type ModuleRegistry {
   id: ID!
-  market_id: ID!
-  fundingManager: String!
+
   authorizer: String!
   feeTreasury: String!
   creditFacility: String
   presale: String
   staking: String
+
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
 }
 
-type FactoryContract {
-  id: ID!
-  totalMarkets: BigInt!
-  creationFeeRaw: BigInt!
-  creationFeeFormatted: String!
-  feeCollector: String!
-  createdAt: BigInt!
-  markets: [Market!]! @derivedFrom(field: "factory_id")
-}
-
 type CreditFacilityContract {
   id: ID!
+
   collateralToken_id: ID!
   borrowToken_id: ID!
+
   totalLoans: BigInt!
+
   totalVolumeRaw: BigInt!
   totalVolumeFormatted: String!
+
   createdAt: BigInt!
   loans: [Loan!]! @derivedFrom(field: "facility_id")
 }
 
 type StakingContract {
   id: ID!
+
   stakingToken_id: ID!
   rewardToken_id: ID!
+
   totalStakedRaw: BigInt!
   totalStakedFormatted: String!
+
   totalRewardsRaw: BigInt!
   totalRewardsFormatted: String!
+
   createdAt: BigInt!
   stakes: [Stake!]! @derivedFrom(field: "contract_id")
 }
 
 type PreSaleContract {
   id: ID!
+
   saleToken_id: ID!
   purchaseToken_id: ID!
+
   startTime: BigInt!
   endTime: BigInt!
+
   maxLeverage: BigInt!
+
   totalRaisedRaw: BigInt!
   totalRaisedFormatted: String!
+
   totalParticipants: BigInt!
+
   createdAt: BigInt!
   participations: [PresaleParticipation!]! @derivedFrom(field: "presale_id")
 }
 
-# Dynamic Group (Poll frequently, small payloads)
-type MarketState {
+# Market
+# ------------------------------------------------------------
+
+type Market {
   id: ID!
-  market_id: ID!
+
+  creator_id: ID!
+  factory_id: ID!
+
+  reserveToken_id: ID!
+  issuanceToken_id: ID!
+
+  initialPriceRaw: BigInt!
+  initialPriceFormatted: String!
+
+  tradingFeeBps: BigInt!
+
+  maxLTV: BigInt!
+
+  maxSupplyRaw: BigInt!
+  maxSupplyFormatted: String!
+
   currentPriceRaw: BigInt!
   currentPriceFormatted: String!
+
   floorPriceRaw: BigInt!
   floorPriceFormatted: String!
+
   totalSupplyRaw: BigInt!
   totalSupplyFormatted: String!
+
   marketSupplyRaw: BigInt!
   marketSupplyFormatted: String!
+
   floorSupplyRaw: BigInt!
   floorSupplyFormatted: String!
+
   status: MarketStatus!
   isBuyOpen: Boolean!
   isSellOpen: Boolean!
+
   lastTradeTimestamp: BigInt!
   lastElevationTimestamp: BigInt!
   lastUpdatedAt: BigInt!
+
+  trades: [Trade!]! @derivedFrom(field: "market_id")
+  floorElevations: [FloorElevation!]! @derivedFrom(field: "market_id")
+  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market_id")
+
+  createdAt: BigInt!
 }
 
 type Trade {
   id: ID!
+
   market_id: ID!
   user_id: ID!
+
   tradeType: TradeType!
+
   tokenAmountRaw: BigInt!
   tokenAmountFormatted: String!
+
   reserveAmountRaw: BigInt!
   reserveAmountFormatted: String!
+
   feeRaw: BigInt!
   feeFormatted: String!
+
   newPriceRaw: BigInt!
   newPriceFormatted: String!
+
   timestamp: BigInt!
   transactionHash: String!
 }
@@ -212,12 +229,16 @@ type Trade {
 type FloorElevation {
   id: ID!
   market_id: ID!
+
   oldFloorPriceRaw: BigInt!
   oldFloorPriceFormatted: String!
+
   newFloorPriceRaw: BigInt!
   newFloorPriceFormatted: String!
+
   deployedAmountRaw: BigInt!
   deployedAmountFormatted: String!
+
   timestamp: BigInt!
   transactionHash: String!
 }
@@ -225,39 +246,53 @@ type FloorElevation {
 type FeeDistribution {
   id: ID!
   market_id: ID!
+
   floorAmountRaw: BigInt!
   floorAmountFormatted: String!
+
   stakingAmountRaw: BigInt!
   stakingAmountFormatted: String!
+
   treasuryAmountRaw: BigInt!
   treasuryAmountFormatted: String!
+
   timestamp: BigInt!
   transactionHash: String!
 }
 
 type Loan {
   id: ID!
+
   borrower_id: ID!
   facility_id: ID!
+
   collateralAmountRaw: BigInt!
   collateralAmountFormatted: String!
+
   borrowAmountRaw: BigInt!
   borrowAmountFormatted: String!
+
   originationFeeRaw: BigInt!
   originationFeeFormatted: String!
+
   status: LoanStatus!
+
   timestamp: BigInt!
   transactionHash: String!
 }
 
 type Stake {
   id: ID!
+
   user_id: ID!
   contract_id: ID!
+
   amountRaw: BigInt!
   amountFormatted: String!
+
   lockDuration: BigInt!
   status: StakeStatus!
+
   timestamp: BigInt!
   transactionHash: String!
 }
@@ -272,6 +307,9 @@ type PresaleParticipation {
   timestamp: BigInt!
   transactionHash: String!
 }
+
+# Historical Data
+# ------------------------------------------------------------
 
 type MarketSnapshot {
   id: ID!
@@ -307,4 +345,3 @@ type PriceCandle {
   volumeFormatted: String!
   trades: BigInt!
 }
-
