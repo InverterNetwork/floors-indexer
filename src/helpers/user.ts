@@ -1,9 +1,5 @@
 import { HandlerContext } from 'generated'
-import {
-  UserMarketPosition_t,
-  UserPortfolioSummary_t,
-  Account_t,
-} from 'generated/src/db/Entities.gen'
+import { UserMarketPosition_t, Account_t } from 'generated/src/db/Entities.gen'
 import { formatAmount } from './misc'
 
 /**
@@ -63,40 +59,4 @@ export async function getOrCreateUserMarketPosition(
   }
 
   return position
-}
-
-/**
- * Update UserPortfolioSummary aggregation
- * Recalculates all portfolio metrics for a user
- */
-export async function updateUserPortfolioSummary(
-  context: HandlerContext,
-  userId: string
-): Promise<void> {
-  // Calculate totals - placeholder implementation
-  // In production, would query user's positions and calculate aggregates
-  const summaryId = userId
-  const amount = formatAmount(0n, 18)
-  const debt = formatAmount(0n, 18)
-  const collateral = formatAmount(0n, 18)
-  const staked = formatAmount(0n, 18)
-
-  const summary: UserPortfolioSummary_t = {
-    id: summaryId,
-    user_id: userId,
-    totalPortfolioValueRaw: amount.raw,
-    totalPortfolioValueFormatted: amount.formatted,
-    totalDebtRaw: debt.raw,
-    totalDebtFormatted: debt.formatted,
-    totalCollateralValueRaw: collateral.raw,
-    totalCollateralValueFormatted: collateral.formatted,
-    totalStakedValueRaw: staked.raw,
-    totalStakedValueFormatted: staked.formatted,
-    activeMarkets: 0n,
-    activeLoans: 0n,
-    activeStakes: 0n,
-    lastUpdatedAt: BigInt(Math.floor(Date.now() / 1000)),
-  }
-
-  context.UserPortfolioSummary.set(summary)
 }

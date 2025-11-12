@@ -7,7 +7,6 @@ import {
   getOrCreateAccount,
   getOrCreateUserMarketPosition,
   formatAmount,
-  updateUserPortfolioSummary,
   updatePriceCandles,
   getOrCreateMarket,
   handlerErrorWrapper,
@@ -15,7 +14,7 @@ import {
 
 /**
  * @notice Event handler for TokensBought event
- * Creates Trade entity and updates MarketState with new supply and price
+ * Creates Trade entity and updates Market with new supply and price
  */
 FloorMarket.TokensBought.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -26,8 +25,8 @@ FloorMarket.TokensBought.handler(
     const marketId = event.srcAddress.toLowerCase()
     context.log.info(`[TokensBought] Using marketId: ${marketId}`)
 
-    // Get or create Market and MarketState
-    const marketData = await getOrCreateMarket(
+    // Get or create Market (contains both static and dynamic fields)
+    const market = await getOrCreateMarket(
       context,
       event.chainId,
       marketId,
@@ -37,12 +36,11 @@ FloorMarket.TokensBought.handler(
       event.srcAddress as `0x${string}`
     )
 
-    if (!marketData) {
+    if (!market) {
       context.log.error(`[TokensBought] Failed to get/create market for ${marketId}`)
       return
     }
 
-    const { market, marketState } = marketData
     context.log.info(
       `[TokensBought] Market loaded | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
     )
@@ -103,27 +101,27 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] ✅ Trade created | id=${tradeId} | type=BUY | tokens=${tokenAmount.formatted} | reserve=${reserveAmount.formatted}`
     )
 
-    // Update MarketState
-    const updatedMarketState = {
-      ...marketState,
+    // Update Market (dynamic state fields)
+    const updatedMarket = {
+      ...market,
       currentPriceRaw: newPrice.raw,
       currentPriceFormatted: newPrice.formatted,
-      totalSupplyRaw: marketState.totalSupplyRaw + event.params.receivedAmount_,
+      totalSupplyRaw: market.totalSupplyRaw + event.params.receivedAmount_,
       totalSupplyFormatted: formatAmount(
-        marketState.totalSupplyRaw + event.params.receivedAmount_,
+        market.totalSupplyRaw + event.params.receivedAmount_,
         issuanceToken.decimals
       ).formatted,
-      marketSupplyRaw: marketState.marketSupplyRaw + event.params.receivedAmount_,
+      marketSupplyRaw: market.marketSupplyRaw + event.params.receivedAmount_,
       marketSupplyFormatted: formatAmount(
-        marketState.marketSupplyRaw + event.params.receivedAmount_,
+        market.marketSupplyRaw + event.params.receivedAmount_,
         issuanceToken.decimals
       ).formatted,
       lastTradeTimestamp: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
-    context.MarketState.set(updatedMarketState)
+    context.Market.set(updatedMarket)
     context.log.info(
-      `[TokensBought] MarketState updated | totalSupply=${updatedMarketState.totalSupplyFormatted}`
+      `[TokensBought] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
 
     // Update UserMarketPosition
@@ -152,9 +150,6 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] UserPosition updated | fTokens=${updatedPosition.fTokenBalanceFormatted}`
     )
 
-    // Update portfolio summary
-    await updateUserPortfolioSummary(context, buyer.id)
-
     // Update price candles
     await updatePriceCandles(
       context,
@@ -176,7 +171,7 @@ FloorMarket.TokensBought.handler(
 
 /**
  * @notice Event handler for TokensSold event
- * Creates Trade entity and updates MarketState with new supply and price
+ * Creates Trade entity and updates Market with new supply and price
  */
 FloorMarket.TokensSold.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -187,8 +182,8 @@ FloorMarket.TokensSold.handler(
     const marketId = event.srcAddress.toLowerCase()
     context.log.info(`[TokensSold] Using marketId: ${marketId}`)
 
-    // Get or create Market and MarketState
-    const marketData = await getOrCreateMarket(
+    // Get or create Market (contains both static and dynamic fields)
+    const market = await getOrCreateMarket(
       context,
       event.chainId,
       marketId,
@@ -198,12 +193,11 @@ FloorMarket.TokensSold.handler(
       event.srcAddress as `0x${string}`
     )
 
-    if (!marketData) {
+    if (!market) {
       context.log.error(`[TokensSold] Failed to get/create market for ${marketId}`)
       return
     }
 
-    const { market, marketState } = marketData
     context.log.info(
       `[TokensSold] Market loaded | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
     )
@@ -264,27 +258,27 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] ✅ Trade created | id=${tradeId} | type=SELL | tokens=${tokenAmount.formatted} | reserve=${reserveAmount.formatted}`
     )
 
-    // Update MarketState
-    const updatedMarketState = {
-      ...marketState,
+    // Update Market (dynamic state fields)
+    const updatedMarket = {
+      ...market,
       currentPriceRaw: newPrice.raw,
       currentPriceFormatted: newPrice.formatted,
-      totalSupplyRaw: marketState.totalSupplyRaw - event.params.depositAmount_,
+      totalSupplyRaw: market.totalSupplyRaw - event.params.depositAmount_,
       totalSupplyFormatted: formatAmount(
-        marketState.totalSupplyRaw - event.params.depositAmount_,
+        market.totalSupplyRaw - event.params.depositAmount_,
         issuanceToken.decimals
       ).formatted,
-      marketSupplyRaw: marketState.marketSupplyRaw - event.params.depositAmount_,
+      marketSupplyRaw: market.marketSupplyRaw - event.params.depositAmount_,
       marketSupplyFormatted: formatAmount(
-        marketState.marketSupplyRaw - event.params.depositAmount_,
+        market.marketSupplyRaw - event.params.depositAmount_,
         issuanceToken.decimals
       ).formatted,
       lastTradeTimestamp: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
-    context.MarketState.set(updatedMarketState)
+    context.Market.set(updatedMarket)
     context.log.info(
-      `[TokensSold] MarketState updated | totalSupply=${updatedMarketState.totalSupplyFormatted}`
+      `[TokensSold] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
 
     // Update UserMarketPosition
@@ -313,9 +307,6 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] UserPosition updated | fTokens=${updatedPosition.fTokenBalanceFormatted}`
     )
 
-    // Update portfolio summary
-    await updateUserPortfolioSummary(context, seller.id)
-
     // Update price candles
     await updatePriceCandles(
       context,
@@ -337,86 +328,84 @@ FloorMarket.TokensSold.handler(
 
 /**
  * @notice Event handler for VirtualCollateralAmountAdded event
- * Updates MarketState floorSupply
+ * Updates Market floorSupply
  */
 FloorMarket.VirtualCollateralAmountAdded.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     context.log.info(`[VirtualCollateralAmountAdded] Event received from ${event.srcAddress}`)
     const marketId = event.srcAddress.toLowerCase()
 
-    const marketData = await getOrCreateMarket(
+    const market = await getOrCreateMarket(
       context,
       event.chainId,
       marketId,
       BigInt(event.block.timestamp)
     )
 
-    if (!marketData) {
+    if (!market) {
       context.log.warn(`[VirtualCollateralAmountAdded] Market not found: ${marketId}`)
       return
     }
 
-    const { market, marketState } = marketData
     const reserveToken = await context.Token.get(market.reserveToken_id)
     if (!reserveToken) {
       context.log.warn(`[VirtualCollateralAmountAdded] Reserve token not found`)
       return
     }
 
-    const updatedMarketState = {
-      ...marketState,
-      floorSupplyRaw: marketState.floorSupplyRaw + event.params.amountAdded_,
+    const updatedMarket = {
+      ...market,
+      floorSupplyRaw: market.floorSupplyRaw + event.params.amountAdded_,
       floorSupplyFormatted: formatAmount(
-        marketState.floorSupplyRaw + event.params.amountAdded_,
+        market.floorSupplyRaw + event.params.amountAdded_,
         reserveToken.decimals
       ).formatted,
       lastElevationTimestamp: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
-    context.MarketState.set(updatedMarketState)
+    context.Market.set(updatedMarket)
     context.log.info(`[VirtualCollateralAmountAdded] ✅ Updated floorSupply`)
   })
 )
 
 /**
  * @notice Event handler for VirtualCollateralAmountSubtracted event
- * Updates MarketState floorSupply
+ * Updates Market floorSupply
  */
 FloorMarket.VirtualCollateralAmountSubtracted.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     context.log.info(`[VirtualCollateralAmountSubtracted] Event received from ${event.srcAddress}`)
     const marketId = event.srcAddress.toLowerCase()
 
-    const marketData = await getOrCreateMarket(
+    const market = await getOrCreateMarket(
       context,
       event.chainId,
       marketId,
       BigInt(event.block.timestamp)
     )
 
-    if (!marketData) {
+    if (!market) {
       context.log.warn(`[VirtualCollateralAmountSubtracted] Market not found: ${marketId}`)
       return
     }
 
-    const { market, marketState } = marketData
     const reserveToken = await context.Token.get(market.reserveToken_id)
     if (!reserveToken) {
       context.log.warn(`[VirtualCollateralAmountSubtracted] Reserve token not found`)
       return
     }
 
-    const updatedMarketState = {
-      ...marketState,
-      floorSupplyRaw: marketState.floorSupplyRaw - event.params.amountSubtracted_,
+    const updatedMarket = {
+      ...market,
+      floorSupplyRaw: market.floorSupplyRaw - event.params.amountSubtracted_,
       floorSupplyFormatted: formatAmount(
-        marketState.floorSupplyRaw - event.params.amountSubtracted_,
+        market.floorSupplyRaw - event.params.amountSubtracted_,
         reserveToken.decimals
       ).formatted,
       lastElevationTimestamp: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
-    context.MarketState.set(updatedMarketState)
+    context.Market.set(updatedMarket)
     context.log.info(`[VirtualCollateralAmountSubtracted] ✅ Updated floorSupply`)
   })
 )

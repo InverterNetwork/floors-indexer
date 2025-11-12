@@ -76,11 +76,12 @@ export async function updatePriceCandles(
 
 /**
  * Create MarketSnapshot for historical data
+ * Note: Market entity contains both static and dynamic state fields
  */
 export async function createMarketSnapshot(
   context: HandlerContext,
   marketId: string,
-  marketState: {
+  market: {
     currentPriceRaw: bigint
     currentPriceFormatted: string
     floorPriceRaw: bigint
@@ -101,14 +102,14 @@ export async function createMarketSnapshot(
     id: snapshotId,
     market_id: marketId,
     timestamp,
-    priceRaw: marketState.currentPriceRaw,
-    priceFormatted: marketState.currentPriceFormatted,
-    floorPriceRaw: marketState.floorPriceRaw,
-    floorPriceFormatted: marketState.floorPriceFormatted,
-    totalSupplyRaw: marketState.totalSupplyRaw,
-    totalSupplyFormatted: marketState.totalSupplyFormatted,
-    marketSupplyRaw: marketState.marketSupplyRaw,
-    marketSupplyFormatted: marketState.marketSupplyFormatted,
+    priceRaw: market.currentPriceRaw,
+    priceFormatted: market.currentPriceFormatted,
+    floorPriceRaw: market.floorPriceRaw,
+    floorPriceFormatted: market.floorPriceFormatted,
+    totalSupplyRaw: market.totalSupplyRaw,
+    totalSupplyFormatted: market.totalSupplyFormatted,
+    marketSupplyRaw: market.marketSupplyRaw,
+    marketSupplyFormatted: market.marketSupplyFormatted,
     volume24hRaw: volume.raw,
     volume24hFormatted: volume.formatted,
     trades24h,

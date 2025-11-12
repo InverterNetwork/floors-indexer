@@ -2,13 +2,7 @@
 
 import { CreditFacility } from '../generated/src/Handlers.gen'
 import type { LoanStatus_t } from '../generated/src/db/Enums.gen'
-import {
-  getOrCreateAccount,
-  getOrCreateToken,
-  formatAmount,
-  updateUserPortfolioSummary,
-  handlerErrorWrapper,
-} from './helpers'
+import { getOrCreateAccount, getOrCreateToken, formatAmount, handlerErrorWrapper } from './helpers'
 
 /**
  * @notice Event handler for LoanCreated event
@@ -85,9 +79,6 @@ CreditFacility.LoanCreated.handler(
     context.log.info(
       `[LoanCreated] ✅ Loan created | loanId=${loanId} | amount=${loanAmount.formatted}`
     )
-
-    // Update UserMarketPosition
-    await updateUserPortfolioSummary(context, borrower.id)
   })
 )
 
@@ -138,9 +129,6 @@ CreditFacility.LoanRepaid.handler(
     context.log.info(
       `[LoanRepaid] ✅ Loan repaid | loanId=${loanId} | amount=${repaymentAmount.formatted}`
     )
-
-    // Update UserMarketPosition
-    await updateUserPortfolioSummary(context, borrower.id)
   })
 )
 
@@ -174,8 +162,6 @@ CreditFacility.LoanClosed.handler(
     }
     context.Loan.set(loan)
     context.log.info(`[LoanClosed] ✅ Loan closed | loanId=${loanId}`)
-
-    await updateUserPortfolioSummary(context, borrower.id)
   })
 )
 
@@ -191,9 +177,6 @@ CreditFacility.IssuanceTokensLocked.handler(
 
     const user = await getOrCreateAccount(context, event.params.user_)
     context.log.debug(`[IssuanceTokensLocked] Updating portfolio | userId=${user.id}`)
-
-    await updateUserPortfolioSummary(context, user.id)
-    context.log.info(`[IssuanceTokensLocked] ✅ Portfolio updated | userId=${user.id}`)
   })
 )
 
@@ -209,8 +192,5 @@ CreditFacility.IssuanceTokensUnlocked.handler(
 
     const user = await getOrCreateAccount(context, event.params.user_)
     context.log.debug(`[IssuanceTokensUnlocked] Updating portfolio | userId=${user.id}`)
-
-    await updateUserPortfolioSummary(context, user.id)
-    context.log.info(`[IssuanceTokensUnlocked] ✅ Portfolio updated | userId=${user.id}`)
   })
 )

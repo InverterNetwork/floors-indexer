@@ -19,7 +19,7 @@ const SELL_RECEIVED_AMOUNT = 4_900_500n // 4.900500 USDC with 6 decimals
 
 describe('Floor Markets Indexer', () => {
   describe('ModuleCreated Handler', () => {
-    it('creates Market and MarketState when BC module is created', async () => {
+    it('creates Market when BC module is created', async () => {
       const mockDb = MockDb.createMockDb()
 
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
@@ -39,23 +39,17 @@ describe('Floor Markets Indexer', () => {
 
       const updatedMockDb = await mockDb.processEvents([moduleCreatedEvent])
 
-      // Check ModuleRegistry was created
+      // Check ModuleRegistry was created (uses orchestrator as ID, no fundingManager field)
       const registry = updatedMockDb.entities.ModuleRegistry.get(MARKET_ADDRESS)
       assert.ok(registry, 'ModuleRegistry should exist')
-      assert.equal(registry?.fundingManager, BC_MODULE_ADDRESS, 'fundingManager should be set')
-      assert.equal(registry?.market_id, MARKET_ADDRESS, 'market_id should match orchestrator')
+      assert.equal(registry?.id, MARKET_ADDRESS, 'ModuleRegistry id should match orchestrator')
 
-      // Check Market was created
+      // Check Market was created (contains both static and dynamic fields)
       const market = updatedMockDb.entities.Market.get(MARKET_ADDRESS)
       assert.ok(market, 'Market should exist')
       assert.equal(market?.id, MARKET_ADDRESS, 'Market id should match orchestrator')
-
-      // Check MarketState was created
-      const marketState = updatedMockDb.entities.MarketState.get(MARKET_ADDRESS)
-      assert.ok(marketState, 'MarketState should exist')
-      assert.equal(marketState?.market_id, MARKET_ADDRESS, 'market_id should match')
-      assert.equal(marketState?.totalSupplyRaw, 0n, 'totalSupplyRaw should start at 0')
-      assert.equal(marketState?.status, 'ACTIVE', 'status should be ACTIVE')
+      assert.equal(market?.totalSupplyRaw, 0n, 'totalSupplyRaw should start at 0')
+      assert.equal(market?.status, 'ACTIVE', 'status should be ACTIVE')
     })
 
     it('creates Token entities with correct addresses when tokens are referenced', async () => {
@@ -85,10 +79,10 @@ describe('Floor Markets Indexer', () => {
   })
 
   describe('TokensBought Handler', () => {
-    it('creates Trade and updates MarketState', async () => {
+    it('creates Trade and updates Market', async () => {
       const mockDb = MockDb.createMockDb()
 
-      // First create Market and MarketState
+      // First create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
         orchestrator: MARKET_ADDRESS,
         module: BC_MODULE_ADDRESS,
@@ -171,20 +165,20 @@ describe('Floor Markets Indexer', () => {
       assert.equal(trade?.market_id, MARKET_ADDRESS, 'market_id should match')
       assert.equal(trade?.user_id, userAddress, 'user_id should match receiver')
 
-      // Check MarketState was updated
-      const marketState = dbAfterBuy.entities.MarketState.get(MARKET_ADDRESS)
-      assert.ok(marketState, 'MarketState should exist')
+      // Check Market was updated (dynamic fields)
+      const updatedMarket = dbAfterBuy.entities.Market.get(MARKET_ADDRESS)
+      assert.ok(updatedMarket, 'Market should exist')
       assert.equal(
-        marketState?.totalSupplyRaw,
+        updatedMarket?.totalSupplyRaw,
         BUY_RECEIVED_AMOUNT,
         'totalSupplyRaw should increase by receivedAmount'
       )
       assert.equal(
-        marketState?.marketSupplyRaw,
+        updatedMarket?.marketSupplyRaw,
         BUY_RECEIVED_AMOUNT,
         'marketSupplyRaw should increase by receivedAmount'
       )
-      assert.equal(marketState?.lastTradeTimestamp, 2000n, 'lastTradeTimestamp should be updated')
+      assert.equal(updatedMarket?.lastTradeTimestamp, 2000n, 'lastTradeTimestamp should be updated')
 
       // Check UserMarketPosition was updated
       const positionId = `${userAddress}-${MARKET_ADDRESS}`
@@ -217,7 +211,7 @@ describe('Floor Markets Indexer', () => {
 
       let db = mockDb.entities.Token.set(usdcToken).entities.Token.set(floorToken)
 
-      // Create Market and MarketState
+      // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
         orchestrator: MARKET_ADDRESS,
         module: BC_MODULE_ADDRESS,
@@ -274,7 +268,7 @@ describe('Floor Markets Indexer', () => {
   })
 
   describe('TokensSold Handler', () => {
-    it('creates Trade and updates MarketState', async () => {
+    it('creates Trade and updates Market', async () => {
       const mockDb = MockDb.createMockDb()
 
       // Set up tokens
@@ -293,7 +287,7 @@ describe('Floor Markets Indexer', () => {
 
       let db = mockDb.entities.Token.set(usdcToken).entities.Token.set(floorToken)
 
-      // Create Market and MarketState
+      // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
         orchestrator: MARKET_ADDRESS,
         module: BC_MODULE_ADDRESS,
@@ -318,12 +312,12 @@ describe('Floor Markets Indexer', () => {
         })
       }
 
-      // Set initial MarketState with some supply
+      // Set initial Market with some supply
       const initialSupply = BUY_RECEIVED_AMOUNT
-      const marketState = db.entities.MarketState.get(MARKET_ADDRESS)
-      if (marketState) {
-        db = db.entities.MarketState.set({
-          ...marketState,
+      const marketWithSupply = db.entities.Market.get(MARKET_ADDRESS)
+      if (marketWithSupply) {
+        db = db.entities.Market.set({
+          ...marketWithSupply,
           totalSupplyRaw: initialSupply,
           marketSupplyRaw: initialSupply,
         })
@@ -363,16 +357,16 @@ describe('Floor Markets Indexer', () => {
         'reserveAmountRaw should match receivedAmount'
       )
 
-      // Check MarketState was updated
-      const updatedMarketState = dbAfterSell.entities.MarketState.get(MARKET_ADDRESS)
-      assert.ok(updatedMarketState, 'MarketState should exist')
+      // Check Market was updated (dynamic fields)
+      const updatedMarket = dbAfterSell.entities.Market.get(MARKET_ADDRESS)
+      assert.ok(updatedMarket, 'Market should exist')
       assert.equal(
-        updatedMarketState?.totalSupplyRaw,
+        updatedMarket?.totalSupplyRaw,
         initialSupply - SELL_DEPOSIT_AMOUNT,
         'totalSupplyRaw should decrease by depositAmount'
       )
       assert.equal(
-        updatedMarketState?.marketSupplyRaw,
+        updatedMarket?.marketSupplyRaw,
         initialSupply - SELL_DEPOSIT_AMOUNT,
         'marketSupplyRaw should decrease by depositAmount'
       )

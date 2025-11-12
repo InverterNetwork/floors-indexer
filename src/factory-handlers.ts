@@ -34,7 +34,7 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
 
 /**
  * @notice Regular event handler for ModuleCreated event
- * Populates ModuleRegistry and creates Market/MarketState entities
+ * Populates ModuleRegistry and creates Market entity
  * for BC modules when they are first created
  */
 ModuleFactory.ModuleCreated.handler(
@@ -57,7 +57,7 @@ ModuleFactory.ModuleCreated.handler(
       BigInt(event.block.timestamp)
     )
 
-    // If this is a fundingManager module, create the Market and MarketState
+    // If this is a fundingManager module, create the Market entity
     if (moduleType === 'fundingManager') {
       // Try to fetch token addresses from the BC contract via RPC
       const tokenAddresses = await fetchTokenAddressesFromBC(event.chainId, module as `0x${string}`)
