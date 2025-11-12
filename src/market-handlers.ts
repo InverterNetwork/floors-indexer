@@ -10,18 +10,18 @@ import {
   updateUserPortfolioSummary,
   updatePriceCandles,
   getOrCreateMarket,
+  handlerErrorWrapper,
 } from './helpers'
 
 /**
  * @notice Event handler for TokensBought event
  * Creates Trade entity and updates MarketState with new supply and price
  */
-FloorMarket.TokensBought.handler(async ({ event, context }) => {
-  context.log.info(
-    `[TokensBought] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
-  )
-
-  try {
+FloorMarket.TokensBought.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    context.log.info(
+      `[TokensBought] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
+    )
     // The BC module address is the srcAddress, which is also the market ID
     const marketId = event.srcAddress.toLowerCase()
     context.log.info(`[TokensBought] Using marketId: ${marketId}`)
@@ -29,12 +29,12 @@ FloorMarket.TokensBought.handler(async ({ event, context }) => {
     // Get or create Market and MarketState
     const marketData = await getOrCreateMarket(
       context,
+      event.chainId,
       marketId,
       BigInt(event.block.timestamp),
       undefined,
       undefined,
-      event.srcAddress as `0x${string}`,
-      event.chainId
+      event.srcAddress as `0x${string}`
     )
 
     if (!marketData) {
@@ -171,24 +171,18 @@ FloorMarket.TokensBought.handler(async ({ event, context }) => {
     )
 
     context.log.info(`[TokensBought] ✅ Handler completed successfully`)
-  } catch (error) {
-    context.log.error(
-      `[TokensBought] ❌ Handler failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-    throw error
-  }
-})
+  })
+)
 
 /**
  * @notice Event handler for TokensSold event
  * Creates Trade entity and updates MarketState with new supply and price
  */
-FloorMarket.TokensSold.handler(async ({ event, context }) => {
-  context.log.info(
-    `[TokensSold] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
-  )
-
-  try {
+FloorMarket.TokensSold.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    context.log.info(
+      `[TokensSold] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
+    )
     // The BC module address is the srcAddress, which is also the market ID
     const marketId = event.srcAddress.toLowerCase()
     context.log.info(`[TokensSold] Using marketId: ${marketId}`)
@@ -196,12 +190,12 @@ FloorMarket.TokensSold.handler(async ({ event, context }) => {
     // Get or create Market and MarketState
     const marketData = await getOrCreateMarket(
       context,
+      event.chainId,
       marketId,
       BigInt(event.block.timestamp),
       undefined,
       undefined,
-      event.srcAddress as `0x${string}`,
-      event.chainId
+      event.srcAddress as `0x${string}`
     )
 
     if (!marketData) {
@@ -338,25 +332,24 @@ FloorMarket.TokensSold.handler(async ({ event, context }) => {
     )
 
     context.log.info(`[TokensSold] ✅ Handler completed successfully`)
-  } catch (error) {
-    context.log.error(
-      `[TokensSold] ❌ Handler failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-    throw error
-  }
-})
+  })
+)
 
 /**
  * @notice Event handler for VirtualCollateralAmountAdded event
  * Updates MarketState floorSupply
  */
-FloorMarket.VirtualCollateralAmountAdded.handler(async ({ event, context }) => {
-  context.log.info(`[VirtualCollateralAmountAdded] Event received from ${event.srcAddress}`)
-
-  try {
+FloorMarket.VirtualCollateralAmountAdded.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    context.log.info(`[VirtualCollateralAmountAdded] Event received from ${event.srcAddress}`)
     const marketId = event.srcAddress.toLowerCase()
 
-    const marketData = await getOrCreateMarket(context, marketId, BigInt(event.block.timestamp))
+    const marketData = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      BigInt(event.block.timestamp)
+    )
 
     if (!marketData) {
       context.log.warn(`[VirtualCollateralAmountAdded] Market not found: ${marketId}`)
@@ -382,24 +375,24 @@ FloorMarket.VirtualCollateralAmountAdded.handler(async ({ event, context }) => {
     }
     context.MarketState.set(updatedMarketState)
     context.log.info(`[VirtualCollateralAmountAdded] ✅ Updated floorSupply`)
-  } catch (error) {
-    context.log.error(
-      `[VirtualCollateralAmountAdded] ❌ Handler failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-})
+  })
+)
 
 /**
  * @notice Event handler for VirtualCollateralAmountSubtracted event
  * Updates MarketState floorSupply
  */
-FloorMarket.VirtualCollateralAmountSubtracted.handler(async ({ event, context }) => {
-  context.log.info(`[VirtualCollateralAmountSubtracted] Event received from ${event.srcAddress}`)
-
-  try {
+FloorMarket.VirtualCollateralAmountSubtracted.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    context.log.info(`[VirtualCollateralAmountSubtracted] Event received from ${event.srcAddress}`)
     const marketId = event.srcAddress.toLowerCase()
 
-    const marketData = await getOrCreateMarket(context, marketId, BigInt(event.block.timestamp))
+    const marketData = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      BigInt(event.block.timestamp)
+    )
 
     if (!marketData) {
       context.log.warn(`[VirtualCollateralAmountSubtracted] Market not found: ${marketId}`)
@@ -425,9 +418,5 @@ FloorMarket.VirtualCollateralAmountSubtracted.handler(async ({ event, context })
     }
     context.MarketState.set(updatedMarketState)
     context.log.info(`[VirtualCollateralAmountSubtracted] ✅ Updated floorSupply`)
-  } catch (error) {
-    context.log.error(
-      `[VirtualCollateralAmountSubtracted] ❌ Handler failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-})
+  })
+)
