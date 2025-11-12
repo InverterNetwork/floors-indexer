@@ -1,0 +1,283 @@
+---
+alwaysApply: true
+---
+
+# Envio Indexer Debugging & Testing Guide
+
+## Quick Start: Clean Restart
+
+```bash
+# 1. Kill all previous processes
+pkill -9 -f "ts-node\|envio\|bun dev" || true
+lsof -ti:9898 | xargs kill -9 2> /dev/null || true
+sleep 3
+
+# 2. Verify Docker is running
+docker ps
+
+# 3. Reset database and persisted state
+cd /Users/anon/Desktop/inverter/floormarkets/indexer
+rm -f generated/persisted_state.envio.json
+
+# 4. Start with proper environment variables
+export LOG_LEVEL="debug"
+export LOG_STRATEGY="console-pretty"
+export TUI_OFF="true"
+TUI_OFF=true LOG_LEVEL=debug LOG_STRATEGY=console-pretty bun dev > /tmp/indexer.log 2>&1 &
+echo $! > /tmp/indexer.pid
+sleep 45
+
+# 5. Check logs
+grep -E "handler called|Processing Tokens|Found orchestrator|Created Trade" /tmp/indexer.log | head -20
+```
+
+## Key Debugging Findings
+
+### 1. Process Management
+
+**Problem**: Port conflicts from previous indexer instances
+**Solution**:
+
+```bash
+# Kill all TypeScript/Envio processes
+pkill -9 -f "ts-node\|envio\|bun dev" || true
+
+# Kill indexer port only (don't kill 8080 - that's Docker/database)
+lsof -ti:9898 | xargs kill -9 2> /dev/null || true
+
+# Always wait 2-3 seconds after killing
+sleep 3
+```
+
+### 2. Environment Variables (CRITICAL)
+
+These must be set BEFORE starting the indexer:
+
+```bash
+export LOG_LEVEL="debug"             # Console log level (debug for development)
+export LOG_STRATEGY="console-pretty" # Human-readable colored logs
+export TUI_OFF="true"                # Disable terminal UI to see logs clearly
+export FILE_LOG_LEVEL="trace"        # (Optional) file log level
+export LOG_FILE="./debug.log"        # (Optional) save logs to file
+```
+
+**Why**: Without proper log configuration, handler logs are not visible even if they fire.
+
+### 3. Logger Setup in Handlers
+
+Use context.log in all handlers with structured logging:
+
+```typescript
+// At handler start - verify handler is called
+context.log.info(`Handler name called: param1=${value1}, param2=${value2}`)
+
+// For success cases
+context.log.info(`Created entity: ${entity.id}`)
+
+// For failures
+context.log.warn(`Could not find X, skipping event`)
+context.log.error(`Failed to process Y: ${error.message}`)
+
+// For debugging
+context.log.debug(`Fallback 2 success: BC module is ModuleRegistry ID`)
+```
+
+### 4. Database & State Reset
+
+Always reset for clean testing:
+
+```bash
+# Remove persisted state to force re-indexing from block 0
+rm -f generated/persisted_state.envio.json
+
+# Drop and recreate database
+cd generated && pnpm db-down && sleep 2 && pnpm db-up && cd -
+```
+
+### 5. Contract Address Configuration
+
+**Critical Discovery**: Dynamic contract discovery in config.yaml requires explicit addresses initially.
+
+**Problem**: Empty addresses for FloorMarket/CreditFacility meant Envio had no contracts to listen to
+
+```yaml
+# WRONG - handlers never called
+- name: FloorMarket
+  address: # Empty!
+```
+
+**Solution**: Provide contract addresses explicitly:
+
+```yaml
+# CORRECT - handlers will be called
+- name: FloorMarket
+  address: '0x88337Ee6A3c56636BAfe575c12fCe2a38dC9CEF6' # BC module address
+```
+
+### 6. Event Processing Flow
+
+```
+1. Indexer starts
+2. Connects to RPC (block 0 to current)
+3. "All events have been fetched" → Events found in chain
+4. Handlers should fire → Check logs
+5. Entities created in database
+6. Query GraphQL to verify
+```
+
+**If no handler logs appear**: Events were found but handlers weren't invoked (usually config issue or no contract addresses)
+
+## Testing Workflow
+
+### Step 1: Clean Start
+
+```bash
+# Kill and remove state
+pkill -9 -f "ts-node\|envio\|bun dev" || true
+lsof -ti:9898 | xargs kill -9 2> /dev/null || true
+rm -f /Users/anon/Desktop/inverter/floormarkets/indexer/generated/persisted_state.envio.json
+sleep 3
+```
+
+### Step 2: Verify Prerequisites
+
+```bash
+# Docker running
+docker ps
+
+# Check config.yaml has contract addresses
+grep -A 5 "contracts:" config.yaml
+```
+
+### Step 3: Start Indexer with Logging
+
+```bash
+cd /Users/anon/Desktop/inverter/floormarkets/indexer
+TUI_OFF=true LOG_LEVEL=debug LOG_STRATEGY=console-pretty bun dev > /tmp/indexer.log 2>&1 &
+echo $! > /tmp/indexer.pid
+sleep 45
+```
+
+### Step 4: Monitor Handler Invocations
+
+```bash
+# Watch for handler logs
+tail -f /tmp/indexer.log | grep -E "handler called|Processing|Found|Created|error|warn"
+
+# Or check batch
+grep -E "handler called|Processing|Found|Created" /tmp/indexer.log | head -30
+```
+
+### Step 5: Verify Database State
+
+```bash
+# Check GraphQL
+curl -s http://localhost:8080/v1/graphql -H "Content-Type: application/json" \
+  -d '{"query":"{ Trade { id } ModuleRegistry { id fundingManager } Market { id } }"}' \
+  | python3 -m json.tool
+```
+
+### Step 6: Stop Indexer
+
+```bash
+kill $(cat /tmp/indexer.pid 2> /dev/null) 2> /dev/null || true
+```
+
+## Common Issues & Solutions
+
+### Issue: "All events have been fetched" but no handler logs
+
+**Cause**: Contract addresses not configured in config.yaml
+**Fix**: Add explicit contract addresses to networks section
+
+### Issue: Port already in use (9898)
+
+**Cause**: Previous indexer still running
+**Fix**: Kill with `pkill -9 -f "ts-node\|envio"` and `lsof -ti:9898 | xargs kill -9` (don't kill 8080 - it's Docker)
+
+### Issue: Logs not appearing in terminal
+
+**Cause**: LOG_LEVEL/LOG_STRATEGY not set or TUI hiding output
+**Fix**: Set environment variables and use `TUI_OFF=true`
+
+### Issue: No GraphQL response
+
+**Cause**: Docker/database not running
+**Fix**: Verify with `docker ps` and wait for indexer to fully start (45+ seconds)
+
+### Issue: Stale data in database
+
+**Cause**: Persisted state file still exists
+**Fix**: Remove `generated/persisted_state.envio.json` before restart
+
+## Handler Logging Best Practices
+
+```typescript
+// 1. Entry point - verify handler is called
+context.log.info(`TokensBought handler invoked: market=${event.srcAddress}`)
+
+// 2. Key decision points
+if (!orchestrator) {
+  context.log.warn(`Could not determine orchestrator for BC ${event.srcAddress}, skipping`)
+  return
+}
+context.log.info(`Found orchestrator: ${orchestrator}`)
+
+// 3. Data operations
+context.log.debug(`Created Trade: ${tradeId}`)
+
+// 4. Errors with context
+context.log.error(`Failed to get Market ${marketId}`)
+
+// 5. Structured logging for debugging
+context.log.info('Processing trade', {
+  market: marketId,
+  user: userId,
+  amount: tokenAmount,
+  timestamp: blockTimestamp,
+})
+```
+
+## Environment Setup Checklist
+
+- [ ] Docker Desktop running (`docker ps` works)
+- [ ] Port 9898 is free (8080 should be used by Docker)
+- [ ] LOG_LEVEL=debug set
+- [ ] LOG_STRATEGY=console-pretty set
+- [ ] TUI_OFF=true set
+- [ ] persisted_state.envio.json removed
+- [ ] Contract addresses in config.yaml
+- [ ] All handlers have context.log calls
+- [ ] Sleep 45+ seconds after start before checking logs
+
+## Verification Commands
+
+```bash
+# Check logs exist and contain handler output
+grep "handler called\|Processing\|Created Trade" /tmp/indexer.log
+
+# Count handler invocations
+grep -c "handler called" /tmp/indexer.log
+
+# Check for errors
+grep "error\|Error\|failed" /tmp/indexer.log
+
+# Watch real-time logs
+tail -f /tmp/indexer.log | grep -E "Processing|Created|error"
+
+# Verify indexer is running
+ps aux | grep -E "ts-node|envio" | grep -v grep
+
+# Check port is listening
+lsof -i :9898
+```
+
+## Important Notes
+
+1. **Always kill before restart**: Leftover processes cause port conflicts
+2. **Logging is critical**: Set LOG_LEVEL/LOG_STRATEGY before starting
+3. **Contract addresses must be set**: Empty addresses mean no event processing
+4. **Persisted state blocks re-indexing**: Always delete before testing changes
+5. **Docker must be running**: Database requires it
+6. **Wait for startup**: Give indexer 45+ seconds to start and fetch events
+7. **Check logs first**: Handler logs reveal exactly what's happening
