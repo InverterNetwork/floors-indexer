@@ -2,7 +2,7 @@ import { getPublicClient } from '../rpc-client'
 import { erc20Abi } from 'viem'
 import { HandlerContext } from 'generated'
 import { Token_t } from 'generated/src/db/Entities.gen'
-import BC_ABI from '../../abis/BC_Discrete_Redeeming_VirtualSupply_v1.json'
+import FLOOR_ABI from '../../abis/Floor_v1.json'
 
 /**
  * Fetch token metadata from the contract
@@ -94,14 +94,14 @@ export async function fetchTokenAddressesFromBC(
     // Call getIssuanceToken() view function
     const issuanceToken = await publicClient.readContract({
       address: bcAddress,
-      abi: BC_ABI,
+      abi: FLOOR_ABI,
       functionName: 'getIssuanceToken',
     })
 
     // Call getCollateralToken() view function (reserve token)
     const reserveToken = await publicClient.readContract({
       address: bcAddress,
-      abi: BC_ABI,
+      abi: FLOOR_ABI,
       functionName: 'getCollateralToken',
     })
 

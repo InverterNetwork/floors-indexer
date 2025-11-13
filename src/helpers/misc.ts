@@ -19,7 +19,7 @@ export function formatAmount(raw: bigint, decimals: number): { raw: bigint; form
  * Extract module type from metadata title
  * Maps module titles to ModuleRegistry field names
  */
-export function extractModuleType(title: string): string {
+export function extractModuleType(title: string): 'floor' | 'authorizer' | 'unknown' | 'creditFacility' | 'feeTreasury' | 'presale' | 'staking' {
   const lower = title.toLowerCase()
 
   if (lower.includes('creditfacility')) return 'creditFacility'
@@ -28,10 +28,10 @@ export function extractModuleType(title: string): string {
   if (lower.includes('staking')) return 'staking'
 
   const prefix = title.split('_')[0]
-  const prefixMap: Record<string, string> = {
-    BC: 'fundingManager',
+  const prefixMap: Record<'Floor' | 'AUT', 'floor' | 'authorizer'> = {
+    Floor: 'floor',
     AUT: 'authorizer',
   }
 
-  return prefixMap[prefix] || 'unknown'
+  return prefixMap[prefix as keyof typeof prefixMap] || 'unknown'
 }

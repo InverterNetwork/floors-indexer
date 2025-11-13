@@ -13,10 +13,9 @@ contracts:
       - event: ModuleCreated
 
   - name: FloorMarket
-    abi_file_path: abis/BC_Discrete_Redeeming_VirtualSupply_v1.json
+    abi_file_path: abis/Floor_v1.json
     handler: src/index.ts
     events:
-      - event: BuyingEnabled
       - event: TokensBought
       - event: TokensSold
       - event: VirtualCollateralAmountAdded
@@ -39,7 +38,7 @@ networks:
       url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
       - name: ModuleFactory
-        address: '0xb11477efdfb4f0833bccff5c4e0325e017e941ea'
+        address: '0x1a97de28499218720a72e7ff0fe66a57bbde3b0b'
       - name: FloorMarket
         address:
       - name: CreditFacility

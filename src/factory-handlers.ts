@@ -21,8 +21,12 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
   const title = metadata[4]
   const moduleType = extractModuleType(title)
 
+  context.log.info(
+    `[contractRegister] Module detected | title=${title} | moduleType=${moduleType} | address=${module}`
+  )
+
   // Register BC (bonding curve) modules for TokensBought/TokensSold event listening
-  if (moduleType === 'fundingManager') {
+  if (moduleType === 'floor') {
     context.addFloorMarket(module as `0x${string}`)
   }
 
@@ -45,6 +49,10 @@ ModuleFactory.ModuleCreated.handler(
     const title = metadata[4]
     const moduleType = extractModuleType(title)
 
+    context.log.info(
+      `[ModuleCreated] Regular event handler | title=${title} | moduleType=${moduleType} | address=${module}`
+    )
+
     // Always use orchestrator as the market ID (registry ID)
     const marketId = orchestrator.toLowerCase()
 
@@ -58,7 +66,7 @@ ModuleFactory.ModuleCreated.handler(
     )
 
     // If this is a fundingManager module, create the Market entity
-    if (moduleType === 'fundingManager') {
+    if (moduleType === 'floor') {
       // Try to fetch token addresses from the BC contract via RPC
       const tokenAddresses = await fetchTokenAddressesFromBC(event.chainId, module as `0x${string}`)
 
