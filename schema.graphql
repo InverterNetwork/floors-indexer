@@ -97,6 +97,14 @@ type ModuleRegistry {
   lastUpdatedAt: BigInt!
 }
 
+type ModuleAddress {
+  id: ID!
+  market_id: ID!
+  moduleType: String!
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+}
+
 type CreditFacilityContract {
   id: ID!
 

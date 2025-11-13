@@ -1,5 +1,10 @@
 import assert from 'assert'
 import { TestHelpers } from 'generated'
+import { getAddress } from 'viem'
+
+import { __resetMarketHandlerTestState } from '../src/market-handlers'
+
+process.env.MOCK_RPC = 'true'
 
 const { MockDb, ModuleFactory, FloorMarket, Addresses } = TestHelpers
 
@@ -8,6 +13,11 @@ const USDC_ADDRESS = '0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8' as const
 const FLOOR_ADDRESS = '0xe38b6847e611e942e6c80ed89ae867f522402e80' as const
 const MARKET_ADDRESS = '0x8265551ebb0f42521a591590ef1fefc3d34f851d' as const
 const BC_MODULE_ADDRESS = '0x8265551ebb0f42521a591590ef1fefc3d34f851d' as const
+const MARKET_ADDRESS_2 = '0x1111111111111111111111111111111111111111' as const
+const BC_MODULE_ADDRESS_2 = '0x2222222222222222222222222222222222222222' as const
+
+const MARKET_ADDRESS_CHECKSUM = getAddress(MARKET_ADDRESS)
+const MARKET_ADDRESS_2_CHECKSUM = getAddress(MARKET_ADDRESS_2)
 
 // Test values
 const USDC_DECIMALS = 6
@@ -40,14 +50,18 @@ describe('Floor Markets Indexer', () => {
       const updatedMockDb = await mockDb.processEvents([moduleCreatedEvent])
 
       // Check ModuleRegistry was created (uses orchestrator as ID, no fundingManager field)
-      const registry = updatedMockDb.entities.ModuleRegistry.get(MARKET_ADDRESS)
+      const registry = updatedMockDb.entities.ModuleRegistry.get(MARKET_ADDRESS_CHECKSUM)
       assert.ok(registry, 'ModuleRegistry should exist')
-      assert.equal(registry?.id, MARKET_ADDRESS, 'ModuleRegistry id should match orchestrator')
+      assert.equal(
+        registry?.id,
+        MARKET_ADDRESS_CHECKSUM,
+        'ModuleRegistry id should match orchestrator'
+      )
 
       // Check Market was created (contains both static and dynamic fields)
-      const market = updatedMockDb.entities.Market.get(MARKET_ADDRESS)
+      const market = updatedMockDb.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       assert.ok(market, 'Market should exist')
-      assert.equal(market?.id, MARKET_ADDRESS, 'Market id should match orchestrator')
+      assert.equal(market?.id, MARKET_ADDRESS_CHECKSUM, 'Market id should match orchestrator')
       assert.equal(market?.totalSupplyRaw, 0n, 'totalSupplyRaw should start at 0')
       assert.equal(market?.status, 'ACTIVE', 'status should be ACTIVE')
     })
@@ -72,7 +86,7 @@ describe('Floor Markets Indexer', () => {
       const updatedMockDb = await mockDb.processEvents([moduleCreatedEvent])
 
       // Check that Market references token addresses (even if empty initially)
-      const market = updatedMockDb.entities.Market.get(MARKET_ADDRESS)
+      const market = updatedMockDb.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       assert.ok(market, 'Market should exist')
       // Token addresses should be set (implementation may need RPC calls)
     })
@@ -117,7 +131,7 @@ describe('Floor Markets Indexer', () => {
       dbWithModule = dbWithModule.entities.Token.set(floorToken)
 
       // Update Market to reference tokens
-      const market = dbWithModule.entities.Market.get(MARKET_ADDRESS)
+      const market = dbWithModule.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       if (market) {
         const updatedMarket = {
           ...market,
@@ -131,6 +145,7 @@ describe('Floor Markets Indexer', () => {
       // Note: srcAddress should be the BC module address, not the orchestrator
       // The handler will look up the orchestrator via RPC (or fallback to Market lookup in tests)
       const userAddress = Addresses.defaultAddress
+      const normalizedUserAddress = getAddress(userAddress as `0x${string}`)
       const tokensBoughtEvent = FloorMarket.TokensBought.createMockEvent({
         receiver_: userAddress,
         depositAmount_: BUY_DEPOSIT_AMOUNT,
@@ -162,11 +177,11 @@ describe('Floor Markets Indexer', () => {
         BUY_DEPOSIT_AMOUNT,
         'reserveAmountRaw should match depositAmount'
       )
-      assert.equal(trade?.market_id, MARKET_ADDRESS, 'market_id should match')
-      assert.equal(trade?.user_id, userAddress, 'user_id should match receiver')
+      assert.equal(trade?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
+      assert.equal(trade?.user_id, normalizedUserAddress, 'user_id should match receiver')
 
       // Check Market was updated (dynamic fields)
-      const updatedMarket = dbAfterBuy.entities.Market.get(MARKET_ADDRESS)
+      const updatedMarket = dbAfterBuy.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       assert.ok(updatedMarket, 'Market should exist')
       assert.equal(
         updatedMarket?.totalSupplyRaw,
@@ -181,7 +196,7 @@ describe('Floor Markets Indexer', () => {
       assert.equal(updatedMarket?.lastTradeTimestamp, 2000n, 'lastTradeTimestamp should be updated')
 
       // Check UserMarketPosition was updated
-      const positionId = `${userAddress}-${MARKET_ADDRESS}`
+      const positionId = `${normalizedUserAddress}-${getAddress(MARKET_ADDRESS)}`
       const position = dbAfterBuy.entities.UserMarketPosition.get(positionId)
       assert.ok(position, 'UserMarketPosition should exist')
       assert.equal(
@@ -226,7 +241,7 @@ describe('Floor Markets Indexer', () => {
       db = await db.processEvents([moduleCreatedEvent])
 
       // Update Market to reference tokens
-      const market = db.entities.Market.get(MARKET_ADDRESS)
+      const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       if (market) {
         db = db.entities.Market.set({
           ...market,
@@ -266,6 +281,94 @@ describe('Floor Markets Indexer', () => {
     })
   })
 
+  describe('Derived metrics', () => {
+    it('updates rolling stats and global stats after a trade', async () => {
+      __resetMarketHandlerTestState()
+      const mockDb = MockDb.createMockDb()
+
+      const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        orchestrator: MARKET_ADDRESS_2,
+        module: BC_MODULE_ADDRESS_2,
+        metadata: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'BC_Discrete_Redeeming_VirtualSupply_v1',
+        ],
+        mockEventData: {
+          block: { timestamp: 1000 },
+        },
+      })
+
+      const usdcToken = {
+        id: USDC_ADDRESS,
+        name: 'Test USDC',
+        symbol: 'TUSDC',
+        decimals: USDC_DECIMALS,
+      }
+      const floorToken = {
+        id: FLOOR_ADDRESS,
+        name: 'Floor Token',
+        symbol: 'FLOOR',
+        decimals: FLOOR_DECIMALS,
+      }
+
+      let db = await mockDb.processEvents([moduleCreatedEvent])
+      db = db.entities.Token.set(usdcToken).entities.Token.set(floorToken)
+
+      const market = db.entities.Market.get(MARKET_ADDRESS_2_CHECKSUM)
+      if (market) {
+        db = db.entities.Market.set({
+          ...market,
+          reserveToken_id: USDC_ADDRESS,
+          issuanceToken_id: FLOOR_ADDRESS,
+        })
+      }
+
+      const initialGlobalStats = db.entities.GlobalStats.get('global')
+
+      const tokensBoughtEvent = FloorMarket.TokensBought.createMockEvent({
+        receiver_: Addresses.defaultAddress,
+        depositAmount_: BUY_DEPOSIT_AMOUNT,
+        receivedAmount_: BUY_RECEIVED_AMOUNT,
+        buyer_: Addresses.defaultAddress,
+        mockEventData: {
+          srcAddress: BC_MODULE_ADDRESS_2,
+          chainId: 31337,
+          block: { timestamp: 4000 },
+          transaction: { hash: '0x789' },
+          logIndex: 0,
+        },
+      })
+
+      const dbAfterBuy = await db.processEvents([tokensBoughtEvent])
+
+      const rollingStatsId = `${MARKET_ADDRESS_2}-86400`
+      const rollingStats = dbAfterBuy.entities.MarketRollingStats.get(rollingStatsId)
+      assert.ok(rollingStats, 'MarketRollingStats should exist')
+      assert.equal(
+        rollingStats?.volumeRaw,
+        BUY_DEPOSIT_AMOUNT,
+        'rolling volume should match deposit amount'
+      )
+      assert.equal(rollingStats?.tradeCount, 1n, 'rolling trade count should be 1')
+
+      const globalStats = dbAfterBuy.entities.GlobalStats.get('global')
+      assert.ok(globalStats, 'GlobalStats should exist')
+      assert.ok((globalStats?.totalMarkets ?? 0n) >= 1n, 'totalMarkets should be at least 1')
+      assert.ok((globalStats?.activeMarkets ?? 0n) >= 1n, 'activeMarkets should be at least 1')
+      const expectedGlobalVolume = BUY_DEPOSIT_AMOUNT * 10n ** 12n
+      const initialVolume = initialGlobalStats?.totalVolumeRaw ?? 0n
+      const volumeDelta = (globalStats?.totalVolumeRaw ?? 0n) - initialVolume
+      assert.equal(
+        volumeDelta,
+        expectedGlobalVolume,
+        'global volume should normalize to 18 decimals'
+      )
+    })
+  })
+
   describe('TokensSold Handler', () => {
     it('creates Trade and updates Market', async () => {
       const mockDb = MockDb.createMockDb()
@@ -302,7 +405,7 @@ describe('Floor Markets Indexer', () => {
       db = await db.processEvents([moduleCreatedEvent])
 
       // Update Market to reference tokens
-      const market = db.entities.Market.get(MARKET_ADDRESS)
+      const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       if (market) {
         db = db.entities.Market.set({
           ...market,
@@ -313,7 +416,7 @@ describe('Floor Markets Indexer', () => {
 
       // Set initial Market with some supply
       const initialSupply = BUY_RECEIVED_AMOUNT
-      const marketWithSupply = db.entities.Market.get(MARKET_ADDRESS)
+      const marketWithSupply = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       if (marketWithSupply) {
         db = db.entities.Market.set({
           ...marketWithSupply,
@@ -357,7 +460,7 @@ describe('Floor Markets Indexer', () => {
       )
 
       // Check Market was updated (dynamic fields)
-      const updatedMarket = dbAfterSell.entities.Market.get(MARKET_ADDRESS)
+      const updatedMarket = dbAfterSell.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       assert.ok(updatedMarket, 'Market should exist')
       assert.equal(
         updatedMarket?.totalSupplyRaw,
@@ -395,7 +498,7 @@ describe('Floor Markets Indexer', () => {
       const dbAfterTrade = await mockDb.processEvents([tokensBoughtEvent])
 
       // Market may not exist, but handler should handle gracefully
-      const market = dbAfterTrade.entities.Market.get(MARKET_ADDRESS)
+      const market = dbAfterTrade.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       // Handler may return early if market doesn't exist, which is acceptable
       // Or it may create entities defensively (preferred)
     })

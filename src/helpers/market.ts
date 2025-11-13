@@ -2,6 +2,7 @@ import type { HandlerContext } from 'generated'
 import type { Market_t } from 'generated/src/db/Entities.gen'
 import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
+import { normalizeAddress } from './misc'
 import { fetchTokenAddressesFromBC, getOrCreateToken } from './token'
 import { getOrCreateAccount } from './user'
 
@@ -25,9 +26,9 @@ export async function getOrCreateMarket(
   creatorAddress?: string,
   factoryAddress?: string
 ): Promise<Market_t | null> {
-  const normalizedMarketId = marketId.toLowerCase()
-  const normalizedCreator = creatorAddress ? creatorAddress.toLowerCase() : normalizedMarketId
-  const normalizedFactory = factoryAddress ? factoryAddress.toLowerCase() : 'unknown-factory'
+  const normalizedMarketId = normalizeAddress(marketId)
+  const normalizedCreator = creatorAddress ? normalizeAddress(creatorAddress) : normalizedMarketId
+  const normalizedFactory = factoryAddress ? normalizeAddress(factoryAddress) : 'unknown-factory'
 
   let market = await context.Market.get(normalizedMarketId)
 

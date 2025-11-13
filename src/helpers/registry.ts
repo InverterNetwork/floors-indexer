@@ -1,5 +1,7 @@
 import type { HandlerContext } from 'generated'
-import type { ModuleRegistry_t } from 'generated/src/db/Entities.gen'
+import type { ModuleAddress_t, ModuleRegistry_t } from 'generated/src/db/Entities.gen'
+
+import { normalizeAddress } from './misc'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -21,8 +23,8 @@ export async function getOrCreateModuleRegistry(
   module: string,
   timestamp: bigint
 ): Promise<ModuleRegistry_t> {
-  const normalizedMarketId = marketId.toLowerCase()
-  const normalizedModule = module.toLowerCase()
+  const normalizedMarketId = normalizeAddress(marketId)
+  const normalizedModule = normalizeAddress(module)
 
   // Get existing registry if it exists
   const existingRegistry = await context.ModuleRegistry.get(normalizedMarketId)
@@ -57,6 +59,7 @@ export async function getOrCreateModuleRegistry(
   }
 
   context.ModuleRegistry.set(registry)
+  await upsertModuleAddress(context, normalizedModule, normalizedMarketId, moduleType, timestamp)
 
   const moduleSnapshot = {
     floor: registry.floor || 'none',
@@ -74,4 +77,36 @@ export async function getOrCreateModuleRegistry(
   )
 
   return registry
+}
+
+async function upsertModuleAddress(
+  context: HandlerContext,
+  moduleAddress: string,
+  marketId: string,
+  moduleType: string,
+  timestamp: bigint
+): Promise<void> {
+  if (!moduleType || moduleType === 'unknown') {
+    return
+  }
+
+  const existing: ModuleAddress_t | undefined = await context.ModuleAddress.get(moduleAddress)
+  const entry: ModuleAddress_t = {
+    id: moduleAddress,
+    market_id: marketId,
+    moduleType,
+    createdAt: existing?.createdAt || timestamp,
+    lastUpdatedAt: timestamp,
+  }
+
+  context.ModuleAddress.set(entry)
+}
+
+export async function getMarketIdForModule(
+  context: HandlerContext,
+  moduleAddress: string
+): Promise<string | null> {
+  const normalizedModule = normalizeAddress(moduleAddress)
+  const mapping = await context.ModuleAddress.get(normalizedModule)
+  return mapping?.market_id ?? null
 }

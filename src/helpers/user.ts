@@ -1,7 +1,7 @@
 import type { HandlerContext } from 'generated'
 import type { Account_t, UserMarketPosition_t } from 'generated/src/db/Entities.gen'
 
-import { formatAmount } from './misc'
+import { formatAmount, normalizeAddress } from './misc'
 
 /**
  * Get or create Account entity
@@ -10,7 +10,7 @@ export async function getOrCreateAccount(
   context: HandlerContext,
   address: string
 ): Promise<Account_t> {
-  const normalizedAddress = address.toLowerCase()
+  const normalizedAddress = normalizeAddress(address)
   let account = await context.Account.get(normalizedAddress)
 
   if (!account) {
@@ -30,15 +30,17 @@ export async function getOrCreateUserMarketPosition(
   marketId: string,
   tokenDecimals: number = 18
 ): Promise<UserMarketPosition_t> {
-  const positionId = `${userId.toLowerCase()}-${marketId.toLowerCase()}`
+  const normalizedUserId = normalizeAddress(userId)
+  const normalizedMarketId = normalizeAddress(marketId)
+  const positionId = `${normalizedUserId}-${normalizedMarketId}`
   let position = await context.UserMarketPosition.get(positionId)
 
   if (!position) {
     const zeroAmount = formatAmount(0n, tokenDecimals)
     position = {
       id: positionId,
-      user_id: userId.toLowerCase(),
-      market_id: marketId.toLowerCase(),
+      user_id: normalizedUserId,
+      market_id: normalizedMarketId,
       netFTokenChangeRaw: zeroAmount.raw,
       netFTokenChangeFormatted: zeroAmount.formatted,
       totalDebtRaw: zeroAmount.raw,

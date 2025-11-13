@@ -1,3 +1,5 @@
+import { getAddress } from 'viem'
+
 /**
  * Format a raw BigInt amount with decimals into Amount type
  * Example: formatAmount(9900000n, 18) -> { raw: 9900000n, formatted: "9.9" }
@@ -28,6 +30,7 @@ export function extractModuleType(
   if (lower.includes('treasury') || lower.includes('splitter')) return 'feeTreasury'
   if (lower.includes('presale')) return 'presale'
   if (lower.includes('staking')) return 'staking'
+  if (lower.includes('floor') || lower.startsWith('bc')) return 'floor'
 
   const prefix = title.split('_')[0]
   const prefixMap: Record<'Floor' | 'AUT', 'floor' | 'authorizer'> = {
@@ -45,15 +48,27 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
  * Prefer the orchestrator (market) address unless it is unset/zero.
  */
 export function resolveMarketId(orchestrator: string, module: string): string {
-  const normalizedModule = module.toLowerCase()
+  const normalizedModule = normalizeAddress(module)
   if (!orchestrator) {
     return normalizedModule
   }
 
-  const normalizedOrchestrator = orchestrator.toLowerCase()
+  const normalizedOrchestrator = normalizeAddress(orchestrator)
   if (normalizedOrchestrator === ZERO_ADDRESS) {
     return normalizedModule
   }
 
   return normalizedOrchestrator
+}
+
+export function normalizeAddress(address: string): string {
+  if (!address || !address.startsWith('0x')) {
+    return address
+  }
+
+  try {
+    return getAddress(address as `0x${string}`)
+  } catch {
+    return address
+  }
 }

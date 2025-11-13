@@ -13,11 +13,12 @@ import {
   getOrCreateAccount,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
+  normalizeAddress,
 } from './helpers'
 
 CreditFacility.LoanCreated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const facilityId = event.srcAddress.toLowerCase()
+    const facilityId = normalizeAddress(event.srcAddress)
     const timestamp = BigInt(event.block.timestamp)
     const facilityContext = await loadFacilityContext(context, facilityId)
 
@@ -112,7 +113,7 @@ CreditFacility.LoanCreated.handler(
 
 CreditFacility.LoanRepaid.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const facilityId = event.srcAddress.toLowerCase()
+    const facilityId = normalizeAddress(event.srcAddress)
     const timestamp = BigInt(event.block.timestamp)
     const facilityContext = await loadFacilityContext(context, facilityId)
 
@@ -196,7 +197,7 @@ CreditFacility.LoanRepaid.handler(
 
 CreditFacility.LoanClosed.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const facilityId = event.srcAddress.toLowerCase()
+    const facilityId = normalizeAddress(event.srcAddress)
     const timestamp = BigInt(event.block.timestamp)
     const facilityContext = await loadFacilityContext(context, facilityId)
 

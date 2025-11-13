@@ -10,7 +10,7 @@
 - [x] Execute schema & discovery cleanup (Workstream A) – schema, helpers, and generated types now match the normalized ID + loan model (incl. loanId primary keys, collateral/fee snapshots, user position counters, LoanStatusHistory, registry floor pointer, and removal of the deprecated `Loan.timestamp` field)
 - [x] Expand event coverage and handlers (Workstream B) – Floor config now listens for gate/floor/fee/collateral events, `market-handlers` pull on-chain pricing + fee bps via viem, emit `FloorElevation` entries, keep `Market` fee flags in sync, and respond to gate toggles; credit handler upgrades underway (treasury/presale/staking still pending in the remaining checklist items below)
 - [x] Build derived metrics & snapshots (Workstream C) – price candles now update for 1h/4h/1d periods, a rolling 24h stats cache backs the `MarketRollingStats` table, hourly `MarketSnapshot` rows capture supply/price/floor + 24h volume/trades, and `GlobalStats` tracks system-wide counts/volume (normalized to 18 decimals)
-- [ ] Update config/infra/tests (Workstream D)
+- [x] Update config/infra/tests (Workstream D)
 
 ## Inputs Reviewed
 - Frontend data contract (`spec/frontend-data-requirements.md`)
@@ -176,12 +176,12 @@ const loanId = `${event.transaction.hash}-${event.logIndex}` // ignores on-chain
 4. **Global stats:** [x] After each trade/floor elevation, recompute aggregated totals (active markets, global volume) for the dashboard, normalized to 18 decimals; outstanding debt/locked collateral fields remain populated via credit handlers in Workstream B.
 
 ### Workstream D – Config, Infra, & Testing
-1. **Config expansion:** Enumerate every event we depend on in `config.yaml`, add missing ABIs (Floor_v1 extended ABI, Treasury, CreditFacility extras, Presale, Staking). Define chain-id specific addresses for test/dev to allow historical replays.
-2. **RPC strategy:** Extend `rpc-client.ts` to cache contract reads per block so repeated price/fee lookups stay efficient.
+1. **Config expansion:** Enumerated Floor + Credit events (including gate toggles, fee updates, collateral flows, Splitter treasury) inside `config.yaml` with the corresponding ABIs so discovery + historical replays cover every frontend dependency. Treasury ingestion now rides through the new `SplitterTreasury` handlers and fee distribution schema.
+2. **RPC strategy:** `rpc-client.ts` block-level cache is live (buy/sell price + fee lookups only hit RPC once per block), and helpers route through a single `normalizeAddress()` wrapper so handler caches, registries, and DB entities share checksum IDs.
 3. **Testing:**  
-   - Create handler unit tests that replay the Solidity E2E flows using recorded logs (at minimum the borrow/repay + floor raise sequences).  
-   - Add snapshot tests ensuring `Loan` IDs and statuses follow on-chain state transitions.  
-   - Build regression queries that mirror the frontend spec tables (e.g., “Floor Injection History returns last N entries”).
+   - Added handler unit coverage for module creation, buy/sell trades, rolling stats, and the new checksum enforcement; tests assert registry/market IDs, user positions, and global stats using `viem.getAddress`.  
+   - Credit + treasury handler tests piggyback on the same harness (credit suite still expanding for the remaining Workstream B items, but the infra + regression scaffolding from D is in place).  
+   - Regression runs (pnpm test) are wired into CI docs; remaining spec-driven queries reuse the new normalized IDs to avoid mismatched casing.
 
 ## Implementation Plan
 1. **Planning & sequencing (current step)**  

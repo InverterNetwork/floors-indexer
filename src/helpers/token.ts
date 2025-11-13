@@ -1,8 +1,10 @@
-import { getPublicClient } from '../rpc-client'
+import type { HandlerContext } from 'generated'
+import type { Token_t } from 'generated/src/db/Entities.gen'
 import { erc20Abi } from 'viem'
-import { HandlerContext } from 'generated'
-import { Token_t } from 'generated/src/db/Entities.gen'
+
 import FLOOR_ABI from '../../abis/Floor_v1.json'
+import { getPublicClient } from '../rpc-client'
+import { normalizeAddress } from './misc'
 
 /**
  * Fetch token metadata from the contract
@@ -63,7 +65,7 @@ export async function getOrCreateToken(
   chainId: number,
   address: string
 ): Promise<Token_t> {
-  const normalizedAddress = address.toLowerCase()
+  const normalizedAddress = normalizeAddress(address)
   let token = await context.Token.get(normalizedAddress)
 
   if (!token) {
@@ -88,6 +90,10 @@ export async function fetchTokenAddressesFromBC(
   chainId: number,
   bcAddress: `0x${string}`
 ): Promise<{ issuanceToken: `0x${string}`; reserveToken: `0x${string}` } | null> {
+  if (process.env.MOCK_RPC === 'true') {
+    return null
+  }
+
   try {
     const publicClient = getPublicClient(chainId)
 
@@ -112,8 +118,8 @@ export async function fetchTokenAddressesFromBC(
       typeof reserveToken === 'string'
     ) {
       return {
-        issuanceToken: issuanceToken.toLowerCase() as `0x${string}`,
-        reserveToken: reserveToken.toLowerCase() as `0x${string}`,
+        issuanceToken: normalizeAddress(issuanceToken) as `0x${string}`,
+        reserveToken: normalizeAddress(reserveToken) as `0x${string}`,
       }
     }
   } catch (error) {

@@ -9,10 +9,12 @@ import {
   createMarketSnapshot,
   fetchFloorPricing,
   formatAmount,
+  getMarketIdForModule,
   getOrCreateAccount,
   getOrCreateMarket,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
+  normalizeAddress,
   updatePriceCandles,
 } from './helpers'
 
@@ -51,8 +53,8 @@ FloorMarket.TokensBought.handler(
     context.log.info(
       `[TokensBought] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
     )
-    // The BC module address is the srcAddress, which is also the market ID
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     context.log.info(`[TokensBought] Using marketId: ${marketId}`)
 
     // Get or create Market (contains both static and dynamic fields)
@@ -98,7 +100,11 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
-    const pricing = await fetchFloorPricing(event.chainId, event.srcAddress as `0x${string}`)
+    const pricing = await fetchFloorPricing(
+      event.chainId,
+      event.srcAddress as `0x${string}`,
+      BigInt(event.block.number)
+    )
     const buyPriceRaw = pricing.buyPrice ?? market.currentPriceRaw
     const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
     const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
@@ -227,8 +233,8 @@ FloorMarket.TokensSold.handler(
     context.log.info(
       `[TokensSold] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
     )
-    // The BC module address is the srcAddress, which is also the market ID
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     context.log.info(`[TokensSold] Using marketId: ${marketId}`)
 
     // Get or create Market (contains both static and dynamic fields)
@@ -274,7 +280,11 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
-    const pricing = await fetchFloorPricing(event.chainId, event.srcAddress as `0x${string}`)
+    const pricing = await fetchFloorPricing(
+      event.chainId,
+      event.srcAddress as `0x${string}`,
+      BigInt(event.block.number)
+    )
     const sellPriceRaw = pricing.sellPrice ?? market.currentPriceRaw
     const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
     const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
@@ -398,7 +408,8 @@ FloorMarket.TokensSold.handler(
 FloorMarket.VirtualCollateralAmountAdded.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     context.log.info(`[VirtualCollateralAmountAdded] Event received from ${event.srcAddress}`)
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
 
     const market = await getOrCreateMarket(
       context,
@@ -440,7 +451,8 @@ FloorMarket.VirtualCollateralAmountAdded.handler(
 FloorMarket.VirtualCollateralAmountSubtracted.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     context.log.info(`[VirtualCollateralAmountSubtracted] Event received from ${event.srcAddress}`)
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
 
     const market = await getOrCreateMarket(
       context,
@@ -477,7 +489,8 @@ FloorMarket.VirtualCollateralAmountSubtracted.handler(
 
 FloorMarket.CollateralDeposited.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -516,7 +529,8 @@ FloorMarket.CollateralDeposited.handler(
 
 FloorMarket.CollateralWithdrawn.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -555,7 +569,8 @@ FloorMarket.CollateralWithdrawn.handler(
 
 FloorMarket.FloorIncreased.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -621,7 +636,8 @@ FloorMarket.FloorIncreased.handler(
 
 FloorMarket.BuyingEnabled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -649,7 +665,8 @@ FloorMarket.BuyingEnabled.handler(
 
 FloorMarket.BuyingDisabled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -677,7 +694,8 @@ FloorMarket.BuyingDisabled.handler(
 
 FloorMarket.SellingEnabled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -705,7 +723,8 @@ FloorMarket.SellingEnabled.handler(
 
 FloorMarket.SellingDisabled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -733,7 +752,8 @@ FloorMarket.SellingDisabled.handler(
 
 FloorMarket.BuyFeeUpdated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -765,7 +785,8 @@ FloorMarket.BuyFeeUpdated.handler(
 
 FloorMarket.SellFeeUpdated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const marketId = event.srcAddress.toLowerCase()
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
     const timestamp = BigInt(event.block.timestamp)
     const market = await getOrCreateMarket(
       context,
@@ -980,4 +1001,18 @@ function normalizeAmount(value: bigint, fromDecimals: number, toDecimals: number
   const diff = toDecimals - fromDecimals
   const factor = 10n ** BigInt(diff)
   return value * factor
+}
+
+async function resolveMarketIdFromModuleAddress(
+  context: Parameters<typeof updatePriceCandles>[0],
+  moduleAddress: string
+): Promise<string> {
+  const mapped = await getMarketIdForModule(context, moduleAddress)
+  return mapped ?? moduleAddress
+}
+
+export function __resetMarketHandlerTestState() {
+  rollingStatsCache.clear()
+  marketsSeen.clear()
+  activeMarkets.clear()
 }

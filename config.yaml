@@ -41,6 +41,13 @@ contracts:
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked
 
+  - name: SplitterTreasury
+    abi_file_path: abis/SplitterTreasury_v1.json
+    handler: src/index.ts
+    events:
+      - event: FloorFeePaid
+      - event: RecipientPayment
+
 networks:
   - id: 31337 # Local Anvil
     start_block: 0
@@ -52,4 +59,6 @@ networks:
       - name: FloorMarket
         address:
       - name: CreditFacility
+        address:
+      - name: SplitterTreasury
         address:

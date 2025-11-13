@@ -7,6 +7,7 @@ import {
   fetchTokenAddressesFromBC,
   getOrCreateMarket,
   getOrCreateModuleRegistry,
+  normalizeAddress,
   resolveMarketId,
 } from './helpers'
 import { handlerErrorWrapper } from './helpers/error'
@@ -121,7 +122,7 @@ ModuleFactory.ModuleCreated.handler(
 
     // If this is a creditFacility module, create the CreditFacilityContract entity
     if (moduleType === 'creditFacility') {
-      const facilityId = module.toLowerCase()
+      const facilityId = normalizeAddress(module)
       context.log.debug(
         `[ModuleCreated] Preparing CreditFacility | facilityId=${facilityId} | marketId=${marketId}`
       )
