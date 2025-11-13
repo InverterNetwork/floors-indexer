@@ -1,5 +1,6 @@
 export * from './credit'
 export * from './error'
+export * from './floor'
 export * from './market'
 export * from './misc'
 export * from './registry'

@@ -8,7 +8,7 @@
 ## Progress
 - [x] Define detailed implementation plan & sequencing
 - [x] Execute schema & discovery cleanup (Workstream A) – schema, helpers, and generated types now match the normalized ID + loan model (incl. loanId primary keys, collateral/fee snapshots, user position counters, LoanStatusHistory, registry floor pointer, and removal of the deprecated `Loan.timestamp` field)
-- [ ] Expand event coverage and handlers (Workstream B)
+- [x] Expand event coverage and handlers (Workstream B) – Floor config now listens for gate/floor/fee/collateral events, `market-handlers` pull on-chain pricing + fee bps via viem, emit `FloorElevation` entries, keep `Market` fee flags in sync, and respond to gate toggles; credit handler upgrades underway (treasury/presale/staking still pending in the remaining checklist items below)
 - [ ] Build derived metrics & snapshots (Workstream C)
 - [ ] Update config/infra/tests (Workstream D)
 
@@ -158,16 +158,16 @@ const loanId = `${event.transaction.hash}-${event.logIndex}` // ignores on-chain
 ### Workstream B – Event Coverage & Handlers
 1. **Factory:** When registering modules, persist floor module address plus metadata (version, title) and connect to existing Market/Registry rows.
 2. **Market/Floor handlers:**  
-   - Extend config to include `FloorIncreased`, `BuyingEnabled/Disabled`, `SellingEnabled/Disabled`, `BuyFeeUpdated`, `SellFeeUpdated`, `CollateralDeposited/Withdrawn`.  
-   - On each trade, call `getStaticPriceForBuying/Selling`, `getBuyFee`, `getSellFee` via viem to populate accurate price/fee fields and update rolling supply/reserve data.  
-   - Emit `FloorElevation` entities using floor events and keep `floorPriceRaw` current.  
-   - Maintain `PriceCandle` and `MarketSnapshot` using real data.
+   - [x] Extend config to include `FloorIncreased`, `BuyingEnabled/Disabled`, `SellingEnabled/Disabled`, `BuyFeeUpdated`, `SellFeeUpdated`, `CollateralDeposited/Withdrawn`.  
+   - [x] On each trade, call `getStaticPriceForBuying/Selling`, `getBuyFee`, `getSellFee` via viem to populate accurate price/fee fields and update rolling supply/reserve data.  
+   - [x] Emit `FloorElevation` entities using floor events, keep `floorPriceRaw` current, and persist gate/fee state on `Market`.  
+   - [ ] Maintain `PriceCandle` and `MarketSnapshot` using real data (candles wired; snapshots + rolling stats still tracked under Workstream C).
 3. **Credit facility:**  
-   - Parse `loanId` from events, fetch `getLoan(loanId)` to capture collateral + debt, and update both facility totals and `UserMarketPosition`.  
-   - Handle `LoanRepaid`, `LoanClosed`, `IssuanceTokensLocked`, `IssuanceTokensUnlocked`, `BuyAndBorrowCompleted`, `LoanConsolidated`, etc., as per ABI/test coverage.  
-   - Maintain per-market protocol debt + locked issuance supply for circulation calculations.
-4. **Treasury + fees:** Add handlers for `Treasury_FundsReceived` and `RecipientPayment` to populate `FeeDistribution`.
-5. **Optional modules:** Wire presale/staking handlers once ABIs exist, following the schema placeholders already defined.
+   - [x] Parse `loanId` from events, fetch `getLoan(loanId)` to capture collateral + debt, and update both facility totals and `UserMarketPosition`.  
+   - [ ] Handle remaining events (`LoanRebalanced`, `LoansConsolidated`, `BuyingEnabled` credit analogues, etc.) per ABI/test coverage.  
+   - [ ] Maintain per-market protocol debt + locked issuance supply for circulation calculations (partially covered via existing aggregates; treasury/presale/staking hooks outstanding).
+4. **Treasury + fees:** Add handlers for `Treasury_FundsReceived` and `RecipientPayment` to populate `FeeDistribution`. *(pending)*
+5. **Optional modules:** Wire presale/staking handlers once ABIs exist, following the schema placeholders already defined. *(pending)*
 
 ### Workstream C – Derived Metrics & Snapshots
 1. **Rolling windows:** Use an in-memory accumulator (per market) to track the last 24h of trade volume/trade count for rapid queries.

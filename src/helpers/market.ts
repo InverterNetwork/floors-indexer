@@ -112,6 +112,8 @@ export async function getOrCreateMarket(
     initialPriceRaw: 0n,
     initialPriceFormatted: '0',
     tradingFeeBps: 0n,
+    buyFeeBps: 0n,
+    sellFeeBps: 0n,
     maxLTV: 0n,
     maxSupplyRaw: 0n,
     maxSupplyFormatted: '0',

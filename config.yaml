@@ -21,6 +21,15 @@ contracts:
       - event: TokensSold
       - event: VirtualCollateralAmountAdded
       - event: VirtualCollateralAmountSubtracted
+      - event: FloorIncreased
+      - event: BuyingEnabled
+      - event: BuyingDisabled
+      - event: SellingEnabled
+      - event: SellingDisabled
+      - event: BuyFeeUpdated
+      - event: SellFeeUpdated
+      - event: CollateralDeposited
+      - event: CollateralWithdrawn
 
   - name: CreditFacility
     abi_file_path: abis/CreditFacility_v1.json

@@ -173,6 +173,8 @@ type Market {
   initialPriceFormatted: String!
 
   tradingFeeBps: BigInt!
+  buyFeeBps: BigInt!
+  sellFeeBps: BigInt!
 
   maxLTV: BigInt!
 

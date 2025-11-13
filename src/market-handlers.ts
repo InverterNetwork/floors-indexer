@@ -5,6 +5,7 @@ import type { TradeType_t } from '../generated/src/db/Enums.gen'
 import { FloorMarket } from '../generated/src/Handlers.gen'
 import {
   buildUpdatedUserMarketPosition,
+  fetchFloorPricing,
   formatAmount,
   getOrCreateAccount,
   getOrCreateMarket,
@@ -12,6 +13,8 @@ import {
   handlerErrorWrapper,
   updatePriceCandles,
 } from './helpers'
+
+const BPS_DENOMINATOR = 10_000n
 
 /**
  * @notice Event handler for TokensBought event
@@ -72,6 +75,17 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
+    const pricing = await fetchFloorPricing(event.chainId, event.srcAddress as `0x${string}`)
+    const buyPriceRaw = pricing.buyPrice ?? market.currentPriceRaw
+    const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
+    const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
+    const floorPriceRaw = pricing.floorPrice ?? market.floorPriceRaw
+    const priceAmount = formatAmount(buyPriceRaw, reserveToken.decimals)
+    const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
+    const feeAmountRaw =
+      buyFeeBps > 0n ? (event.params.depositAmount_ * buyFeeBps) / BPS_DENOMINATOR : 0n
+    const feeAmount = formatAmount(feeAmountRaw, reserveToken.decimals)
+
     // Get or create buyer account
     const buyerAddress = event.params.receiver_ || event.params.buyer_
     if (!buyerAddress) {
@@ -87,9 +101,6 @@ FloorMarket.TokensBought.handler(
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
     const tokenAmount = formatAmount(event.params.receivedAmount_, issuanceToken.decimals)
     const reserveAmount = formatAmount(event.params.depositAmount_, reserveToken.decimals)
-    const fee = formatAmount(0n, reserveToken.decimals) // TODO: fetch from contract if available
-    const newPrice = formatAmount(0n, reserveToken.decimals) // TODO: fetch from contract if available
-
     const trade = {
       id: tradeId,
       market_id: market.id,
@@ -99,10 +110,10 @@ FloorMarket.TokensBought.handler(
       tokenAmountFormatted: tokenAmount.formatted,
       reserveAmountRaw: event.params.depositAmount_,
       reserveAmountFormatted: reserveAmount.formatted,
-      feeRaw: fee.raw,
-      feeFormatted: fee.formatted,
-      newPriceRaw: newPrice.raw,
-      newPriceFormatted: newPrice.formatted,
+      feeRaw: feeAmountRaw,
+      feeFormatted: feeAmount.formatted,
+      newPriceRaw: buyPriceRaw,
+      newPriceFormatted: priceAmount.formatted,
       timestamp: BigInt(event.block.timestamp),
       transactionHash: event.transaction.hash,
     }
@@ -118,8 +129,13 @@ FloorMarket.TokensBought.handler(
     // Update Market (dynamic state fields)
     const updatedMarket = {
       ...market,
-      currentPriceRaw: newPrice.raw,
-      currentPriceFormatted: newPrice.formatted,
+      currentPriceRaw: buyPriceRaw,
+      currentPriceFormatted: priceAmount.formatted,
+      floorPriceRaw,
+      floorPriceFormatted: floorPriceAmount.formatted,
+      tradingFeeBps: buyFeeBps,
+      buyFeeBps,
+      sellFeeBps,
       totalSupplyRaw: market.totalSupplyRaw + event.params.receivedAmount_,
       totalSupplyFormatted: formatAmount(
         market.totalSupplyRaw + event.params.receivedAmount_,
@@ -161,8 +177,8 @@ FloorMarket.TokensBought.handler(
       context,
       market.id,
       {
-        newPriceRaw: newPrice.raw,
-        newPriceFormatted: newPrice.formatted,
+        newPriceRaw: buyPriceRaw,
+        newPriceFormatted: priceAmount.formatted,
         reserveAmountRaw: reserveAmount.raw,
         reserveAmountFormatted: reserveAmount.formatted,
         timestamp: trade.timestamp,
@@ -234,6 +250,17 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
+    const pricing = await fetchFloorPricing(event.chainId, event.srcAddress as `0x${string}`)
+    const sellPriceRaw = pricing.sellPrice ?? market.currentPriceRaw
+    const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
+    const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
+    const floorPriceRaw = pricing.floorPrice ?? market.floorPriceRaw
+    const priceAmount = formatAmount(sellPriceRaw, reserveToken.decimals)
+    const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
+    const feeAmountRaw =
+      sellFeeBps > 0n ? (event.params.receivedAmount_ * sellFeeBps) / BPS_DENOMINATOR : 0n
+    const feeAmount = formatAmount(feeAmountRaw, reserveToken.decimals)
+
     // Get or create seller account
     const sellerAddress = event.params.receiver_ || event.params.seller_
     if (!sellerAddress) {
@@ -249,9 +276,6 @@ FloorMarket.TokensSold.handler(
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
     const tokenAmount = formatAmount(event.params.depositAmount_, issuanceToken.decimals)
     const reserveAmount = formatAmount(event.params.receivedAmount_, reserveToken.decimals)
-    const fee = formatAmount(0n, reserveToken.decimals) // TODO: fetch from contract if available
-    const newPrice = formatAmount(0n, reserveToken.decimals) // TODO: fetch from contract if available
-
     const trade = {
       id: tradeId,
       market_id: market.id,
@@ -261,10 +285,10 @@ FloorMarket.TokensSold.handler(
       tokenAmountFormatted: tokenAmount.formatted,
       reserveAmountRaw: event.params.receivedAmount_,
       reserveAmountFormatted: reserveAmount.formatted,
-      feeRaw: fee.raw,
-      feeFormatted: fee.formatted,
-      newPriceRaw: newPrice.raw,
-      newPriceFormatted: newPrice.formatted,
+      feeRaw: feeAmountRaw,
+      feeFormatted: feeAmount.formatted,
+      newPriceRaw: sellPriceRaw,
+      newPriceFormatted: priceAmount.formatted,
       timestamp: BigInt(event.block.timestamp),
       transactionHash: event.transaction.hash,
     }
@@ -280,8 +304,13 @@ FloorMarket.TokensSold.handler(
     // Update Market (dynamic state fields)
     const updatedMarket = {
       ...market,
-      currentPriceRaw: newPrice.raw,
-      currentPriceFormatted: newPrice.formatted,
+      currentPriceRaw: sellPriceRaw,
+      currentPriceFormatted: priceAmount.formatted,
+      floorPriceRaw,
+      floorPriceFormatted: floorPriceAmount.formatted,
+      tradingFeeBps: buyFeeBps,
+      buyFeeBps,
+      sellFeeBps,
       totalSupplyRaw: market.totalSupplyRaw - event.params.depositAmount_,
       totalSupplyFormatted: formatAmount(
         market.totalSupplyRaw - event.params.depositAmount_,
@@ -323,8 +352,8 @@ FloorMarket.TokensSold.handler(
       context,
       market.id,
       {
-        newPriceRaw: newPrice.raw,
-        newPriceFormatted: newPrice.formatted,
+        newPriceRaw: sellPriceRaw,
+        newPriceFormatted: priceAmount.formatted,
         reserveAmountRaw: reserveAmount.raw,
         reserveAmountFormatted: reserveAmount.formatted,
         timestamp: trade.timestamp,
@@ -418,5 +447,324 @@ FloorMarket.VirtualCollateralAmountSubtracted.handler(
     }
     context.Market.set(updatedMarket)
     context.log.info(`[VirtualCollateralAmountSubtracted] ✅ Updated floorSupply`)
+  })
+)
+
+FloorMarket.CollateralDeposited.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[CollateralDeposited] Market not found: ${marketId}`)
+      return
+    }
+
+    const reserveToken = await context.Token.get(market.reserveToken_id)
+    if (!reserveToken) {
+      context.log.warn(`[CollateralDeposited] Reserve token not found | marketId=${marketId}`)
+      return
+    }
+
+    const updatedMarket = {
+      ...market,
+      floorSupplyRaw: event.params.newVirtualSupply_,
+      floorSupplyFormatted: formatAmount(event.params.newVirtualSupply_, reserveToken.decimals)
+        .formatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[CollateralDeposited] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
+    )
+  })
+)
+
+FloorMarket.CollateralWithdrawn.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[CollateralWithdrawn] Market not found: ${marketId}`)
+      return
+    }
+
+    const reserveToken = await context.Token.get(market.reserveToken_id)
+    if (!reserveToken) {
+      context.log.warn(`[CollateralWithdrawn] Reserve token not found | marketId=${marketId}`)
+      return
+    }
+
+    const updatedMarket = {
+      ...market,
+      floorSupplyRaw: event.params.newVirtualSupply_,
+      floorSupplyFormatted: formatAmount(event.params.newVirtualSupply_, reserveToken.decimals)
+        .formatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[CollateralWithdrawn] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
+    )
+  })
+)
+
+FloorMarket.FloorIncreased.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[FloorIncreased] Market not found: ${marketId}`)
+      return
+    }
+
+    const reserveToken = await context.Token.get(market.reserveToken_id)
+    const issuanceToken = await context.Token.get(market.issuanceToken_id)
+    if (!reserveToken || !issuanceToken) {
+      context.log.warn(
+        `[FloorIncreased] Missing token metadata | reserveToken=${!!reserveToken} | issuanceToken=${!!issuanceToken}`
+      )
+      return
+    }
+
+    const oldFloorPrice = formatAmount(event.params.oldFloorPrice_, reserveToken.decimals)
+    const newFloorPrice = formatAmount(event.params.newFloorPrice_, reserveToken.decimals)
+    const collateralConsumed = formatAmount(event.params.collateralConsumed_, reserveToken.decimals)
+    const supplyIncrease = formatAmount(event.params.supplyIncrease_, issuanceToken.decimals)
+
+    const elevationId = `${event.transaction.hash}-${event.logIndex}`
+    context.FloorElevation.set({
+      id: elevationId,
+      market_id: market.id,
+      oldFloorPriceRaw: event.params.oldFloorPrice_,
+      oldFloorPriceFormatted: oldFloorPrice.formatted,
+      newFloorPriceRaw: event.params.newFloorPrice_,
+      newFloorPriceFormatted: newFloorPrice.formatted,
+      deployedAmountRaw: event.params.collateralConsumed_,
+      deployedAmountFormatted: collateralConsumed.formatted,
+      timestamp,
+      transactionHash: event.transaction.hash,
+    })
+
+    const updatedMarket = {
+      ...market,
+      floorPriceRaw: event.params.newFloorPrice_,
+      floorPriceFormatted: newFloorPrice.formatted,
+      totalSupplyRaw: market.totalSupplyRaw + event.params.supplyIncrease_,
+      totalSupplyFormatted: formatAmount(
+        market.totalSupplyRaw + event.params.supplyIncrease_,
+        issuanceToken.decimals
+      ).formatted,
+      lastElevationTimestamp: timestamp,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[FloorIncreased] ✅ Floor elevation recorded | marketId=${marketId} | newFloor=${newFloorPrice.formatted} | supplyIncrease=${supplyIncrease.formatted}`
+    )
+  })
+)
+
+FloorMarket.BuyingEnabled.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[BuyingEnabled] Market not found: ${marketId}`)
+      return
+    }
+
+    context.Market.set({
+      ...market,
+      isBuyOpen: true,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(`[BuyingEnabled] Market buy gate opened | marketId=${marketId}`)
+  })
+)
+
+FloorMarket.BuyingDisabled.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[BuyingDisabled] Market not found: ${marketId}`)
+      return
+    }
+
+    context.Market.set({
+      ...market,
+      isBuyOpen: false,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(`[BuyingDisabled] Market buy gate closed | marketId=${marketId}`)
+  })
+)
+
+FloorMarket.SellingEnabled.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[SellingEnabled] Market not found: ${marketId}`)
+      return
+    }
+
+    context.Market.set({
+      ...market,
+      isSellOpen: true,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(`[SellingEnabled] Market sell gate opened | marketId=${marketId}`)
+  })
+)
+
+FloorMarket.SellingDisabled.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[SellingDisabled] Market not found: ${marketId}`)
+      return
+    }
+
+    context.Market.set({
+      ...market,
+      isSellOpen: false,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(`[SellingDisabled] Market sell gate closed | marketId=${marketId}`)
+  })
+)
+
+FloorMarket.BuyFeeUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[BuyFeeUpdated] Market not found: ${marketId}`)
+      return
+    }
+
+    const newBuyFee = event.params.newBuyFee_
+    context.Market.set({
+      ...market,
+      tradingFeeBps: newBuyFee,
+      buyFeeBps: newBuyFee,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(
+      `[BuyFeeUpdated] Buy fee updated | marketId=${marketId} | feeBps=${newBuyFee.toString()}`
+    )
+  })
+)
+
+FloorMarket.SellFeeUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const marketId = event.srcAddress.toLowerCase()
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[SellFeeUpdated] Market not found: ${marketId}`)
+      return
+    }
+
+    const newSellFee = event.params.newSellFee_
+    context.Market.set({
+      ...market,
+      sellFeeBps: newSellFee,
+      lastUpdatedAt: timestamp,
+    })
+    context.log.info(
+      `[SellFeeUpdated] Sell fee updated | marketId=${marketId} | feeBps=${newSellFee.toString()}`
+    )
   })
 )
