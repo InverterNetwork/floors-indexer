@@ -1,6 +1,8 @@
 import type { HandlerContext } from 'generated'
 import type { ModuleRegistry_t } from 'generated/src/db/Entities.gen'
 
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
 /**
  * Get or create ModuleRegistry entity for a market
  * Handles updating existing registries with new module addresses
@@ -36,8 +38,13 @@ export async function getOrCreateModuleRegistry(
   }
 
   // Create or update registry with new module address
+  const fallbackFloor =
+    existingRegistry?.floor ||
+    (moduleType === 'floor' ? normalizedModule : normalizedMarketId || ZERO_ADDRESS)
+
   const registry: ModuleRegistry_t = {
     id: normalizedMarketId,
+    floor: moduleType === 'floor' ? normalizedModule : fallbackFloor,
     authorizer: moduleType === 'authorizer' ? normalizedModule : existingRegistry?.authorizer || '',
     feeTreasury:
       moduleType === 'feeTreasury' ? normalizedModule : existingRegistry?.feeTreasury || '',
@@ -52,6 +59,7 @@ export async function getOrCreateModuleRegistry(
   context.ModuleRegistry.set(registry)
 
   const moduleSnapshot = {
+    floor: registry.floor || 'none',
     authorizer: registry.authorizer || 'none',
     feeTreasury: registry.feeTreasury || 'none',
     creditFacility: registry.creditFacility || 'none',

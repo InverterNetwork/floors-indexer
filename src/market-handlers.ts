@@ -1,15 +1,16 @@
 // Market event handlers for Floor Markets DeFi Platform
 // Handles TokensBought, TokensSold, and collateral adjustment events
 
-import { FloorMarket } from '../generated/src/Handlers.gen'
 import type { TradeType_t } from '../generated/src/db/Enums.gen'
+import { FloorMarket } from '../generated/src/Handlers.gen'
 import {
-  getOrCreateAccount,
-  getOrCreateUserMarketPosition,
+  buildUpdatedUserMarketPosition,
   formatAmount,
-  updatePriceCandles,
+  getOrCreateAccount,
   getOrCreateMarket,
+  getOrCreateUserMarketPosition,
   handlerErrorWrapper,
+  updatePriceCandles,
 } from './helpers'
 
 /**
@@ -80,9 +81,7 @@ FloorMarket.TokensBought.handler(
 
     const buyer = await getOrCreateAccount(context, buyerAddress)
     context.log.info(`[TokensBought] Buyer account: ${buyer.id}`)
-    context.log.debug(
-      `[TokensBought] Buyer account ready | user=${buyer.id} | market=${market.id}`
-    )
+    context.log.debug(`[TokensBought] Buyer account ready | user=${buyer.id} | market=${market.id}`)
 
     // Create Trade entity
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
@@ -146,23 +145,15 @@ FloorMarket.TokensBought.handler(
       market.id,
       issuanceToken.decimals
     )
-    const updatedPosition = {
-      ...position,
-      fTokenBalanceRaw: position.fTokenBalanceRaw + event.params.receivedAmount_,
-      fTokenBalanceFormatted: formatAmount(
-        position.fTokenBalanceRaw + event.params.receivedAmount_,
-        issuanceToken.decimals
-      ).formatted,
-      reserveBalanceRaw: position.reserveBalanceRaw - event.params.depositAmount_,
-      reserveBalanceFormatted: formatAmount(
-        position.reserveBalanceRaw - event.params.depositAmount_,
-        reserveToken.decimals
-      ).formatted,
-      lastUpdatedAt: BigInt(event.block.timestamp),
-    }
+    const updatedPosition = buildUpdatedUserMarketPosition(position, {
+      netFTokenChangeDelta: event.params.receivedAmount_,
+      issuanceTokenDecimals: issuanceToken.decimals,
+      reserveTokenDecimals: reserveToken.decimals,
+      timestamp: BigInt(event.block.timestamp),
+    })
     context.UserMarketPosition.set(updatedPosition)
     context.log.info(
-      `[TokensBought] UserPosition updated | fTokens=${updatedPosition.fTokenBalanceFormatted}`
+      `[TokensBought] UserPosition updated | netFToken=${updatedPosition.netFTokenChangeFormatted}`
     )
 
     // Update price candles
@@ -252,9 +243,7 @@ FloorMarket.TokensSold.handler(
 
     const seller = await getOrCreateAccount(context, sellerAddress)
     context.log.info(`[TokensSold] Seller account: ${seller.id}`)
-    context.log.debug(
-      `[TokensSold] Seller account ready | user=${seller.id} | market=${market.id}`
-    )
+    context.log.debug(`[TokensSold] Seller account ready | user=${seller.id} | market=${market.id}`)
 
     // Create Trade entity
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
@@ -318,23 +307,15 @@ FloorMarket.TokensSold.handler(
       market.id,
       issuanceToken.decimals
     )
-    const updatedPosition = {
-      ...position,
-      fTokenBalanceRaw: position.fTokenBalanceRaw - event.params.depositAmount_,
-      fTokenBalanceFormatted: formatAmount(
-        position.fTokenBalanceRaw - event.params.depositAmount_,
-        issuanceToken.decimals
-      ).formatted,
-      reserveBalanceRaw: position.reserveBalanceRaw + event.params.receivedAmount_,
-      reserveBalanceFormatted: formatAmount(
-        position.reserveBalanceRaw + event.params.receivedAmount_,
-        reserveToken.decimals
-      ).formatted,
-      lastUpdatedAt: BigInt(event.block.timestamp),
-    }
+    const updatedPosition = buildUpdatedUserMarketPosition(position, {
+      netFTokenChangeDelta: -event.params.depositAmount_,
+      issuanceTokenDecimals: issuanceToken.decimals,
+      reserveTokenDecimals: reserveToken.decimals,
+      timestamp: BigInt(event.block.timestamp),
+    })
     context.UserMarketPosition.set(updatedPosition)
     context.log.info(
-      `[TokensSold] UserPosition updated | fTokens=${updatedPosition.fTokenBalanceFormatted}`
+      `[TokensSold] UserPosition updated | netFToken=${updatedPosition.netFTokenChangeFormatted}`
     )
 
     // Update price candles

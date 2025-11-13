@@ -1,8 +1,9 @@
-import { MarketStatus_t } from 'generated/src/db/Enums.gen'
-import { HandlerContext } from 'generated'
-import { Market_t } from 'generated/src/db/Entities.gen'
-import { getOrCreateAccount } from './user'
+import type { HandlerContext } from 'generated'
+import type { Market_t } from 'generated/src/db/Entities.gen'
+import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
+
 import { fetchTokenAddressesFromBC, getOrCreateToken } from './token'
+import { getOrCreateAccount } from './user'
 
 /**
  * Get or create Market entity
@@ -20,9 +21,13 @@ export async function getOrCreateMarket(
   timestamp: bigint,
   reserveTokenId?: string,
   issuanceTokenId?: string,
-  bcAddress?: `0x${string}`
+  bcAddress?: `0x${string}`,
+  creatorAddress?: string,
+  factoryAddress?: string
 ): Promise<Market_t | null> {
   const normalizedMarketId = marketId.toLowerCase()
+  const normalizedCreator = creatorAddress ? creatorAddress.toLowerCase() : normalizedMarketId
+  const normalizedFactory = factoryAddress ? factoryAddress.toLowerCase() : 'unknown-factory'
 
   let market = await context.Market.get(normalizedMarketId)
 
@@ -39,7 +44,7 @@ export async function getOrCreateMarket(
   )
 
   // Create new market
-  const creator = await getOrCreateAccount(context, normalizedMarketId)
+  const creator = await getOrCreateAccount(context, normalizedCreator)
 
   // Try to fetch token addresses from BC contract if BC address provided
   let finalReserveTokenId = reserveTokenId
@@ -100,7 +105,7 @@ export async function getOrCreateMarket(
   market = {
     id: normalizedMarketId,
     creator_id: creator.id,
-    factory_id: '',
+    factory_id: normalizedFactory,
     reserveToken_id: reserveToken.id,
     issuanceToken_id: issuanceToken.id,
     // Static config fields

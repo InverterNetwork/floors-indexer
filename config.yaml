@@ -5,6 +5,7 @@ unordered_multichain_mode: true
 field_selection:
   transaction_fields:
     - 'hash'
+    - 'from'
 contracts:
   - name: ModuleFactory
     abi_file_path: abis/ModuleFactory_v1.json

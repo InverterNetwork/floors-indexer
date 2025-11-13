@@ -57,11 +57,8 @@ type UserMarketPosition {
   user_id: ID!
   market_id: ID!
 
-  fTokenBalanceRaw: BigInt!
-  fTokenBalanceFormatted: String!
-
-  reserveBalanceRaw: BigInt!
-  reserveBalanceFormatted: String!
+  netFTokenChangeRaw: BigInt!
+  netFTokenChangeFormatted: String!
 
   totalDebtRaw: BigInt!
   totalDebtFormatted: String!
@@ -89,6 +86,7 @@ type UserMarketPosition {
 type ModuleRegistry {
   id: ID!
 
+  floor: String!
   authorizer: String!
   feeTreasury: String!
   creditFacility: String
@@ -102,6 +100,7 @@ type ModuleRegistry {
 type CreditFacilityContract {
   id: ID!
 
+  market_id: ID!
   collateralToken_id: ID!
   borrowToken_id: ID!
 
@@ -109,6 +108,14 @@ type CreditFacilityContract {
 
   totalVolumeRaw: BigInt!
   totalVolumeFormatted: String!
+
+  totalDebtRaw: BigInt!
+  totalDebtFormatted: String!
+
+  totalLockedCollateralRaw: BigInt!
+  totalLockedCollateralFormatted: String!
+
+  lastUpdatedAt: BigInt!
 
   createdAt: BigInt!
   loans: [Loan!]! @derivedFrom(field: "facility_id")
@@ -265,9 +272,10 @@ type Loan {
 
   borrower_id: ID!
   facility_id: ID!
+  market_id: ID!
 
-  collateralAmountRaw: BigInt!
-  collateralAmountFormatted: String!
+  lockedCollateralRaw: BigInt!
+  lockedCollateralFormatted: String!
 
   borrowAmountRaw: BigInt!
   borrowAmountFormatted: String!
@@ -275,8 +283,31 @@ type Loan {
   originationFeeRaw: BigInt!
   originationFeeFormatted: String!
 
+  remainingDebtRaw: BigInt!
+  remainingDebtFormatted: String!
+
+  floorPriceAtBorrowRaw: BigInt!
+  floorPriceAtBorrowFormatted: String!
+
   status: LoanStatus!
 
+  openedAt: BigInt!
+  closedAt: BigInt
+  lastUpdatedAt: BigInt!
+
+  transactionHash: String!
+
+  statusHistory: [LoanStatusHistory!]! @derivedFrom(field: "loan_id")
+}
+
+type LoanStatusHistory {
+  id: ID!
+  loan_id: ID!
+  status: LoanStatus!
+  remainingDebtRaw: BigInt!
+  remainingDebtFormatted: String!
+  lockedCollateralRaw: BigInt!
+  lockedCollateralFormatted: String!
   timestamp: BigInt!
   transactionHash: String!
 }
@@ -344,4 +375,29 @@ type PriceCandle {
   volumeRaw: BigInt!
   volumeFormatted: String!
   trades: BigInt!
+}
+
+type MarketRollingStats {
+  id: ID!
+  market_id: ID!
+  windowSeconds: Int!
+  volumeRaw: BigInt!
+  volumeFormatted: String!
+  averagePriceRaw: BigInt!
+  averagePriceFormatted: String!
+  tradeCount: BigInt!
+  lastUpdatedAt: BigInt!
+}
+
+type GlobalStats {
+  id: ID!
+  totalMarkets: BigInt!
+  activeMarkets: BigInt!
+  totalVolumeRaw: BigInt!
+  totalVolumeFormatted: String!
+  totalOutstandingDebtRaw: BigInt!
+  totalOutstandingDebtFormatted: String!
+  totalLockedCollateralRaw: BigInt!
+  totalLockedCollateralFormatted: String!
+  lastUpdatedAt: BigInt!
 }

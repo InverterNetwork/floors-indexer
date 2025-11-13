@@ -7,7 +7,7 @@
 
 ## Progress
 - [x] Define detailed implementation plan & sequencing
-- [ ] Execute schema & discovery cleanup (Workstream A)
+- [x] Execute schema & discovery cleanup (Workstream A) – schema, helpers, and generated types now match the normalized ID + loan model (incl. loanId primary keys, collateral/fee snapshots, user position counters, LoanStatusHistory, registry floor pointer, and removal of the deprecated `Loan.timestamp` field)
 - [ ] Expand event coverage and handlers (Workstream B)
 - [ ] Build derived metrics & snapshots (Workstream C)
 - [ ] Update config/infra/tests (Workstream D)
@@ -120,38 +120,39 @@ const loanId = `${event.transaction.hash}-${event.logIndex}` // ignores on-chain
    ensure `ModuleRegistry` references follow the same convention so handlers
    and the frontend can deterministically map modules (no guessing via
    `resolveMarketId`).
-   - [ ] Update `schema.graphql` so `Market.id`, `ModuleRegistry.id`, and all
+   - [x] Update `schema.graphql` so `Market.id`, `ModuleRegistry.id`, and all
      foreign keys referencing markets adopt the Floor/orchestrator address.
-   - [ ] Regenerate Envio types/codegen and update helper factories
+   - [x] Regenerate Envio types/codegen and update helper factories
      (`src/helpers/registry.ts`, `src/helpers/market.ts`) to enforce the
      normalized ID shape.
-   - [ ] Backfill `factory_id` and `creator_id` in `getOrCreateMarket`
+   - [x] Backfill `factory_id` and `creator_id` in `getOrCreateMarket`
      using `ModuleCreated` data to preserve provenance.
 2. **Loan redesign:** Persist `loanId` (uint256) as primary key, add fields for
    `floorPriceAtBorrow`, `lockedCollateral`, `remainingDebt`,
    `originationFee`, `statusHistory`. Update `CreditFacilityContract` with
    `totalDebtRaw` & `totalLockedCollateralRaw`.
-   - [ ] Replace synthetic IDs inside `src/credit-handlers.ts` with the
+   - [x] Replace synthetic IDs inside `src/credit-handlers.ts` with the
      on-chain `loanId` and migrate helper functions accordingly.
-   - [ ] Extend the schema to capture price/fee snapshots and a normalized
-     `LoanStatusHistory` child table for frontend timelines.
-   - [ ] Ensure facility-level aggregates stay in sync on every borrow/repay
+   - [x] Extend the schema to capture price/fee snapshots and a normalized
+     `LoanStatusHistory` child table for frontend timelines (deprecated `Loan.timestamp`
+     field removed to avoid redundant storage).
+   - [x] Ensure facility-level aggregates stay in sync on every borrow/repay
      by adding dedicated mutation helpers.
 3. **User positions:** Remove pseudo `reserveBalance` (we cannot track wallet
    balances) and replace with derived fields we can compute (`netFTokenChangeRaw`,
    `lockedCollateralRaw`, `totalDebtRaw`, `stakedAmountRaw`,
    `presaleDepositRaw`).
-   - [ ] Update schema + generated types for the new fields and delete
+   - [x] Update schema + generated types for the new fields and delete
      unused columns to avoid misleading zeros.
-   - [ ] Introduce helper utilities to incrementally adjust these derived
+   - [x] Introduce helper utilities to incrementally adjust these derived
      counters per event (credit borrow/repay, staking, presale).
 4. **New aggregates:** Add `MarketRollingStats` (24h volume, trades, avg price)
    and `GlobalStats` tables to satisfy dashboard requirements without N+1
    queries.
-   - [ ] Define schema entities with indexes keyed by `(marketId, window)`.
-   - [ ] Document the rolling-window policy (24h sliding bucket) so handler
+   - [x] Define schema entities with indexes keyed by `(marketId, window)`.
+   - [x] Document the rolling-window policy (24h sliding bucket) so handler
      implementers can follow a deterministic rule set.
-   - [ ] Plan reindex impact: aggregates will be recomputed from genesis,
+   - [x] Plan reindex impact: aggregates will be recomputed from genesis,
      so note in rollout doc that a full reindex is mandatory.
 
 ### Workstream B – Event Coverage & Handlers

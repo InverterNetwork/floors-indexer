@@ -185,11 +185,10 @@ describe('Floor Markets Indexer', () => {
       const position = dbAfterBuy.entities.UserMarketPosition.get(positionId)
       assert.ok(position, 'UserMarketPosition should exist')
       assert.equal(
-        position?.fTokenBalanceRaw,
+        position?.netFTokenChangeRaw,
         BUY_RECEIVED_AMOUNT,
-        'fTokenBalanceRaw should increase'
+        'netFTokenChangeRaw should increase'
       )
-      // Note: reserveBalanceRaw calculation depends on initial balance
     })
 
     it('formats token amounts correctly with different decimals', async () => {

@@ -94,6 +94,8 @@ ModuleFactory.ModuleCreated.handler(
       }
 
       // Use the canonical market ID to ensure Market.id matches ModuleRegistry.id
+      const creatorAddress = event.transaction.from || orchestrator
+
       const market = await getOrCreateMarket(
         context,
         event.chainId,
@@ -101,7 +103,9 @@ ModuleFactory.ModuleCreated.handler(
         BigInt(event.block.timestamp),
         reserveTokenId,
         issuanceTokenId,
-        module as `0x${string}`
+        module as `0x${string}`,
+        creatorAddress,
+        event.srcAddress
       )
 
       if (!market) {
@@ -135,11 +139,17 @@ ModuleFactory.ModuleCreated.handler(
       if (market) {
         const facility = {
           id: facilityId,
+          market_id: market.id,
           collateralToken_id: market.issuanceToken_id,
           borrowToken_id: market.reserveToken_id,
           totalLoans: 0n,
           totalVolumeRaw: 0n,
           totalVolumeFormatted: '0',
+          totalDebtRaw: 0n,
+          totalDebtFormatted: '0',
+          totalLockedCollateralRaw: 0n,
+          totalLockedCollateralFormatted: '0',
+          lastUpdatedAt: BigInt(event.block.timestamp),
           createdAt: BigInt(event.block.timestamp),
         }
         context.CreditFacilityContract.set(facility)
@@ -147,7 +157,9 @@ ModuleFactory.ModuleCreated.handler(
           `[ModuleCreated] CreditFacility created | id=${facilityId} | collateralToken=${market.issuanceToken_id} | borrowToken=${market.reserveToken_id}`
         )
       } else {
-        context.log.warn(`[ModuleCreated] Market not found for creditFacility | marketId=${marketId} | facilityId=${facilityId} | action=Re-sync floor modules (clean restart) before processing facility events`)
+        context.log.warn(
+          `[ModuleCreated] Market not found for creditFacility | marketId=${marketId} | facilityId=${facilityId} | action=Re-sync floor modules (clean restart) before processing facility events`
+        )
       }
     }
   })
