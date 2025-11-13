@@ -9,7 +9,7 @@
 - [x] Define detailed implementation plan & sequencing
 - [x] Execute schema & discovery cleanup (Workstream A) – schema, helpers, and generated types now match the normalized ID + loan model (incl. loanId primary keys, collateral/fee snapshots, user position counters, LoanStatusHistory, registry floor pointer, and removal of the deprecated `Loan.timestamp` field)
 - [x] Expand event coverage and handlers (Workstream B) – Floor config now listens for gate/floor/fee/collateral events, `market-handlers` pull on-chain pricing + fee bps via viem, emit `FloorElevation` entries, keep `Market` fee flags in sync, and respond to gate toggles; credit handler upgrades underway (treasury/presale/staking still pending in the remaining checklist items below)
-- [ ] Build derived metrics & snapshots (Workstream C)
+- [x] Build derived metrics & snapshots (Workstream C) – price candles now update for 1h/4h/1d periods, a rolling 24h stats cache backs the `MarketRollingStats` table, hourly `MarketSnapshot` rows capture supply/price/floor + 24h volume/trades, and `GlobalStats` tracks system-wide counts/volume (normalized to 18 decimals)
 - [ ] Update config/infra/tests (Workstream D)
 
 ## Inputs Reviewed
@@ -170,10 +170,10 @@ const loanId = `${event.transaction.hash}-${event.logIndex}` // ignores on-chain
 5. **Optional modules:** Wire presale/staking handlers once ABIs exist, following the schema placeholders already defined. *(pending)*
 
 ### Workstream C – Derived Metrics & Snapshots
-1. **Rolling windows:** Use an in-memory accumulator (per market) to track the last 24h of trade volume/trade count for rapid queries.
-2. **Candles:** Backfill `PriceCandle` creation at multiple periods (1h, 4h, 1d) using actual trade price; support re-org safe updates.
-3. **Market snapshots:** Schedule hourly snapshots triggered by trades or dedicated cron handler to capture supply/price/floor/volume.
-4. **Global stats:** After each trade/floor elevation, recompute aggregated totals (active markets, global TVL, etc.) for the dashboard.
+1. **Rolling windows:** [x] Use an in-memory accumulator (per market) to track the last 24h of trade volume/trade count for rapid queries and persist into `MarketRollingStats`.
+2. **Candles:** [x] Backfill `PriceCandle` creation at multiple periods (1h, 4h, 1d) using actual trade price; support re-org safe updates.
+3. **Market snapshots:** [x] Schedule hourly snapshots triggered by trades (rounded to the nearest hour) to capture supply/price/floor/volume plus 24h stats.
+4. **Global stats:** [x] After each trade/floor elevation, recompute aggregated totals (active markets, global volume) for the dashboard, normalized to 18 decimals; outstanding debt/locked collateral fields remain populated via credit handlers in Workstream B.
 
 ### Workstream D – Config, Infra, & Testing
 1. **Config expansion:** Enumerate every event we depend on in `config.yaml`, add missing ABIs (Floor_v1 extended ABI, Treasury, CreditFacility extras, Presale, Staking). Define chain-id specific addresses for test/dev to allow historical replays.

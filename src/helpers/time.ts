@@ -1,6 +1,8 @@
-import { HandlerContext } from 'generated'
+import type { HandlerContext } from 'generated'
+import type { MarketSnapshot_t } from 'generated/src/db/Entities.gen'
+import type { CandlePeriod_t } from 'generated/src/db/Enums.gen'
+
 import { formatAmount } from './misc'
-import { MarketSnapshot_t } from 'generated/src/db/Entities.gen'
 
 /**
  * Update PriceCandle for charting data
@@ -16,7 +18,7 @@ export async function updatePriceCandles(
     reserveAmountFormatted: string
     timestamp: bigint
   },
-  period: 'ONE_HOUR' | 'FOUR_HOURS' | 'ONE_DAY',
+  period: CandlePeriod_t,
   tokenDecimals: number = 18
 ): Promise<void> {
   // Calculate candle timestamp based on period

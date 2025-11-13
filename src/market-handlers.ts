@@ -1,10 +1,12 @@
 // Market event handlers for Floor Markets DeFi Platform
 // Handles TokensBought, TokensSold, and collateral adjustment events
 
-import type { TradeType_t } from '../generated/src/db/Enums.gen'
+import type { GlobalStats_t, Market_t, Token_t } from '../generated/src/db/Entities.gen'
+import type { CandlePeriod_t, TradeType_t } from '../generated/src/db/Enums.gen'
 import { FloorMarket } from '../generated/src/Handlers.gen'
 import {
   buildUpdatedUserMarketPosition,
+  createMarketSnapshot,
   fetchFloorPricing,
   formatAmount,
   getOrCreateAccount,
@@ -14,6 +16,27 @@ import {
   updatePriceCandles,
 } from './helpers'
 
+const CANDLE_PERIODS: CandlePeriod_t[] = ['ONE_HOUR', 'FOUR_HOURS', 'ONE_DAY']
+const ROLLING_WINDOW_SECONDS = 24n * 60n * 60n
+const SNAPSHOT_PERIOD_SECONDS = 3600n
+
+type RollingEntry = {
+  timestamp: bigint
+  reserveAmountRaw: bigint
+  priceRaw: bigint
+}
+
+type RollingStatsState = {
+  entries: RollingEntry[]
+  totalVolumeRaw: bigint
+  tradeCount: bigint
+  priceSumRaw: bigint
+  reserveTokenDecimals: number
+}
+
+const rollingStatsCache = new Map<string, RollingStatsState>()
+const marketsSeen = new Set<string>()
+const activeMarkets = new Set<string>()
 const BPS_DENOMINATOR = 10_000n
 
 /**
@@ -172,20 +195,21 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] UserPosition updated | netFToken=${updatedPosition.netFTokenChangeFormatted}`
     )
 
-    // Update price candles
-    await updatePriceCandles(
+    marketsSeen.add(updatedMarket.id)
+    if (updatedMarket.status === 'ACTIVE') {
+      activeMarkets.add(updatedMarket.id)
+    } else {
+      activeMarkets.delete(updatedMarket.id)
+    }
+
+    await updateDerivedMetricsAfterTrade({
       context,
-      market.id,
-      {
-        newPriceRaw: buyPriceRaw,
-        newPriceFormatted: priceAmount.formatted,
-        reserveAmountRaw: reserveAmount.raw,
-        reserveAmountFormatted: reserveAmount.formatted,
-        timestamp: trade.timestamp,
-      },
-      'ONE_HOUR',
-      reserveToken.decimals
-    )
+      market: updatedMarket,
+      reserveToken,
+      tradeTimestamp: BigInt(event.block.timestamp),
+      reserveVolumeRaw: event.params.depositAmount_,
+      priceRaw: buyPriceRaw,
+    })
 
     context.log.info(`[TokensBought] ✅ Handler completed successfully`)
   })
@@ -347,20 +371,21 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] UserPosition updated | netFToken=${updatedPosition.netFTokenChangeFormatted}`
     )
 
-    // Update price candles
-    await updatePriceCandles(
+    marketsSeen.add(updatedMarket.id)
+    if (updatedMarket.status === 'ACTIVE') {
+      activeMarkets.add(updatedMarket.id)
+    } else {
+      activeMarkets.delete(updatedMarket.id)
+    }
+
+    await updateDerivedMetricsAfterTrade({
       context,
-      market.id,
-      {
-        newPriceRaw: sellPriceRaw,
-        newPriceFormatted: priceAmount.formatted,
-        reserveAmountRaw: reserveAmount.raw,
-        reserveAmountFormatted: reserveAmount.formatted,
-        timestamp: trade.timestamp,
-      },
-      'ONE_HOUR',
-      reserveToken.decimals
-    )
+      market: updatedMarket,
+      reserveToken,
+      tradeTimestamp: BigInt(event.block.timestamp),
+      reserveVolumeRaw: event.params.receivedAmount_,
+      priceRaw: sellPriceRaw,
+    })
 
     context.log.info(`[TokensSold] ✅ Handler completed successfully`)
   })
@@ -768,3 +793,191 @@ FloorMarket.SellFeeUpdated.handler(
     )
   })
 )
+
+async function updateDerivedMetricsAfterTrade(params: {
+  context: Parameters<typeof updatePriceCandles>[0]
+  market: Market_t
+  reserveToken: Token_t
+  tradeTimestamp: bigint
+  reserveVolumeRaw: bigint
+  priceRaw: bigint
+}): Promise<void> {
+  const { context, market, reserveToken, tradeTimestamp, reserveVolumeRaw, priceRaw } = params
+
+  for (const period of CANDLE_PERIODS) {
+    await updatePriceCandles(
+      context,
+      market.id,
+      {
+        newPriceRaw: priceRaw,
+        newPriceFormatted: formatAmount(priceRaw, reserveToken.decimals).formatted,
+        reserveAmountRaw: reserveVolumeRaw,
+        reserveAmountFormatted: formatAmount(reserveVolumeRaw, reserveToken.decimals).formatted,
+        timestamp: tradeTimestamp,
+      },
+      period,
+      reserveToken.decimals
+    )
+  }
+
+  const rollingState = updateRollingWindowState(
+    market.id,
+    reserveToken.decimals,
+    tradeTimestamp,
+    reserveVolumeRaw,
+    priceRaw
+  )
+
+  const rollingStats = await persistMarketRollingStatsEntity(
+    context,
+    market.id,
+    reserveToken.decimals,
+    rollingState,
+    tradeTimestamp
+  )
+
+  const snapshotTimestamp = getSnapshotTimestamp(tradeTimestamp)
+  await createMarketSnapshot(
+    context,
+    market.id,
+    {
+      currentPriceRaw: market.currentPriceRaw,
+      currentPriceFormatted: market.currentPriceFormatted,
+      floorPriceRaw: market.floorPriceRaw,
+      floorPriceFormatted: market.floorPriceFormatted,
+      totalSupplyRaw: market.totalSupplyRaw,
+      totalSupplyFormatted: market.totalSupplyFormatted,
+      marketSupplyRaw: market.marketSupplyRaw,
+      marketSupplyFormatted: market.marketSupplyFormatted,
+    },
+    rollingStats.volume24hRaw,
+    rollingStats.trades24h,
+    snapshotTimestamp,
+    reserveToken.decimals
+  )
+
+  await updateGlobalStatsEntity(context, tradeTimestamp)
+}
+
+function updateRollingWindowState(
+  marketId: string,
+  reserveTokenDecimals: number,
+  timestamp: bigint,
+  reserveAmountRaw: bigint,
+  priceRaw: bigint
+): RollingStatsState {
+  const existing = rollingStatsCache.get(marketId) ?? {
+    entries: [],
+    totalVolumeRaw: 0n,
+    tradeCount: 0n,
+    priceSumRaw: 0n,
+    reserveTokenDecimals,
+  }
+
+  existing.reserveTokenDecimals = reserveTokenDecimals
+  existing.entries.push({ timestamp, reserveAmountRaw, priceRaw })
+  existing.totalVolumeRaw += reserveAmountRaw
+  existing.tradeCount += 1n
+  existing.priceSumRaw += priceRaw
+
+  const cutoff = timestamp > ROLLING_WINDOW_SECONDS ? timestamp - ROLLING_WINDOW_SECONDS : 0n
+  while (existing.entries.length > 0 && existing.entries[0].timestamp <= cutoff) {
+    const removed = existing.entries.shift()
+    if (!removed) break
+    existing.totalVolumeRaw -= removed.reserveAmountRaw
+    existing.tradeCount -= 1n
+    existing.priceSumRaw -= removed.priceRaw
+  }
+
+  if (existing.tradeCount < 0n) existing.tradeCount = 0n
+  if (existing.totalVolumeRaw < 0n) existing.totalVolumeRaw = 0n
+  if (existing.priceSumRaw < 0n) existing.priceSumRaw = 0n
+
+  rollingStatsCache.set(marketId, existing)
+  return existing
+}
+
+function getSnapshotTimestamp(timestamp: bigint): bigint {
+  if (timestamp < SNAPSHOT_PERIOD_SECONDS) {
+    return 0n
+  }
+  return (timestamp / SNAPSHOT_PERIOD_SECONDS) * SNAPSHOT_PERIOD_SECONDS
+}
+
+async function persistMarketRollingStatsEntity(
+  context: Parameters<typeof updatePriceCandles>[0],
+  marketId: string,
+  reserveTokenDecimals: number,
+  state: RollingStatsState,
+  timestamp: bigint
+): Promise<{ volume24hRaw: bigint; trades24h: bigint }> {
+  const tradeCount = state.tradeCount < 0n ? 0n : state.tradeCount
+  const averagePriceRaw = tradeCount > 0n ? state.priceSumRaw / tradeCount : 0n
+  const averagePrice = formatAmount(averagePriceRaw, reserveTokenDecimals)
+  const volumeAmount = formatAmount(state.totalVolumeRaw, reserveTokenDecimals)
+
+  context.MarketRollingStats.set({
+    id: `${marketId}-86400`,
+    market_id: marketId,
+    windowSeconds: 86400,
+    volumeRaw: state.totalVolumeRaw,
+    volumeFormatted: volumeAmount.formatted,
+    averagePriceRaw,
+    averagePriceFormatted: averagePrice.formatted,
+    tradeCount,
+    lastUpdatedAt: timestamp,
+  })
+
+  return { volume24hRaw: state.totalVolumeRaw, trades24h: tradeCount }
+}
+
+async function updateGlobalStatsEntity(
+  context: Parameters<typeof updatePriceCandles>[0],
+  timestamp: bigint
+): Promise<void> {
+  let totalVolumeRaw18 = 0n
+  rollingStatsCache.forEach((state) => {
+    totalVolumeRaw18 += normalizeAmount(state.totalVolumeRaw, state.reserveTokenDecimals, 18)
+  })
+
+  const volumeFormatted = formatAmount(totalVolumeRaw18, 18)
+  const existingGlobal =
+    (await context.GlobalStats.get('global')) ??
+    ({
+      id: 'global',
+      totalMarkets: 0n,
+      activeMarkets: 0n,
+      totalVolumeRaw: 0n,
+      totalVolumeFormatted: '0',
+      totalOutstandingDebtRaw: 0n,
+      totalOutstandingDebtFormatted: '0',
+      totalLockedCollateralRaw: 0n,
+      totalLockedCollateralFormatted: '0',
+      lastUpdatedAt: timestamp,
+    } satisfies GlobalStats_t)
+
+  context.GlobalStats.set({
+    ...existingGlobal,
+    totalMarkets: BigInt(marketsSeen.size),
+    activeMarkets: BigInt(activeMarkets.size),
+    totalVolumeRaw: totalVolumeRaw18,
+    totalVolumeFormatted: volumeFormatted.formatted,
+    lastUpdatedAt: timestamp,
+  })
+}
+
+function normalizeAmount(value: bigint, fromDecimals: number, toDecimals: number): bigint {
+  if (fromDecimals === toDecimals) {
+    return value
+  }
+
+  if (fromDecimals > toDecimals) {
+    const diff = fromDecimals - toDecimals
+    const factor = 10n ** BigInt(diff)
+    return value / factor
+  }
+
+  const diff = toDecimals - fromDecimals
+  const factor = 10n ** BigInt(diff)
+  return value * factor
+}
