@@ -7,6 +7,7 @@ import {
   fetchTokenAddressesFromBC,
   getOrCreateMarket,
   getOrCreateModuleRegistry,
+  resolveMarketId,
 } from './helpers'
 import { handlerErrorWrapper } from './helpers/error'
 
@@ -57,8 +58,8 @@ ModuleFactory.ModuleCreated.handler(
       `[ModuleCreated] Regular event handler | title=${title} | moduleType=${moduleType} | address=${module}`
     )
 
-    // Always use orchestrator as the market ID (registry ID)
-    const marketId = orchestrator.toLowerCase()
+    // Derive the canonical market ID shared by registry/market/facility records
+    const marketId = resolveMarketId(orchestrator, module)
 
     // Get or create ModuleRegistry for this market using helper
     const registry = await getOrCreateModuleRegistry(
@@ -92,8 +93,7 @@ ModuleFactory.ModuleCreated.handler(
         )
       }
 
-      // Use the orchestrator as market ID (not BC module address)
-      // This ensures Market.id matches ModuleRegistry.id
+      // Use the canonical market ID to ensure Market.id matches ModuleRegistry.id
       const market = await getOrCreateMarket(
         context,
         event.chainId,
@@ -147,9 +147,7 @@ ModuleFactory.ModuleCreated.handler(
           `[ModuleCreated] CreditFacility created | id=${facilityId} | collateralToken=${market.issuanceToken_id} | borrowToken=${market.reserveToken_id}`
         )
       } else {
-        context.log.warn(
-          `[ModuleCreated] Market not found for creditFacility | marketId=${marketId} | facilityId=${facilityId}`
-        )
+        context.log.warn(`[ModuleCreated] Market not found for creditFacility | marketId=${marketId} | facilityId=${facilityId} | action=Re-sync floor modules (clean restart) before processing facility events`)
       }
     }
   })

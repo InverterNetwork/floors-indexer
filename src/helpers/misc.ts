@@ -19,7 +19,9 @@ export function formatAmount(raw: bigint, decimals: number): { raw: bigint; form
  * Extract module type from metadata title
  * Maps module titles to ModuleRegistry field names
  */
-export function extractModuleType(title: string): 'floor' | 'authorizer' | 'unknown' | 'creditFacility' | 'feeTreasury' | 'presale' | 'staking' {
+export function extractModuleType(
+  title: string
+): 'floor' | 'authorizer' | 'unknown' | 'creditFacility' | 'feeTreasury' | 'presale' | 'staking' {
   const lower = title.toLowerCase()
 
   if (lower.includes('creditfacility')) return 'creditFacility'
@@ -34,4 +36,24 @@ export function extractModuleType(title: string): 'floor' | 'authorizer' | 'unkn
   }
 
   return prefixMap[prefix as keyof typeof prefixMap] || 'unknown'
+}
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+/**
+ * Resolve the canonical market ID for a module.
+ * Prefer the orchestrator (market) address unless it is unset/zero.
+ */
+export function resolveMarketId(orchestrator: string, module: string): string {
+  const normalizedModule = module.toLowerCase()
+  if (!orchestrator) {
+    return normalizedModule
+  }
+
+  const normalizedOrchestrator = orchestrator.toLowerCase()
+  if (normalizedOrchestrator === ZERO_ADDRESS) {
+    return normalizedModule
+  }
+
+  return normalizedOrchestrator
 }

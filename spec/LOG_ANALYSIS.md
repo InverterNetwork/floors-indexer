@@ -228,6 +228,37 @@ if (moduleType === 'creditFacility') {
 
 **Alternative Approach**: Defer CreditFacility creation until Market exists by checking in a later batch or using a retry mechanism.
 
+---
+
+## 4. Credit Facility Re-index Checklist
+
+Follow this checklist after deploying fixes so CreditFacility data is rebuilt from block 0:
+
+1. Stop any running indexer processes and delete persisted state to force a full replay:
+   ```bash
+   pkill -9 -f "ts-node\|envio\|bun dev" || true
+   lsof -ti:9898 | xargs kill -9 2> /dev/null || true
+   rm -f generated/persisted_state.envio.json
+   ```
+2. Export the logging env vars, then start the indexer (e.g. `TUI_OFF=true LOG_LEVEL=debug LOG_STRATEGY=console-pretty bun dev > /tmp/indexer.log 2>&1 &`) and wait ~45s for the initial sync.
+3. Verify that a `CreditFacilityContract` row exists for each facility:
+   ```bash
+   curl -s http://localhost:8080/v1/graphql \
+     -H "Content-Type: application/json" \
+     -d '{"query":"{ CreditFacilityContract { id borrowToken_id collateralToken_id } }"}' | python3 -m json.tool
+   ```
+4. Confirm that handler logs no longer emit `Facility not found` warnings:
+   ```bash
+   grep "Facility not found" /tmp/indexer.log || echo "No missing facility warnings"
+   ```
+5. Run the quick sanity query for loans to ensure events were persisted:
+   ```bash
+   curl -s http://localhost:8080/v1/graphql \
+     -H "Content-Type: application/json" \
+     -d '{"query":"{ Loan { id facility_id status } }"}' | python3 -m json.tool
+   ```
+If any step fails, repeat the cleanup and restart to guarantee the registry/market/facility entities are rebuilt before credit facility events replay.
+
 ### Change 2: Add Comprehensive Logging
 
 **Location**: Multiple files
