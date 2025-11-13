@@ -49,6 +49,10 @@ ModuleFactory.ModuleCreated.handler(
     const title = metadata[4]
     const moduleType = extractModuleType(title)
 
+    context.log.debug(
+      `[ModuleCreated] Handler entry | moduleType=${moduleType} | address=${module} | block=${event.block.number} | logIndex=${event.logIndex}`
+    )
+
     context.log.info(
       `[ModuleCreated] Regular event handler | title=${title} | moduleType=${moduleType} | address=${module}`
     )
@@ -68,6 +72,9 @@ ModuleFactory.ModuleCreated.handler(
     // If this is a fundingManager module, create the Market entity
     if (moduleType === 'floor') {
       // Try to fetch token addresses from the BC contract via RPC
+      context.log.debug(
+        `[ModuleCreated] Fetching BC tokens | chainId=${event.chainId} | bcAddress=${module}`
+      )
       const tokenAddresses = await fetchTokenAddressesFromBC(event.chainId, module as `0x${string}`)
 
       let reserveTokenId: string | undefined
@@ -76,11 +83,18 @@ ModuleFactory.ModuleCreated.handler(
       if (tokenAddresses) {
         reserveTokenId = tokenAddresses.reserveToken
         issuanceTokenId = tokenAddresses.issuanceToken
+        context.log.info(
+          `[ModuleCreated] ✅ BC tokens fetched | reserveToken=${reserveTokenId} | issuanceToken=${issuanceTokenId}`
+        )
+      } else {
+        context.log.warn(
+          `[ModuleCreated] ⚠️ Unable to fetch BC tokens | bcAddress=${module} | falling back to placeholders`
+        )
       }
 
       // Use the orchestrator as market ID (not BC module address)
       // This ensures Market.id matches ModuleRegistry.id
-      const result = await getOrCreateMarket(
+      const market = await getOrCreateMarket(
         context,
         event.chainId,
         marketId,
@@ -89,14 +103,36 @@ ModuleFactory.ModuleCreated.handler(
         issuanceTokenId,
         module as `0x${string}`
       )
+
+      if (!market) {
+        context.log.error(
+          `[ModuleCreated] ❌ Failed to initialize Market | marketId=${marketId} | bcAddress=${module}`
+        )
+      } else {
+        context.log.info(
+          `[ModuleCreated] Market ready | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
+        )
+      }
     }
 
     // If this is a creditFacility module, create the CreditFacilityContract entity
     if (moduleType === 'creditFacility') {
+      const facilityId = module.toLowerCase()
+      context.log.debug(
+        `[ModuleCreated] Preparing CreditFacility | facilityId=${facilityId} | marketId=${marketId}`
+      )
+
       // Get the Market entity to get token addresses
-      const market = await context.Market.get(marketId)
+      let market = await context.Market.get(marketId)
+
+      if (!market && marketId !== facilityId) {
+        context.log.debug(
+          `[ModuleCreated] Market lookup fallback | trying facilityId=${facilityId}`
+        )
+        market = await context.Market.get(facilityId)
+      }
+
       if (market) {
-        const facilityId = module.toLowerCase()
         const facility = {
           id: facilityId,
           collateralToken_id: market.issuanceToken_id,
@@ -112,7 +148,7 @@ ModuleFactory.ModuleCreated.handler(
         )
       } else {
         context.log.warn(
-          `[ModuleCreated] Market not found for creditFacility | marketId=${marketId}`
+          `[ModuleCreated] Market not found for creditFacility | marketId=${marketId} | facilityId=${facilityId}`
         )
       }
     }

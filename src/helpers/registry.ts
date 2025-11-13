@@ -1,5 +1,5 @@
-import { HandlerContext } from 'generated'
-import { ModuleRegistry_t } from 'generated/src/db/Entities.gen'
+import type { HandlerContext } from 'generated'
+import type { ModuleRegistry_t } from 'generated/src/db/Entities.gen'
 
 /**
  * Get or create ModuleRegistry entity for a market
@@ -25,6 +25,16 @@ export async function getOrCreateModuleRegistry(
   // Get existing registry if it exists
   const existingRegistry = await context.ModuleRegistry.get(normalizedMarketId)
 
+  if (existingRegistry) {
+    context.log.debug(
+      `[getOrCreateModuleRegistry] Updating registry | marketId=${normalizedMarketId} | moduleType=${moduleType} | module=${normalizedModule}`
+    )
+  } else {
+    context.log.info(
+      `[getOrCreateModuleRegistry] Creating registry | marketId=${normalizedMarketId} | moduleType=${moduleType} | module=${normalizedModule}`
+    )
+  }
+
   // Create or update registry with new module address
   const registry: ModuleRegistry_t = {
     id: normalizedMarketId,
@@ -40,6 +50,20 @@ export async function getOrCreateModuleRegistry(
   }
 
   context.ModuleRegistry.set(registry)
+
+  const moduleSnapshot = {
+    authorizer: registry.authorizer || 'none',
+    feeTreasury: registry.feeTreasury || 'none',
+    creditFacility: registry.creditFacility || 'none',
+    presale: registry.presale || 'none',
+    staking: registry.staking || 'none',
+  }
+
+  context.log.debug(
+    `[getOrCreateModuleRegistry] ✅ Registry ${existingRegistry ? 'updated' : 'created'} | marketId=${normalizedMarketId} | modules=${JSON.stringify(
+      moduleSnapshot
+    )}`
+  )
 
   return registry
 }

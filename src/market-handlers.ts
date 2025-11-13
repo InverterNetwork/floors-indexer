@@ -18,6 +18,9 @@ import {
  */
 FloorMarket.TokensBought.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[TokensBought] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[TokensBought] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
     )
@@ -37,7 +40,9 @@ FloorMarket.TokensBought.handler(
     )
 
     if (!market) {
-      context.log.error(`[TokensBought] Failed to get/create market for ${marketId}`)
+      context.log.error(
+        `[TokensBought] ❌ Failed to get/create market | marketId=${marketId} | block=${event.block.number}`
+      )
       return
     }
 
@@ -58,6 +63,10 @@ FloorMarket.TokensBought.handler(
       return
     }
 
+    context.log.debug(
+      `[TokensBought] Tokens verified | reserveToken=${reserveToken.id} (${reserveToken.decimals} decimals) | issuanceToken=${issuanceToken.id} (${issuanceToken.decimals} decimals)`
+    )
+
     context.log.info(
       `[TokensBought] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
@@ -71,6 +80,9 @@ FloorMarket.TokensBought.handler(
 
     const buyer = await getOrCreateAccount(context, buyerAddress)
     context.log.info(`[TokensBought] Buyer account: ${buyer.id}`)
+    context.log.debug(
+      `[TokensBought] Buyer account ready | user=${buyer.id} | market=${market.id}`
+    )
 
     // Create Trade entity
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
@@ -99,6 +111,9 @@ FloorMarket.TokensBought.handler(
     context.Trade.set(trade)
     context.log.info(
       `[TokensBought] ✅ Trade created | id=${tradeId} | type=BUY | tokens=${tokenAmount.formatted} | reserve=${reserveAmount.formatted}`
+    )
+    context.log.debug(
+      `[TokensBought] Trade details | market=${market.id} | user=${buyer.id} | tokenRaw=${trade.tokenAmountRaw} | reserveRaw=${trade.reserveAmountRaw}`
     )
 
     // Update Market (dynamic state fields)
@@ -175,6 +190,9 @@ FloorMarket.TokensBought.handler(
  */
 FloorMarket.TokensSold.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[TokensSold] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[TokensSold] Event received | srcAddress=${event.srcAddress} | depositAmount=${event.params.depositAmount_} | receivedAmount=${event.params.receivedAmount_}`
     )
@@ -194,7 +212,9 @@ FloorMarket.TokensSold.handler(
     )
 
     if (!market) {
-      context.log.error(`[TokensSold] Failed to get/create market for ${marketId}`)
+      context.log.error(
+        `[TokensSold] ❌ Failed to get/create market | marketId=${marketId} | block=${event.block.number}`
+      )
       return
     }
 
@@ -215,6 +235,10 @@ FloorMarket.TokensSold.handler(
       return
     }
 
+    context.log.debug(
+      `[TokensSold] Tokens verified | reserveToken=${reserveToken.id} (${reserveToken.decimals} decimals) | issuanceToken=${issuanceToken.id} (${issuanceToken.decimals} decimals)`
+    )
+
     context.log.info(
       `[TokensSold] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
@@ -228,6 +252,9 @@ FloorMarket.TokensSold.handler(
 
     const seller = await getOrCreateAccount(context, sellerAddress)
     context.log.info(`[TokensSold] Seller account: ${seller.id}`)
+    context.log.debug(
+      `[TokensSold] Seller account ready | user=${seller.id} | market=${market.id}`
+    )
 
     // Create Trade entity
     const tradeId = `${event.transaction.hash}-${event.logIndex}`
@@ -256,6 +283,9 @@ FloorMarket.TokensSold.handler(
     context.Trade.set(trade)
     context.log.info(
       `[TokensSold] ✅ Trade created | id=${tradeId} | type=SELL | tokens=${tokenAmount.formatted} | reserve=${reserveAmount.formatted}`
+    )
+    context.log.debug(
+      `[TokensSold] Trade details | market=${market.id} | user=${seller.id} | tokenRaw=${trade.tokenAmountRaw} | reserveRaw=${trade.reserveAmountRaw}`
     )
 
     // Update Market (dynamic state fields)

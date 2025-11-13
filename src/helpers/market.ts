@@ -27,7 +27,16 @@ export async function getOrCreateMarket(
   let market = await context.Market.get(normalizedMarketId)
 
   // If market exists, return it
-  if (market) return market
+  if (market) {
+    context.log.debug(
+      `[getOrCreateMarket] Market hit | id=${normalizedMarketId} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
+    )
+    return market
+  }
+
+  context.log.info(
+    `[getOrCreateMarket] Creating market | id=${normalizedMarketId} | bcAddress=${bcAddress || 'none'} | reserveToken=${reserveTokenId || 'fetching'} | issuanceToken=${issuanceTokenId || 'fetching'} | chainId=${chainId}`
+  )
 
   // Create new market
   const creator = await getOrCreateAccount(context, normalizedMarketId)
@@ -37,10 +46,20 @@ export async function getOrCreateMarket(
   let finalIssuanceTokenId = issuanceTokenId
 
   if ((!finalReserveTokenId || !finalIssuanceTokenId) && bcAddress) {
+    context.log.debug(
+      `[getOrCreateMarket] Fetching token addresses | bcAddress=${bcAddress} | chainId=${chainId}`
+    )
     const tokenAddresses = await fetchTokenAddressesFromBC(chainId, bcAddress)
     if (tokenAddresses) {
       if (!finalReserveTokenId) finalReserveTokenId = tokenAddresses.reserveToken
       if (!finalIssuanceTokenId) finalIssuanceTokenId = tokenAddresses.issuanceToken
+      context.log.info(
+        `[getOrCreateMarket] ✅ Tokens resolved | reserveToken=${finalReserveTokenId} | issuanceToken=${finalIssuanceTokenId}`
+      )
+    } else {
+      context.log.warn(
+        `[getOrCreateMarket] ⚠️ Token fetch failed | bcAddress=${bcAddress} | using placeholders`
+      )
     }
   }
 
@@ -58,6 +77,9 @@ export async function getOrCreateMarket(
       symbol: 'UNKNOWN',
       decimals: 18,
     }
+    context.log.warn(
+      `[getOrCreateMarket] Reserve token placeholder used | marketId=${normalizedMarketId}`
+    )
   }
 
   if (finalIssuanceTokenId) {
@@ -70,6 +92,9 @@ export async function getOrCreateMarket(
       symbol: 'UNKNOWN',
       decimals: 18,
     }
+    context.log.warn(
+      `[getOrCreateMarket] Issuance token placeholder used | marketId=${normalizedMarketId}`
+    )
   }
 
   market = {
@@ -105,6 +130,10 @@ export async function getOrCreateMarket(
     createdAt: timestamp,
   }
   context.Market.set(market)
+
+  context.log.info(
+    `[getOrCreateMarket] ✅ Market created | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
+  )
 
   return market
 }

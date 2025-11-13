@@ -10,16 +10,20 @@ import { formatAmount, getOrCreateAccount, handlerErrorWrapper } from './helpers
  */
 CreditFacility.LoanCreated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[LoanCreated] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[LoanCreated] Handler invoked | facility=${event.srcAddress} | borrower=${event.params.borrower_}`
     )
 
-    const facilityId = event.srcAddress
+    const facilityId = event.srcAddress.toLowerCase()
+    context.log.debug(`[LoanCreated] Looking up facility | facilityId=${facilityId}`)
     const facility = await context.CreditFacilityContract.get(facilityId)
 
     if (!facility) {
       context.log.warn(
-        `[LoanCreated] Facility not found | facilityId=${facilityId} - skipping event`
+        `[LoanCreated] Facility not found | facilityId=${facilityId} | block=${event.block.number} | tx=${event.transaction.hash} - skipping event`
       )
       return
     }
@@ -48,6 +52,7 @@ CreditFacility.LoanCreated.handler(
 
     // Get or create borrower account
     const borrower = await getOrCreateAccount(context, event.params.borrower_)
+    context.log.debug(`[LoanCreated] Borrower ready | borrower=${borrower.id}`)
 
     // Create Loan entity
     const loanId = `${event.transaction.hash}-${event.logIndex}`
@@ -69,6 +74,9 @@ CreditFacility.LoanCreated.handler(
     context.log.info(
       `[LoanCreated] ✅ Loan created | loanId=${loanId} | amount=${loanAmount.formatted}`
     )
+    context.log.debug(
+      `[LoanCreated] Loan details | facility=${facility.id} | borrower=${borrower.id} | amountRaw=${loan.borrowAmountRaw} | totalLoans=${updatedFacility.totalLoans}`
+    )
   })
 )
 
@@ -78,14 +86,20 @@ CreditFacility.LoanCreated.handler(
  */
 CreditFacility.LoanRepaid.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[LoanRepaid] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[LoanRepaid] Handler invoked | facility=${event.srcAddress} | borrower=${event.params.borrower_}`
     )
 
-    const facilityId = event.srcAddress
+    const facilityId = event.srcAddress.toLowerCase()
+    context.log.debug(`[LoanRepaid] Looking up facility | facilityId=${facilityId}`)
     const facility = await context.CreditFacilityContract.get(facilityId)
     if (!facility) {
-      context.log.warn(`[LoanRepaid] Facility not found | facilityId=${facilityId}`)
+      context.log.warn(
+        `[LoanRepaid] Facility not found | facilityId=${facilityId} | block=${event.block.number} | tx=${event.transaction.hash}`
+      )
       return
     }
 
@@ -97,6 +111,7 @@ CreditFacility.LoanRepaid.handler(
 
     // Get or create borrower account
     const borrower = await getOrCreateAccount(context, event.params.borrower_)
+    context.log.debug(`[LoanRepaid] Borrower ready | borrower=${borrower.id}`)
 
     // Create Loan entity for repayment record
     const repaymentAmount = formatAmount(event.params.repaymentAmount_, borrowToken.decimals)
@@ -119,6 +134,9 @@ CreditFacility.LoanRepaid.handler(
     context.log.info(
       `[LoanRepaid] ✅ Loan repaid | loanId=${loanId} | amount=${repaymentAmount.formatted}`
     )
+    context.log.debug(
+      `[LoanRepaid] Loan details | facility=${facility.id} | borrower=${borrower.id} | repaymentRaw=${loan.borrowAmountRaw}`
+    )
   })
 )
 
@@ -128,6 +146,9 @@ CreditFacility.LoanRepaid.handler(
  */
 CreditFacility.LoanClosed.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[LoanClosed] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[LoanClosed] Handler invoked | facility=${event.srcAddress} | borrower=${event.params.borrower_}`
     )
@@ -152,6 +173,9 @@ CreditFacility.LoanClosed.handler(
     }
     context.Loan.set(loan)
     context.log.info(`[LoanClosed] ✅ Loan closed | loanId=${loanId}`)
+    context.log.debug(
+      `[LoanClosed] Loan details | facility=${event.srcAddress} | borrower=${borrower.id}`
+    )
   })
 )
 
@@ -161,12 +185,17 @@ CreditFacility.LoanClosed.handler(
  */
 CreditFacility.IssuanceTokensLocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[IssuanceTokensLocked] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[IssuanceTokensLocked] Handler invoked | facility=${event.srcAddress} | user=${event.params.user_}`
     )
 
     const user = await getOrCreateAccount(context, event.params.user_)
-    context.log.debug(`[IssuanceTokensLocked] Updating portfolio | userId=${user.id}`)
+    context.log.debug(
+      `[IssuanceTokensLocked] Updating portfolio | userId=${user.id} | amount=${event.params.amount_}`
+    )
   })
 )
 
@@ -176,11 +205,16 @@ CreditFacility.IssuanceTokensLocked.handler(
  */
 CreditFacility.IssuanceTokensUnlocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    context.log.debug(
+      `[IssuanceTokensUnlocked] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
+    )
     context.log.info(
       `[IssuanceTokensUnlocked] Handler invoked | facility=${event.srcAddress} | user=${event.params.user_}`
     )
 
     const user = await getOrCreateAccount(context, event.params.user_)
-    context.log.debug(`[IssuanceTokensUnlocked] Updating portfolio | userId=${user.id}`)
+    context.log.debug(
+      `[IssuanceTokensUnlocked] Updating portfolio | userId=${user.id} | amount=${event.params.amount_}`
+    )
   })
 )
