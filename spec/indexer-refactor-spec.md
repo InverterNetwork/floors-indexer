@@ -1,0 +1,221 @@
+# Floor Markets Indexer Refactor Spec
+
+## Objective
+- Deliver every data point enumerated in `spec/frontend-data-requirements.md` through the Envio indexer so the frontend can query a single source for markets, user positions, loans, presale, staking, and fee flows.
+- Close the gap between the current schema/handler implementation and the on-chain behavior exercised in the Solidity E2E + invariant suites.
+- Define the work required to make market analytics (prices, volume, floor history) reliable and to expose module discovery that the dapp can trust.
+
+## Progress
+- [x] Define detailed implementation plan & sequencing
+- [ ] Execute schema & discovery cleanup (Workstream A)
+- [ ] Expand event coverage and handlers (Workstream B)
+- [ ] Build derived metrics & snapshots (Workstream C)
+- [ ] Update config/infra/tests (Workstream D)
+
+## Inputs Reviewed
+- Frontend data contract (`spec/frontend-data-requirements.md`)
+- Schema + config (`schema.graphql`, `config.yaml`)
+- Runtime handlers (`src/factory-handlers.ts`, `src/market-handlers.ts`, `src/credit-handlers.ts`, helpers)
+- Solidity tests showing canonical flows (`contracts/test/e2e/core/modules/CreditFacility_v1_E2E.t.sol`, `contracts/test/e2e/core/issuance/Floor_v1_E2E.t.sol`, `contracts/test/invariant/workflows/FullProtocolWorkflow_InvariantTest.t.sol`)
+
+## Key Findings
+
+### 1. Schema misalignment
+- `ModuleRegistry` never stores the floor module address, so clients cannot resolve the bonding curve; only authorizer/treasury/credit/presale/staking slots exist. (`schema.graphql`, `ModuleRegistry` type)
+- `Loan` entities use `txHash-logIndex` as ID, lack the on-chain `loanId`, and omit collateral/fee/floor snapshots required by the frontend and tests.  
+  ```264:282:indexer/schema.graphql
+type Loan {
+  id: ID!
+  borrower_id: ID!
+  facility_id: ID!
+  collateralAmountRaw: BigInt!
+  collateralAmountFormatted: String!
+  borrowAmountRaw: BigInt!
+  borrowAmountFormatted: String!
+  originationFeeRaw: BigInt!
+  originationFeeFormatted: String!
+  status: LoanStatus!
+  timestamp: BigInt!
+  transactionHash: String!
+}
+  ```
+- `UserMarketPosition` includes `reserveBalance`, `lockedCollateral`, `stakedAmount`, etc., but handlers never populate them, so values remain zero and misleading to the frontend.
+- Entities for presale, staking, fee distributions, and floor elevations exist in the schema but no handler ever sets them; snapshots (`MarketSnapshot`, `PriceCandle`) are defined but never written.
+
+### 2. Handler shortcomings
+- Trade handlers hardcode `fee` and `newPrice` to zero, never call the Floor contract for real prices/fees, and adjust supplies by naïvely adding/subtracting event payloads.  
+  ```88:138:src/market-handlers.ts
+    const fee = formatAmount(0n, reserveToken.decimals) // TODO
+    const newPrice = formatAmount(0n, reserveToken.decimals) // TODO
+    ...
+      newPriceRaw: newPrice.raw,
+      newPriceFormatted: newPrice.formatted,
+      totalSupplyRaw: market.totalSupplyRaw + event.params.receivedAmount_,
+      marketSupplyRaw: market.marketSupplyRaw + event.params.receivedAmount_,
+  ```
+- `getOrCreateMarket` seeds `creator_id` with the market address itself and leaves `factory_id` blank, so we lose provenance and cannot join back to ModuleFactory deployments.
+- Credit handlers ignore the `loanId` emitted by the contract, create duplicate loan rows for every repayment, and never update `totalDebt`, `lockedCollateral`, or user positions.  
+  ```11:140:src/credit-handlers.ts
+const loanId = `${event.transaction.hash}-${event.logIndex}` // ignores on-chain loanId
+...
+      collateralAmountRaw: 0n,
+      originationFeeRaw: 0n,
+      status: 'ACTIVE' as LoanStatus_t,
+```
+- `IssuanceTokensLocked/Unlocked` handlers simply log and exit—no state change.
+- No handlers exist for `FloorIncreased`, `BuyingEnabled/Disabled`, `SellingEnabled/Disabled`, fee treasury events, staking, or presale despite explicit frontend needs (`spec/frontend-data-requirements.md` §§1-8).
+
+### 3. Config & contract coverage
+- `config.yaml` only listens to four Floor events and five CreditFacility events; it omits all floor management, gating, fee, and staking signals.  
+  ```15:45:indexer/config.yaml
+  - name: FloorMarket
+    ...
+    events:
+      - event: TokensBought
+      - event: TokensSold
+      - event: VirtualCollateralAmountAdded
+      - event: VirtualCollateralAmountSubtracted
+  ...
+      - name: CreditFacility
+        address:
+```
+- Floor & credit addresses are blank. Dynamic discovery works only if ModuleFactory emits events on the same chain; for testnets/mainnet we still need explicit overrides for historical backfills.
+
+### 4. Frontend requirements currently impossible
+- Marketplace cards need floor history, 24h volume, and fee splits (§1.1–1.4, §2.2), but we never write `FloorElevation` or `FeeDistribution` entities.  
+  ```238:257:spec/frontend-data-requirements.md
+### 2.5 Floor Injection History
+... FloorIncreased(oldFloorPrice, newFloorPrice, collateralConsumed, supplyIncrease) ...
+  ```
+- Borrow/loop panels need per-user debt, locked collateral, LTV, and protocol totals (§4–§5). Credit handlers do not expose any of these metrics, and schema lacks aggregates.
+- Presale/staking data is marked TBD in the spec, yet our indexer provides zero entities or handlers, so the frontend cannot even display placeholder progress/eligibility.
+- Tests show real workflows (credit borrow/repay, role assignments, floor raises) that emit events we ignore; the invariant suite expects collateral accounting that we never track.  
+  ```168:220:contracts/test/e2e/core/modules/CreditFacility_v1_E2E.t.sol
+        authorizer.addAccessPermission(target, credit.borrow.selector, borrowerRoleId);
+        ...
+        uint256 loanId = credit.borrow(200e18);
+        ...
+        credit.repay(loanId, l2.remainingLoanAmount - repayHalf);
+  ```
+
+## Requirement ↔ Gap Matrix
+
+| Frontend requirement | Source (§) | Needed signals | Current state | Gap |
+| --- | --- | --- | --- | --- |
+| Floor price history, injections, APR | §1.4, §2.2, §2.5 | `FloorIncreased`, VC deltas, on-chain price | Not indexed (only VC add/sub) | Implement Floor events, compute floor/floorAPR metadata |
+| Market price history & volume | §1.3, §2.3 | Accurate trade price, OHLC candles, 24h aggregates | Trade handlers store 0 price/fee, candles useless | Fetch price/fee from contract, maintain rolling aggregates |
+| Loan lifecycle & user debt | §4, §5, §9 | `loanId`, amount, fee, floor snapshot, user debt totals | Loan IDs fabricated per tx; no debt/locking updates | Store on-chain IDs, update aggregates + user positions |
+| Module discovery (authorizer, credit, treasury, presale, staking) | §1.4, §9 | Registry keyed by canonical market + actual floor module field | Registry lacks floor pointer; duplicates by address form | Normalize IDs, add explicit floor module reference |
+| Gate/fee state (isBuyOpen, fee bps) | §2.1, §3 | `BuyingEnabled/Disabled`, `Selling*`, `*FeeSet` events | Not listened to or stored | Extend config + handlers, update Market flags |
+| Treasury inflows/outflows | §1.4, §2.2 | `Treasury_FundsReceived`, `RecipientPayment` | Not in config | Add ABIs & entities to surface fee splits |
+| Presale progress & user participation | §1.1, §8 | Presale contract events | No ABI/handlers | Add once ABI delivered; schema ready |
+| Staking balances/APY | §6 | Staking contract events | No ABI/handlers | Same as presale |
+
+## Refactor Workstreams
+
+### Workstream A – Schema & Discovery Cleanup
+1. **Normalize IDs:** Use the Floor (bonding-curve) module / orchestrator
+   address as the canonical `id` for `Market` and every market-adjacent
+   entity—no extra `floorModuleId` or `orchestratorId` columns required—and
+   ensure `ModuleRegistry` references follow the same convention so handlers
+   and the frontend can deterministically map modules (no guessing via
+   `resolveMarketId`).
+   - [ ] Update `schema.graphql` so `Market.id`, `ModuleRegistry.id`, and all
+     foreign keys referencing markets adopt the Floor/orchestrator address.
+   - [ ] Regenerate Envio types/codegen and update helper factories
+     (`src/helpers/registry.ts`, `src/helpers/market.ts`) to enforce the
+     normalized ID shape.
+   - [ ] Backfill `factory_id` and `creator_id` in `getOrCreateMarket`
+     using `ModuleCreated` data to preserve provenance.
+2. **Loan redesign:** Persist `loanId` (uint256) as primary key, add fields for
+   `floorPriceAtBorrow`, `lockedCollateral`, `remainingDebt`,
+   `originationFee`, `statusHistory`. Update `CreditFacilityContract` with
+   `totalDebtRaw` & `totalLockedCollateralRaw`.
+   - [ ] Replace synthetic IDs inside `src/credit-handlers.ts` with the
+     on-chain `loanId` and migrate helper functions accordingly.
+   - [ ] Extend the schema to capture price/fee snapshots and a normalized
+     `LoanStatusHistory` child table for frontend timelines.
+   - [ ] Ensure facility-level aggregates stay in sync on every borrow/repay
+     by adding dedicated mutation helpers.
+3. **User positions:** Remove pseudo `reserveBalance` (we cannot track wallet
+   balances) and replace with derived fields we can compute (`netFTokenChangeRaw`,
+   `lockedCollateralRaw`, `totalDebtRaw`, `stakedAmountRaw`,
+   `presaleDepositRaw`).
+   - [ ] Update schema + generated types for the new fields and delete
+     unused columns to avoid misleading zeros.
+   - [ ] Introduce helper utilities to incrementally adjust these derived
+     counters per event (credit borrow/repay, staking, presale).
+4. **New aggregates:** Add `MarketRollingStats` (24h volume, trades, avg price)
+   and `GlobalStats` tables to satisfy dashboard requirements without N+1
+   queries.
+   - [ ] Define schema entities with indexes keyed by `(marketId, window)`.
+   - [ ] Document the rolling-window policy (24h sliding bucket) so handler
+     implementers can follow a deterministic rule set.
+   - [ ] Plan reindex impact: aggregates will be recomputed from genesis,
+     so note in rollout doc that a full reindex is mandatory.
+
+### Workstream B – Event Coverage & Handlers
+1. **Factory:** When registering modules, persist floor module address plus metadata (version, title) and connect to existing Market/Registry rows.
+2. **Market/Floor handlers:**  
+   - Extend config to include `FloorIncreased`, `BuyingEnabled/Disabled`, `SellingEnabled/Disabled`, `BuyFeeUpdated`, `SellFeeUpdated`, `CollateralDeposited/Withdrawn`.  
+   - On each trade, call `getStaticPriceForBuying/Selling`, `getBuyFee`, `getSellFee` via viem to populate accurate price/fee fields and update rolling supply/reserve data.  
+   - Emit `FloorElevation` entities using floor events and keep `floorPriceRaw` current.  
+   - Maintain `PriceCandle` and `MarketSnapshot` using real data.
+3. **Credit facility:**  
+   - Parse `loanId` from events, fetch `getLoan(loanId)` to capture collateral + debt, and update both facility totals and `UserMarketPosition`.  
+   - Handle `LoanRepaid`, `LoanClosed`, `IssuanceTokensLocked`, `IssuanceTokensUnlocked`, `BuyAndBorrowCompleted`, `LoanConsolidated`, etc., as per ABI/test coverage.  
+   - Maintain per-market protocol debt + locked issuance supply for circulation calculations.
+4. **Treasury + fees:** Add handlers for `Treasury_FundsReceived` and `RecipientPayment` to populate `FeeDistribution`.
+5. **Optional modules:** Wire presale/staking handlers once ABIs exist, following the schema placeholders already defined.
+
+### Workstream C – Derived Metrics & Snapshots
+1. **Rolling windows:** Use an in-memory accumulator (per market) to track the last 24h of trade volume/trade count for rapid queries.
+2. **Candles:** Backfill `PriceCandle` creation at multiple periods (1h, 4h, 1d) using actual trade price; support re-org safe updates.
+3. **Market snapshots:** Schedule hourly snapshots triggered by trades or dedicated cron handler to capture supply/price/floor/volume.
+4. **Global stats:** After each trade/floor elevation, recompute aggregated totals (active markets, global TVL, etc.) for the dashboard.
+
+### Workstream D – Config, Infra, & Testing
+1. **Config expansion:** Enumerate every event we depend on in `config.yaml`, add missing ABIs (Floor_v1 extended ABI, Treasury, CreditFacility extras, Presale, Staking). Define chain-id specific addresses for test/dev to allow historical replays.
+2. **RPC strategy:** Extend `rpc-client.ts` to cache contract reads per block so repeated price/fee lookups stay efficient.
+3. **Testing:**  
+   - Create handler unit tests that replay the Solidity E2E flows using recorded logs (at minimum the borrow/repay + floor raise sequences).  
+   - Add snapshot tests ensuring `Loan` IDs and statuses follow on-chain state transitions.  
+   - Build regression queries that mirror the frontend spec tables (e.g., “Floor Injection History returns last N entries”).
+
+## Implementation Plan
+1. **Planning & sequencing (current step)**  
+   - Finalize scope confirmation with stakeholders.  
+   - Define rollout order for schema and handler updates (reindex-only rollout, no bespoke migrations).
+2. **Phase 1 – Schema & discovery**  
+   - Update `schema.graphql`, regenerate codegen, and ensure ModuleRegistry/Market IDs align (reindex to populate).  
+   - Ship helper updates (`registry`, `market`) with the new ID model.
+3. **Phase 2 – Handler refactors**  
+   - Market/Floor handlers: add price/fee RPC reads, floor events, gate toggles.  
+   - Credit handlers: adopt on-chain `loanId`, debt/lock tracking, new events.  
+   - Treasury handlers + optional module hooks.
+4. **Phase 3 – Metrics & snapshots**  
+   - Implement rolling stats, candles, snapshots, and global aggregates.  
+   - Wire helper utilities + persistence.
+5. **Phase 4 – Config/infra/tests**  
+   - Expand `config.yaml`, add ABIs, enhance `rpc-client`.  
+   - Author replay/unit/integration tests mapped to frontend queries.  
+   - Update documentation + monitoring dashboards.
+6. **QA & rollout**  
+   - Reindex on dev, validate GraphQL against frontend contract.  
+   - Promote to staging/mainnet once data parity confirmed.
+
+## Acceptance Criteria
+- Every field listed in `spec/frontend-data-requirements.md` is either (a) supplied by the indexer or (b) explicitly annotated as on-chain/Oracle-only in docs.
+- Trades include accurate price/fee data and price candles reflect actual movement (verified against a mainnet fork scenario).
+- Per-market totals (supply, floor reserves, protocol debt) reconcile with invariant test expectations within ±1 wei.
+- User positions show correct `lockedCollateralRaw` and `totalDebtRaw` after running the CreditFacility E2E script on a fork.
+- Module discovery query returns consistent records for floor, authorizer, treasury, credit facility, staking, and presale modules for each market.
+- Presale/staking handlers are added (even if behind feature flags) once ABIs land, keeping schema + code in sync.
+
+## Next Steps
+1. Approve this refactor scope.
+2. Prioritize workstreams A → D (schema first to avoid rework).
+3. Schedule time to sync with frontend team to confirm query contracts and with Solidity team to lock event coverage (especially for presale/staking ABIs).
+4. Implement instrumentation dashboards (Grafana/Logs) to monitor handler successes and data freshness once refactor ships.
+
+
