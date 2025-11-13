@@ -1,8 +1,8 @@
 // Credit facility event handlers for Floor Markets DeFi Platform
 
-import { CreditFacility } from '../generated/src/Handlers.gen'
 import type { LoanStatus_t } from '../generated/src/db/Enums.gen'
-import { getOrCreateAccount, getOrCreateToken, formatAmount, handlerErrorWrapper } from './helpers'
+import { CreditFacility } from '../generated/src/Handlers.gen'
+import { formatAmount, getOrCreateAccount, handlerErrorWrapper } from './helpers'
 
 /**
  * @notice Event handler for LoanCreated event
@@ -15,23 +15,13 @@ CreditFacility.LoanCreated.handler(
     )
 
     const facilityId = event.srcAddress
-    let facility = await context.CreditFacilityContract.get(facilityId)
+    const facility = await context.CreditFacilityContract.get(facilityId)
 
     if (!facility) {
-      context.log.debug(`[LoanCreated] Creating new facility record`)
-      // Create facility with placeholder tokens - will be updated from contract
-      const collateralToken = await getOrCreateToken(context, event.chainId, '')
-      const borrowToken = await getOrCreateToken(context, event.chainId, '')
-
-      facility = {
-        id: facilityId,
-        collateralToken_id: collateralToken.id,
-        borrowToken_id: borrowToken.id,
-        totalLoans: 0n,
-        totalVolumeRaw: 0n,
-        totalVolumeFormatted: '0',
-        createdAt: BigInt(event.block.timestamp),
-      }
+      context.log.warn(
+        `[LoanCreated] Facility not found | facilityId=${facilityId} - skipping event`
+      )
+      return
     }
 
     const borrowToken = await context.Token.get(facility.borrowToken_id)

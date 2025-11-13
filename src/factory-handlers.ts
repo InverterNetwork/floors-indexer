@@ -90,5 +90,31 @@ ModuleFactory.ModuleCreated.handler(
         module as `0x${string}`
       )
     }
+
+    // If this is a creditFacility module, create the CreditFacilityContract entity
+    if (moduleType === 'creditFacility') {
+      // Get the Market entity to get token addresses
+      const market = await context.Market.get(marketId)
+      if (market) {
+        const facilityId = module.toLowerCase()
+        const facility = {
+          id: facilityId,
+          collateralToken_id: market.issuanceToken_id,
+          borrowToken_id: market.reserveToken_id,
+          totalLoans: 0n,
+          totalVolumeRaw: 0n,
+          totalVolumeFormatted: '0',
+          createdAt: BigInt(event.block.timestamp),
+        }
+        context.CreditFacilityContract.set(facility)
+        context.log.info(
+          `[ModuleCreated] CreditFacility created | id=${facilityId} | collateralToken=${market.issuanceToken_id} | borrowToken=${market.reserveToken_id}`
+        )
+      } else {
+        context.log.warn(
+          `[ModuleCreated] Market not found for creditFacility | marketId=${marketId}`
+        )
+      }
+    }
   })
 )
