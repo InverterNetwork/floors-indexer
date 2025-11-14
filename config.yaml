@@ -55,7 +55,7 @@ networks:
       url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
     contracts:
       - name: ModuleFactory
-        address: '0xe3f075292144579aba62945cf6737b37dfb740fd'
+        address: '0xabd68a28b030676b3410d743f2c40f0e3a30e057'
       - name: FloorMarket
         address:
       - name: CreditFacility
