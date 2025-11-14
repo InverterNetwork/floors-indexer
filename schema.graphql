@@ -174,8 +174,8 @@ type Market {
   creator_id: ID!
   factory_id: ID!
 
-  reserveToken_id: ID!
-  issuanceToken_id: ID!
+  reserveToken: Token!
+  issuanceToken: Token!
 
   initialPriceRaw: BigInt!
   initialPriceFormatted: String!
