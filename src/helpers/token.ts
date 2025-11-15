@@ -3,13 +3,14 @@ import type { Token_t } from 'generated/src/db/Entities.gen'
 import type { Abi } from 'viem'
 import { erc20Abi } from 'viem'
 
-import ERC20IssuanceABI from '../../../packages/sdk/src/abis/ERC20Issuance_v1'
+import ERC20IssuanceABIJson from '../../abis/ERC20Issuance_v1.json'
 import FLOOR_ABI from '../../abis/Floor_v1.json'
 import { getPublicClient } from '../rpc-client'
 import { formatAmount, normalizeAddress } from './misc'
 
+const ERC20IssuanceABI = ERC20IssuanceABIJson as Abi
 const CAP_FUNCTION_ABI = ERC20IssuanceABI.filter(
-  (entry) => entry.type === 'function' && entry.name === 'cap'
+  (entry: Abi[number]) => entry.type === 'function' && entry.name === 'cap'
 ) as Abi
 
 /**
