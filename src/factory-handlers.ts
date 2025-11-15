@@ -18,8 +18,8 @@ import { handlerErrorWrapper } from './helpers/error'
  * This tells Envio to start listening for events from newly created modules
  */
 ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
-  const module = event.params.module
-  const metadata = event.params.metadata
+  const module = event.params.module_
+  const metadata = event.params.metadata_
   const title = metadata[4]
   const moduleType = extractModuleType(title)
 
@@ -45,9 +45,9 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
  */
 ModuleFactory.ModuleCreated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const orchestrator = event.params.orchestrator
-    const module = event.params.module
-    const metadata = event.params.metadata
+    const orchestrator = event.params.floor_
+    const module = event.params.module_
+    const metadata = event.params.metadata_
     const title = metadata[4]
     const moduleType = extractModuleType(title)
 

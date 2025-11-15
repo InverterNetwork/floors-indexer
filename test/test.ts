@@ -33,9 +33,9 @@ describe('Floor Markets Indexer', () => {
       const mockDb = MockDb.createMockDb()
 
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS,
-        module: BC_MODULE_ADDRESS,
-        metadata: [
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
           1n,
           0n,
           0n,
@@ -72,9 +72,9 @@ describe('Floor Markets Indexer', () => {
       const mockDb = MockDb.createMockDb()
 
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS,
-        module: BC_MODULE_ADDRESS,
-        metadata: [
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
           1n,
           0n,
           0n,
@@ -98,9 +98,9 @@ describe('Floor Markets Indexer', () => {
 
       // First create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS,
-        module: BC_MODULE_ADDRESS,
-        metadata: [
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
           1n,
           0n,
           0n,
@@ -227,9 +227,9 @@ describe('Floor Markets Indexer', () => {
 
       // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS,
-        module: BC_MODULE_ADDRESS,
-        metadata: [
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
           1n,
           0n,
           0n,
@@ -287,9 +287,9 @@ describe('Floor Markets Indexer', () => {
       const mockDb = MockDb.createMockDb()
 
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS_2,
-        module: BC_MODULE_ADDRESS_2,
-        metadata: [
+        floor_: MARKET_ADDRESS_2,
+        module_: BC_MODULE_ADDRESS_2,
+        metadata_: [
           1n,
           0n,
           0n,
@@ -391,9 +391,9 @@ describe('Floor Markets Indexer', () => {
 
       // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
-        orchestrator: MARKET_ADDRESS,
-        module: BC_MODULE_ADDRESS,
-        metadata: [
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
           1n,
           0n,
           0n,
