@@ -110,14 +110,12 @@ export async function getOrCreateMarket(
     reserveToken_id: reserveToken.id,
     issuanceToken_id: issuanceToken.id,
     // Static config fields
-    initialPriceRaw: 0n,
-    initialPriceFormatted: '0',
+    initialFloorPriceRaw: 0n,
+    initialFloorPriceFormatted: '0',
     tradingFeeBps: 0n,
     buyFeeBps: 0n,
     sellFeeBps: 0n,
     maxLTV: 0n,
-    maxSupplyRaw: 0n,
-    maxSupplyFormatted: '0',
     // Dynamic state fields
     currentPriceRaw: 0n,
     currentPriceFormatted: '0',

@@ -7,6 +7,8 @@ type Token {
   name: String!
   symbol: String!
   decimals: Int!
+  maxSupplyRaw: BigInt!
+  maxSupplyFormatted: String!
 }
 
 enum MarketStatus {
@@ -177,17 +179,14 @@ type Market {
   reserveToken: Token!
   issuanceToken: Token!
 
-  initialPriceRaw: BigInt!
-  initialPriceFormatted: String!
+  initialFloorPriceRaw: BigInt!
+  initialFloorPriceFormatted: String!
 
   tradingFeeBps: BigInt!
   buyFeeBps: BigInt!
   sellFeeBps: BigInt!
 
   maxLTV: BigInt!
-
-  maxSupplyRaw: BigInt!
-  maxSupplyFormatted: String!
 
   currentPriceRaw: BigInt!
   currentPriceFormatted: String!

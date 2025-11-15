@@ -1,10 +1,16 @@
 import type { HandlerContext } from 'generated'
 import type { Token_t } from 'generated/src/db/Entities.gen'
+import type { Abi } from 'viem'
 import { erc20Abi } from 'viem'
 
+import ERC20IssuanceABI from '../../../packages/sdk/src/abis/ERC20Issuance_v1'
 import FLOOR_ABI from '../../abis/Floor_v1.json'
 import { getPublicClient } from '../rpc-client'
-import { normalizeAddress } from './misc'
+import { formatAmount, normalizeAddress } from './misc'
+
+const CAP_FUNCTION_ABI = ERC20IssuanceABI.filter(
+  (entry) => entry.type === 'function' && entry.name === 'cap'
+) as Abi
 
 /**
  * Fetch token metadata from the contract
@@ -16,6 +22,7 @@ export async function fetchTokenMetadata(chainId: number, tokenAddress: string) 
   let name = 'Unknown Token'
   let symbol = 'UNK'
   let decimals = 18
+  let maxSupplyRaw = 0n
 
   const publicClient = getPublicClient(chainId)
 
@@ -49,10 +56,38 @@ export async function fetchTokenMetadata(chainId: number, tokenAddress: string) 
     decimals = contractDecimals
   }
 
+  try {
+    const capValue = await publicClient.readContract({
+      address: tokenAddress as `0x${string}`,
+      abi: CAP_FUNCTION_ABI,
+      functionName: 'cap',
+    })
+
+    if (typeof capValue === 'bigint') {
+      maxSupplyRaw = capValue
+    }
+  } catch {
+    try {
+      const totalSupplyValue = await publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'totalSupply',
+      })
+
+      if (typeof totalSupplyValue === 'bigint') {
+        maxSupplyRaw = totalSupplyValue
+      }
+    } catch {
+      maxSupplyRaw = 0n
+    }
+  }
+
   return {
     name,
     symbol,
     decimals,
+    maxSupplyRaw,
+    maxSupplyFormatted: formatAmount(maxSupplyRaw, decimals).formatted,
   }
 }
 
@@ -75,6 +110,8 @@ export async function getOrCreateToken(
       name: metadata.name,
       symbol: metadata.symbol,
       decimals: metadata.decimals,
+      maxSupplyRaw: metadata.maxSupplyRaw,
+      maxSupplyFormatted: metadata.maxSupplyFormatted,
     }
     context.Token.set(token)
   }

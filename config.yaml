@@ -19,6 +19,7 @@ contracts:
     events:
       - event: TokensBought
       - event: TokensSold
+      - event: FloorPriceUpdated
       - event: VirtualCollateralAmountAdded
       - event: VirtualCollateralAmountSubtracted
       - event: FloorIncreased
@@ -36,8 +37,10 @@ contracts:
     handler: src/index.ts
     events:
       - event: LoanCreated
+      - event: LoanRebalanced
       - event: LoanRepaid
       - event: LoanClosed
+      - event: LoanToValueRatioUpdated
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked
 

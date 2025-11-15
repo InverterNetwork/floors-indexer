@@ -7,7 +7,6 @@ import { FloorMarket } from '../generated/src/Handlers.gen'
 import {
   buildUpdatedUserMarketPosition,
   createMarketSnapshot,
-  fetchFloorPricing,
   formatAmount,
   getMarketIdForModule,
   getOrCreateAccount,
@@ -40,6 +39,15 @@ const rollingStatsCache = new Map<string, RollingStatsState>()
 const marketsSeen = new Set<string>()
 const activeMarkets = new Set<string>()
 const BPS_DENOMINATOR = 10_000n
+
+type PriceHistoryEntry = {
+  currentPriceRaw: bigint
+  previousPriceRaw: bigint
+  floorPriceRaw: bigint
+  initialFloorPriceRaw: bigint
+}
+
+const priceHistoryCache = new Map<string, PriceHistoryEntry>()
 
 /**
  * @notice Event handler for TokensBought event
@@ -100,15 +108,11 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
-    const pricing = await fetchFloorPricing(
-      event.chainId,
-      event.srcAddress as `0x${string}`,
-      BigInt(event.block.number)
-    )
-    const buyPriceRaw = pricing.buyPrice ?? market.currentPriceRaw
-    const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
-    const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
-    const floorPriceRaw = pricing.floorPrice ?? market.floorPriceRaw
+    const priceHistory = ensurePriceHistoryEntry(market)
+    const buyPriceRaw = event.params.priceAfterBuy_ ?? priceHistory.currentPriceRaw
+    const buyFeeBps = market.buyFeeBps ?? 0n
+    const sellFeeBps = market.sellFeeBps ?? 0n
+    const floorPriceRaw = priceHistory.floorPriceRaw
     const priceAmount = formatAmount(buyPriceRaw, reserveToken.decimals)
     const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
     const feeAmountRaw =
@@ -182,6 +186,7 @@ FloorMarket.TokensBought.handler(
     context.log.info(
       `[TokensBought] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
+    updateCurrentPriceCache(updatedMarket, buyPriceRaw)
 
     // Update UserMarketPosition
     const position = await getOrCreateUserMarketPosition(
@@ -280,15 +285,11 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] Tokens verified | reserveToken decimals=${reserveToken.decimals} | issuanceToken decimals=${issuanceToken.decimals}`
     )
 
-    const pricing = await fetchFloorPricing(
-      event.chainId,
-      event.srcAddress as `0x${string}`,
-      BigInt(event.block.number)
-    )
-    const sellPriceRaw = pricing.sellPrice ?? market.currentPriceRaw
-    const buyFeeBps = pricing.buyFeeBps ?? market.buyFeeBps ?? 0n
-    const sellFeeBps = pricing.sellFeeBps ?? market.sellFeeBps ?? 0n
-    const floorPriceRaw = pricing.floorPrice ?? market.floorPriceRaw
+    const priceHistory = ensurePriceHistoryEntry(market)
+    const sellPriceRaw = event.params.priceAfterSell_ ?? priceHistory.currentPriceRaw
+    const buyFeeBps = market.buyFeeBps ?? 0n
+    const sellFeeBps = market.sellFeeBps ?? 0n
+    const floorPriceRaw = priceHistory.floorPriceRaw
     const priceAmount = formatAmount(sellPriceRaw, reserveToken.decimals)
     const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
     const feeAmountRaw =
@@ -362,6 +363,7 @@ FloorMarket.TokensSold.handler(
     context.log.info(
       `[TokensSold] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
+    updateCurrentPriceCache(updatedMarket, sellPriceRaw)
 
     // Update UserMarketPosition
     const position = await getOrCreateUserMarketPosition(
@@ -440,6 +442,7 @@ FloorMarket.VirtualCollateralAmountAdded.handler(
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
     context.Market.set(updatedMarket)
+    ensurePriceHistoryEntry(updatedMarket)
     context.log.info(`[VirtualCollateralAmountAdded] ✅ Updated floorSupply`)
   })
 )
@@ -483,6 +486,7 @@ FloorMarket.VirtualCollateralAmountSubtracted.handler(
       lastUpdatedAt: BigInt(event.block.timestamp),
     }
     context.Market.set(updatedMarket)
+    ensurePriceHistoryEntry(updatedMarket)
     context.log.info(`[VirtualCollateralAmountSubtracted] ✅ Updated floorSupply`)
   })
 )
@@ -521,6 +525,7 @@ FloorMarket.CollateralDeposited.handler(
       lastUpdatedAt: timestamp,
     }
     context.Market.set(updatedMarket)
+    ensurePriceHistoryEntry(updatedMarket)
     context.log.info(
       `[CollateralDeposited] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
     )
@@ -561,8 +566,65 @@ FloorMarket.CollateralWithdrawn.handler(
       lastUpdatedAt: timestamp,
     }
     context.Market.set(updatedMarket)
+    ensurePriceHistoryEntry(updatedMarket)
     context.log.info(
       `[CollateralWithdrawn] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
+    )
+  })
+)
+
+FloorMarket.FloorPriceUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    context.log.info(`[FloorPriceUpdated] Event received from ${event.srcAddress}`)
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[FloorPriceUpdated] Market not found: ${marketId}`)
+      return
+    }
+
+    const reserveToken = await context.Token.get(market.reserveToken_id)
+    if (!reserveToken) {
+      context.log.warn(
+        `[FloorPriceUpdated] Reserve token not found | marketId=${marketId} | token=${market.reserveToken_id}`
+      )
+      return
+    }
+
+    const nextFloorPriceRaw = event.params.floorPrice_
+    const updatedHistory = updateFloorPriceCache(market, nextFloorPriceRaw)
+    const floorPriceAmount = formatAmount(updatedHistory.floorPriceRaw, reserveToken.decimals)
+    const nextInitialFloorPriceRaw =
+      market.initialFloorPriceRaw > 0n
+        ? market.initialFloorPriceRaw
+        : updatedHistory.initialFloorPriceRaw
+    const nextInitialFloorPriceFormatted =
+      market.initialFloorPriceRaw > 0n
+        ? market.initialFloorPriceFormatted
+        : floorPriceAmount.formatted
+
+    const updatedMarket = {
+      ...market,
+      floorPriceRaw: updatedHistory.floorPriceRaw,
+      floorPriceFormatted: floorPriceAmount.formatted,
+      initialFloorPriceRaw: nextInitialFloorPriceRaw,
+      initialFloorPriceFormatted: nextInitialFloorPriceFormatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[FloorPriceUpdated] ✅ Floor price refreshed | marketId=${marketId} | floor=${floorPriceAmount.formatted}`
     )
   })
 )
@@ -628,6 +690,7 @@ FloorMarket.FloorIncreased.handler(
       lastUpdatedAt: timestamp,
     }
     context.Market.set(updatedMarket)
+    updateFloorPriceCache(updatedMarket, event.params.newFloorPrice_)
     context.log.info(
       `[FloorIncreased] ✅ Floor elevation recorded | marketId=${marketId} | newFloor=${newFloorPrice.formatted} | supplyIncrease=${supplyIncrease.formatted}`
     )
@@ -814,6 +877,46 @@ FloorMarket.SellFeeUpdated.handler(
     )
   })
 )
+
+function ensurePriceHistoryEntry(market: Market_t): PriceHistoryEntry {
+  const existing = priceHistoryCache.get(market.id)
+  if (existing) {
+    return existing
+  }
+
+  const entry: PriceHistoryEntry = {
+    currentPriceRaw: market.currentPriceRaw,
+    previousPriceRaw: market.currentPriceRaw,
+    floorPriceRaw: market.floorPriceRaw,
+    initialFloorPriceRaw: market.initialFloorPriceRaw,
+  }
+  priceHistoryCache.set(market.id, entry)
+  return entry
+}
+
+function updateCurrentPriceCache(market: Market_t, nextPriceRaw: bigint): PriceHistoryEntry {
+  const entry = ensurePriceHistoryEntry(market)
+  const next: PriceHistoryEntry = {
+    ...entry,
+    previousPriceRaw: entry.currentPriceRaw,
+    currentPriceRaw: nextPriceRaw,
+  }
+  priceHistoryCache.set(market.id, next)
+  return next
+}
+
+function updateFloorPriceCache(market: Market_t, nextFloorPriceRaw: bigint): PriceHistoryEntry {
+  const entry = ensurePriceHistoryEntry(market)
+  const initialFloorPriceRaw =
+    entry.initialFloorPriceRaw > 0n ? entry.initialFloorPriceRaw : nextFloorPriceRaw
+  const next: PriceHistoryEntry = {
+    ...entry,
+    floorPriceRaw: nextFloorPriceRaw,
+    initialFloorPriceRaw,
+  }
+  priceHistoryCache.set(market.id, next)
+  return next
+}
 
 async function updateDerivedMetricsAfterTrade(params: {
   context: Parameters<typeof updatePriceCandles>[0]
@@ -1015,4 +1118,5 @@ export function __resetMarketHandlerTestState() {
   rollingStatsCache.clear()
   marketsSeen.clear()
   activeMarkets.clear()
+  priceHistoryCache.clear()
 }

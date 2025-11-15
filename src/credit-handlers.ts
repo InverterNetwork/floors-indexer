@@ -2,7 +2,7 @@
 
 import type { HandlerContext } from 'generated'
 
-import type { CreditFacilityContract_t, Token_t } from '../generated/src/db/Entities.gen'
+import type { CreditFacilityContract_t, Market_t, Token_t } from '../generated/src/db/Entities.gen'
 import type { LoanStatus_t } from '../generated/src/db/Enums.gen'
 import { CreditFacility } from '../generated/src/Handlers.gen'
 import {
@@ -15,6 +15,13 @@ import {
   handlerErrorWrapper,
   normalizeAddress,
 } from './helpers'
+
+type FacilityLtvEntry = {
+  previousMaxLtv: bigint
+  currentMaxLtv: bigint
+}
+
+const facilityLtvHistory = new Map<string, FacilityLtvEntry>()
 
 CreditFacility.LoanCreated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -107,6 +114,91 @@ CreditFacility.LoanCreated.handler(
 
     context.log.info(
       `[LoanCreated] ✅ Loan created | loanId=${loanId} | borrower=${borrower.id} | amount=${borrowAmount.formatted}`
+    )
+  })
+)
+
+CreditFacility.LoanRebalanced.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facilityContext = await loadFacilityContext(context, facilityId)
+
+    if (!facilityContext) {
+      context.log.warn(
+        `[LoanRebalanced] Facility context missing | facilityId=${facilityId} | block=${event.block.number} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const { facility, borrowToken, collateralToken } = facilityContext
+    const loanId = event.params.loanId_.toString()
+    const loan = await context.Loan.get(loanId)
+
+    if (!loan) {
+      context.log.warn(
+        `[LoanRebalanced] Loan not indexed | loanId=${loanId} | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const newLockedCollateralRaw = event.params.newLockedIssuanceTokens_
+    const lockedCollateralDelta = newLockedCollateralRaw - loan.lockedCollateralRaw
+    const lockedCollateral = formatAmount(newLockedCollateralRaw, collateralToken.decimals)
+
+    const updatedLoan = {
+      ...loan,
+      lockedCollateralRaw: newLockedCollateralRaw,
+      lockedCollateralFormatted: lockedCollateral.formatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Loan.set(updatedLoan)
+
+    const updatedFacility = applyFacilityDeltas({
+      facility,
+      borrowTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+      lockedCollateralDeltaRaw: lockedCollateralDelta,
+    })
+    context.CreditFacilityContract.set(updatedFacility)
+
+    const position = await getOrCreateUserMarketPosition(
+      context,
+      loan.borrower_id,
+      facility.market_id,
+      collateralToken.decimals
+    )
+    const updatedPosition = buildUpdatedUserMarketPosition(position, {
+      lockedCollateralDelta,
+      issuanceTokenDecimals: collateralToken.decimals,
+      reserveTokenDecimals: borrowToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedPosition)
+
+    recordLoanStatusHistory(context, {
+      loanId,
+      status: loan.status,
+      remainingDebtRaw: loan.remainingDebtRaw,
+      lockedCollateralRaw: newLockedCollateralRaw,
+      borrowTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+      transactionHash: event.transaction.hash,
+      logIndex: event.logIndex,
+    })
+
+    await updateMarketFloorPriceViaFacility(
+      context,
+      facility.market_id,
+      event.params.currentFloorPrice_,
+      borrowToken.decimals,
+      timestamp
+    )
+
+    context.log.info(
+      `[LoanRebalanced] ✅ Loan collateral updated | loanId=${loanId} | locked=${lockedCollateral.formatted} | delta=${lockedCollateralDelta}`
     )
   })
 )
@@ -281,6 +373,29 @@ CreditFacility.LoanClosed.handler(
   })
 )
 
+CreditFacility.LoanToValueRatioUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facility = await context.CreditFacilityContract.get(facilityId)
+
+    if (!facility) {
+      context.log.warn(
+        `[LoanToValueRatioUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const nextRatio = event.params.newRatio_
+    const history = updateFacilityLtvHistory(facility.market_id, nextRatio)
+    await updateMarketMaxLtv(context, facility.market_id, nextRatio, timestamp)
+
+    context.log.info(
+      `[LoanToValueRatioUpdated] ✅ Market maxLTV updated | marketId=${facility.market_id} | previous=${history.previousMaxLtv} | next=${history.currentMaxLtv}`
+    )
+  })
+)
+
 CreditFacility.IssuanceTokensLocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     context.log.debug(
@@ -362,4 +477,69 @@ function recordLoanStatusHistory(
   }
 
   context.LoanStatusHistory.set(entry)
+}
+
+function updateFacilityLtvHistory(marketId: string, nextRatio: bigint): FacilityLtvEntry {
+  const existing = facilityLtvHistory.get(marketId) ?? {
+    previousMaxLtv: 0n,
+    currentMaxLtv: 0n,
+  }
+
+  const entry: FacilityLtvEntry = {
+    previousMaxLtv: existing.currentMaxLtv,
+    currentMaxLtv: nextRatio,
+  }
+
+  facilityLtvHistory.set(marketId, entry)
+  return entry
+}
+
+async function updateMarketMaxLtv(
+  context: HandlerContext,
+  marketId: string,
+  nextRatio: bigint,
+  timestamp: bigint
+): Promise<void> {
+  const market = await context.Market.get(marketId)
+  if (!market) {
+    context.log.warn(`[LoanToValueRatioUpdated] Market not found | marketId=${marketId}`)
+    return
+  }
+
+  context.Market.set({
+    ...market,
+    maxLTV: nextRatio,
+    lastUpdatedAt: timestamp,
+  })
+}
+
+async function updateMarketFloorPriceViaFacility(
+  context: HandlerContext,
+  marketId: string,
+  nextFloorPriceRaw: bigint,
+  reserveTokenDecimals: number,
+  timestamp: bigint
+): Promise<void> {
+  const market = (await context.Market.get(marketId)) as Market_t | undefined
+  if (!market) {
+    context.log.warn(
+      `[LoanRebalanced] Market not found while updating floor price | marketId=${marketId}`
+    )
+    return
+  }
+
+  const floorPriceAmount = formatAmount(nextFloorPriceRaw, reserveTokenDecimals)
+  const nextInitialFloorPriceRaw =
+    market.initialFloorPriceRaw > 0n ? market.initialFloorPriceRaw : nextFloorPriceRaw
+  const nextInitialFloorPriceFormatted =
+    market.initialFloorPriceRaw > 0n ? market.initialFloorPriceFormatted : floorPriceAmount.formatted
+
+  context.Market.set({
+    ...market,
+    floorPriceRaw: nextFloorPriceRaw,
+    floorPriceFormatted: floorPriceAmount.formatted,
+    initialFloorPriceRaw: nextInitialFloorPriceRaw,
+    initialFloorPriceFormatted: nextInitialFloorPriceFormatted,
+    lastUpdatedAt: timestamp,
+  })
 }
