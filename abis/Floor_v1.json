@@ -51,7 +51,13 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "issuanceTokenAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -74,7 +80,13 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "issuanceTokenAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -449,7 +461,13 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "receivedAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -472,7 +490,13 @@
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "receivedAmount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -692,6 +716,19 @@
   },
   {
     "type": "event",
+    "name": "FloorPriceUpdated",
+    "inputs": [
+      {
+        "name": "floorPrice_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -824,6 +861,12 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      },
+      {
+        "name": "priceAfterBuy_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -855,6 +898,12 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      },
+      {
+        "name": "priceAfterSell_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1105,6 +1154,11 @@
   {
     "type": "error",
     "name": "Module__InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidArrayLength",
     "inputs": []
   },
   {
