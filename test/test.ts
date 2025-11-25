@@ -7,7 +7,7 @@ import { __resetMarketHandlerTestState } from '../src/market-handlers'
 
 process.env.MOCK_RPC = 'true'
 
-const { MockDb, ModuleFactory, FloorMarket, Addresses } = TestHelpers
+const { MockDb, ModuleFactory, FloorMarket, Presale, Addresses } = TestHelpers
 
 // Test data from deployment
 const USDC_ADDRESS = '0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8' as const
@@ -16,9 +16,13 @@ const MARKET_ADDRESS = '0x8265551ebb0f42521a591590ef1fefc3d34f851d' as const
 const BC_MODULE_ADDRESS = '0x8265551ebb0f42521a591590ef1fefc3d34f851d' as const
 const MARKET_ADDRESS_2 = '0x1111111111111111111111111111111111111111' as const
 const BC_MODULE_ADDRESS_2 = '0x2222222222222222222222222222222222222222' as const
+const PRESALE_MODULE_ADDRESS = '0x3333333333333333333333333333333333333333' as const
 
+const USDC_ADDRESS_CHECKSUM = getAddress(USDC_ADDRESS)
+const FLOOR_ADDRESS_CHECKSUM = getAddress(FLOOR_ADDRESS)
 const MARKET_ADDRESS_CHECKSUM = getAddress(MARKET_ADDRESS)
 const MARKET_ADDRESS_2_CHECKSUM = getAddress(MARKET_ADDRESS_2)
+const PRESALE_MODULE_ADDRESS_CHECKSUM = getAddress(PRESALE_MODULE_ADDRESS)
 
 // Test values
 const USDC_DECIMALS = 6
@@ -27,9 +31,11 @@ const BUY_DEPOSIT_AMOUNT = 10_000_000n // 10 USDC with 6 decimals
 const BUY_RECEIVED_AMOUNT = 9_900_000n // 9.9 FLOOR with 18 decimals
 const SELL_DEPOSIT_AMOUNT = 4_950_000n // 4.95 FLOOR with 18 decimals
 const SELL_RECEIVED_AMOUNT = 4_900_500n // 4.900500 USDC with 6 decimals
+const PRESALE_DEPOSIT_AMOUNT = 5_000_000n // 5 USDC with 6 decimals
+const PRESALE_MINTED_AMOUNT = 5_000_000_000000000000n // 5 FLOOR with 18 decimals
 
 const USDC_TOKEN: Token_t = {
-  id: USDC_ADDRESS,
+  id: USDC_ADDRESS_CHECKSUM,
   name: 'Test USDC',
   symbol: 'TUSDC',
   decimals: USDC_DECIMALS,
@@ -38,7 +44,7 @@ const USDC_TOKEN: Token_t = {
 }
 
 const FLOOR_TOKEN: Token_t = {
-  id: FLOOR_ADDRESS,
+  id: FLOOR_ADDRESS_CHECKSUM,
   name: 'Floor Token',
   symbol: 'FLOOR',
   decimals: FLOOR_DECIMALS,
@@ -140,8 +146,8 @@ describe('Floor Markets Indexer', () => {
       if (market) {
         const updatedMarket = {
           ...market,
-          reserveToken_id: USDC_ADDRESS,
-          issuanceToken_id: FLOOR_ADDRESS,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
         }
         dbWithModule = dbWithModule.entities.Market.set(updatedMarket)
       }
@@ -236,8 +242,8 @@ describe('Floor Markets Indexer', () => {
       if (market) {
         db = db.entities.Market.set({
           ...market,
-          reserveToken_id: USDC_ADDRESS,
-          issuanceToken_id: FLOOR_ADDRESS,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
         })
       }
 
@@ -299,8 +305,8 @@ describe('Floor Markets Indexer', () => {
       if (market) {
         db = db.entities.Market.set({
           ...market,
-          reserveToken_id: USDC_ADDRESS,
-          issuanceToken_id: FLOOR_ADDRESS,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
         })
       }
 
@@ -373,8 +379,8 @@ describe('Floor Markets Indexer', () => {
       if (market) {
         db = db.entities.Market.set({
           ...market,
-          reserveToken_id: USDC_ADDRESS,
-          issuanceToken_id: FLOOR_ADDRESS,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
         })
       }
 
@@ -465,6 +471,161 @@ describe('Floor Markets Indexer', () => {
       const market = dbAfterTrade.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       // Handler may return early if market doesn't exist, which is acceptable
       // Or it may create entities defensively (preferred)
+    })
+  })
+
+  describe('Presale handlers', () => {
+    async function bootstrapPresaleDb() {
+      let db = MockDb.createMockDb()
+
+      const floorModuleEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'BC_Discrete_Redeeming_VirtualSupply_v1',
+        ],
+        mockEventData: {
+          block: { timestamp: 1000 },
+        },
+      })
+
+      db = await db.processEvents([floorModuleEvent])
+      db = db.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
+
+      const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
+      if (market) {
+        db = db.entities.Market.set({
+          ...market,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
+        })
+      }
+
+      const presaleModuleEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: PRESALE_MODULE_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'Presale_Module_v1',
+        ],
+        mockEventData: {
+          block: { timestamp: 1500 },
+        },
+      })
+
+      return db.processEvents([presaleModuleEvent])
+    }
+
+    it('creates PreSaleContract entries when presale modules are discovered', async () => {
+      const db = await bootstrapPresaleDb()
+      const presaleContract = db.entities.PreSaleContract.get(PRESALE_MODULE_ADDRESS_CHECKSUM)
+      assert.ok(presaleContract, 'PreSaleContract should exist after module discovery')
+      assert.equal(
+        presaleContract?.saleToken_id,
+        FLOOR_ADDRESS_CHECKSUM,
+        'Sale token should default to market issuance token'
+      )
+      assert.equal(
+        presaleContract?.purchaseToken_id,
+        USDC_ADDRESS_CHECKSUM,
+        'Purchase token should default to market reserve token'
+      )
+    })
+
+    it('records PresaleBought participations and updates aggregates', async () => {
+      let db = await bootstrapPresaleDb()
+
+      const presaleBoughtEvent = Presale.PresaleBought.createMockEvent({
+        buyer_: Addresses.defaultAddress,
+        deposit_: PRESALE_DEPOSIT_AMOUNT,
+        loopCount_: 2n,
+        totalMinted_: PRESALE_MINTED_AMOUNT,
+        mockEventData: {
+          srcAddress: PRESALE_MODULE_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2500 },
+          transaction: { hash: '0xabc' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([presaleBoughtEvent])
+
+      const presaleContract = db.entities.PreSaleContract.get(PRESALE_MODULE_ADDRESS_CHECKSUM)
+      assert.equal(
+        presaleContract?.totalRaisedRaw,
+        PRESALE_DEPOSIT_AMOUNT,
+        'totalRaisedRaw should track deposited USDC'
+      )
+      assert.equal(
+        presaleContract?.totalParticipants,
+        1n,
+        'totalParticipants should increment for each presale contribution'
+      )
+
+      const participation = db.entities.PresaleParticipation.get('0xabc-0')
+      assert.ok(participation, 'PresaleParticipation entity should be created')
+      assert.equal(participation?.depositAmountRaw, PRESALE_DEPOSIT_AMOUNT)
+      assert.equal(participation?.mintedAmountRaw, PRESALE_MINTED_AMOUNT)
+
+      const buyerId = getAddress(Addresses.defaultAddress as `0x${string}`)
+      const userPositionId = `${buyerId}-${MARKET_ADDRESS_CHECKSUM}`
+      const userPosition = db.entities.UserMarketPosition.get(userPositionId)
+      assert.equal(
+        userPosition?.presaleDepositRaw,
+        PRESALE_DEPOSIT_AMOUNT,
+        'User position should reflect presale deposits'
+      )
+    })
+
+    it('records config events and direct claims', async () => {
+      let db = await bootstrapPresaleDb()
+
+      const capsUpdatedEvent = Presale.CapsUpdated.createMockEvent({
+        globalCap_: 1_000_000n,
+        perAddressCap_: 200_000n,
+        mockEventData: {
+          srcAddress: PRESALE_MODULE_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2600 },
+          transaction: { hash: '0xcaps' },
+          logIndex: 0,
+        },
+      })
+
+      const directClaimEvent = Presale.DirectTokensClaimed.createMockEvent({
+        positionId_: 1n,
+        amount_: PRESALE_MINTED_AMOUNT,
+        mockEventData: {
+          srcAddress: PRESALE_MODULE_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2700 },
+          transaction: { hash: '0xclaim' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([capsUpdatedEvent, directClaimEvent])
+
+      const presaleContract = db.entities.PreSaleContract.get(PRESALE_MODULE_ADDRESS_CHECKSUM)
+      assert.equal(presaleContract?.globalDepositCapRaw, 1_000_000n)
+      assert.equal(presaleContract?.perAddressDepositCapRaw, 200_000n)
+
+      const configEvent = db.entities.PresaleConfigEvent.get('0xcaps-0')
+      assert.ok(configEvent, 'PresaleConfigEvent should capture config updates')
+      assert.equal(configEvent?.eventType, 'CAPS_UPDATED')
+
+      const claim = db.entities.PresaleClaim.get('0xclaim-0')
+      assert.ok(claim, 'PresaleClaim should be recorded for direct token claims')
+      assert.equal(claim?.claimType, 'DIRECT')
+      assert.equal(claim?.amountRaw, PRESALE_MINTED_AMOUNT)
     })
   })
 })

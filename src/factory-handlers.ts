@@ -1,6 +1,7 @@
 // Factory event handlers for Floor Markets DeFi Platform
 // Discovers new BC (bonding curve) and CreditFacility contracts
 
+import type { PreSaleContract_t } from '../generated/src/db/Entities.gen'
 import { ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
@@ -35,6 +36,10 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
   // Register CreditFacility modules for LoanCreated/LoanRepaid event listening
   if (moduleType === 'creditFacility') {
     context.addCreditFacility(module as `0x${string}`)
+  }
+
+  if (moduleType === 'presale') {
+    context.addPresale(module as `0x${string}`)
   }
 })
 
@@ -72,6 +77,8 @@ ModuleFactory.ModuleCreated.handler(
     )
 
     // If this is a fundingManager module, create the Market entity
+    let createdMarketForFloor: Awaited<ReturnType<typeof getOrCreateMarket>> = null
+
     if (moduleType === 'floor') {
       // Try to fetch token addresses from the BC contract via RPC
       context.log.debug(
@@ -114,6 +121,7 @@ ModuleFactory.ModuleCreated.handler(
           `[ModuleCreated] ❌ Failed to initialize Market | marketId=${marketId} | bcAddress=${module}`
         )
       } else {
+        createdMarketForFloor = market
         context.log.info(
           `[ModuleCreated] Market ready | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
         )
@@ -163,5 +171,85 @@ ModuleFactory.ModuleCreated.handler(
         )
       }
     }
+
+    if (moduleType === 'presale') {
+      const presaleId = normalizeAddress(module)
+      const existing = await context.PreSaleContract.get(presaleId)
+
+      if (existing) {
+        context.log.debug(
+          `[ModuleCreated] Presale already registered | presale=${presaleId} | marketId=${existing.market_id}`
+        )
+        return
+      }
+
+      let market = createdMarketForFloor
+      if (!market) {
+        market = (await context.Market.get(marketId)) ?? null
+      }
+
+      if (!market) {
+        context.log.warn(
+          `[ModuleCreated] Skipping presale bootstrap - market missing | presale=${presaleId} | marketId=${marketId}`
+        )
+        return
+      }
+
+      if (!market.issuanceToken_id || !market.reserveToken_id) {
+        context.log.warn(
+          `[ModuleCreated] Skipping presale bootstrap - token metadata missing | presale=${presaleId} | market=${market.id}`
+        )
+        return
+      }
+
+      const timestamp = BigInt(event.block.timestamp)
+      const presaleRecord = buildInitialPresaleContract({
+        presaleAddress: presaleId,
+        marketId: market.id,
+        saleTokenId: market.issuanceToken_id,
+        purchaseTokenId: market.reserveToken_id,
+        timestamp,
+      })
+
+      context.PreSaleContract.set(presaleRecord)
+      context.log.info(
+        `[ModuleCreated] Presale contract registered | presale=${presaleRecord.id} | market=${presaleRecord.market_id}`
+      )
+    }
   })
 )
+
+type PresaleBootstrapArgs = {
+  presaleAddress: string
+  marketId: string
+  saleTokenId: string
+  purchaseTokenId: string
+  timestamp: bigint
+}
+
+function buildInitialPresaleContract(args: PresaleBootstrapArgs): PreSaleContract_t {
+  return {
+    id: normalizeAddress(args.presaleAddress),
+    saleToken_id: normalizeAddress(args.saleTokenId),
+    purchaseToken_id: normalizeAddress(args.purchaseTokenId),
+    market_id: normalizeAddress(args.marketId),
+    startTime: 0n,
+    endTime: 0n,
+    timeSafeguardTs: 0n,
+    maxLeverage: 0n,
+    currentState: 0,
+    totalParticipants: 0n,
+    totalRaisedRaw: 0n,
+    totalRaisedFormatted: '0',
+    globalDepositCapRaw: 0n,
+    globalDepositCapFormatted: '0',
+    perAddressDepositCapRaw: 0n,
+    perAddressDepositCapFormatted: '0',
+    whitelistSize: 0n,
+    commissionBpsJson: '',
+    priceBreakpointsJson: '',
+    lendingFacility: '',
+    createdAt: args.timestamp,
+    lastUpdatedAt: args.timestamp,
+  }
+}

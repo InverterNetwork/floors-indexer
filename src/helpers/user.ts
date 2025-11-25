@@ -69,6 +69,7 @@ export type UserMarketPositionDeltaInput = {
   stakedAmountDelta?: bigint
   claimableRewardsDelta?: bigint
   presaleDepositDelta?: bigint
+  presaleLeverage?: bigint
   issuanceTokenDecimals: number
   reserveTokenDecimals: number
   timestamp: bigint
@@ -136,6 +137,9 @@ export function buildUpdatedUserMarketPosition(
     ).formatted
   }
 
+  const presaleLeverage =
+    typeof updates.presaleLeverage === 'bigint' ? updates.presaleLeverage : position.presaleLeverage
+
   return {
     ...position,
     netFTokenChangeRaw,
@@ -150,6 +154,7 @@ export function buildUpdatedUserMarketPosition(
     claimableRewardsFormatted,
     presaleDepositRaw,
     presaleDepositFormatted,
+    presaleLeverage,
     lastUpdatedAt: updates.timestamp,
   }
 }

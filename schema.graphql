@@ -40,6 +40,24 @@ enum CandlePeriod {
   ONE_DAY
 }
 
+enum PresaleClaimType {
+  DIRECT
+  TRANCHE
+}
+
+enum PresaleConfigEventType {
+  CAPS_UPDATED
+  BASE_COMMISSION_UPDATED
+  PRICE_BREAKPOINTS_SET
+  PRESALE_STATE_SET
+  END_TIMESTAMP_SET
+  TIME_SAFEGUARD_SET
+  WHITELIST_UPDATED
+  LENDING_FACILITY_SET
+  MODULE_INITIALIZED
+  GENERIC
+}
+
 # User Group
 # ------------------------------------------------------------
 
@@ -153,18 +171,30 @@ type PreSaleContract {
   saleToken_id: ID!
   purchaseToken_id: ID!
 
+  market_id: ID
   startTime: BigInt!
   endTime: BigInt!
+  timeSafeguardTs: BigInt
 
   maxLeverage: BigInt!
-
+  currentState: Int!
+  totalParticipants: BigInt!
   totalRaisedRaw: BigInt!
   totalRaisedFormatted: String!
-
-  totalParticipants: BigInt!
+  globalDepositCapRaw: BigInt!
+  globalDepositCapFormatted: String!
+  perAddressDepositCapRaw: BigInt!
+  perAddressDepositCapFormatted: String!
+  whitelistSize: BigInt!
+  commissionBpsJson: String
+  priceBreakpointsJson: String
+  lendingFacility: String
 
   createdAt: BigInt!
+  lastUpdatedAt: BigInt!
   participations: [PresaleParticipation!]! @derivedFrom(field: "presale_id")
+  claims: [PresaleClaim!]! @derivedFrom(field: "presale_id")
+  configEvents: [PresaleConfigEvent!]! @derivedFrom(field: "presale_id")
 }
 
 # Market
@@ -341,9 +371,35 @@ type PresaleParticipation {
   id: ID!
   user_id: ID!
   presale_id: ID!
+  positionId: BigInt
+  depositAmountRaw: BigInt!
+  depositAmountFormatted: String!
+  mintedAmountRaw: BigInt
+  mintedAmountFormatted: String
+  loopCount: BigInt
+  leverage: BigInt!
+  timestamp: BigInt!
+  transactionHash: String!
+}
+
+type PresaleClaim {
+  id: ID!
+  presale_id: ID!
+  positionId: BigInt
+  claimType: PresaleClaimType!
   amountRaw: BigInt!
   amountFormatted: String!
-  leverage: BigInt!
+  trancheIndex: BigInt
+  loanId: BigInt
+  timestamp: BigInt!
+  transactionHash: String!
+}
+
+type PresaleConfigEvent {
+  id: ID!
+  presale_id: ID!
+  eventType: PresaleConfigEventType!
+  payloadJson: String!
   timestamp: BigInt!
   transactionHash: String!
 }

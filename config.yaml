@@ -51,11 +51,31 @@ contracts:
       - event: FloorFeePaid
       - event: RecipientPayment
 
+  - name: Presale
+    abi_file_path: abis/Presale_v1.json
+    handler: src/index.ts
+    events:
+      - event: BaseCommissionUpdated
+      - event: CapsUpdated
+      - event: DirectTokensClaimed
+      - event: EndTimestampSet
+      - event: Initialized
+      - event: LendingFacilitySet
+      - event: ModuleInitialized
+      - event: PositionCreated
+      - event: PresaleBought
+      - event: PresaleStateSet
+      - event: PriceBreakpointsSet
+      - event: TimeSafeguardSet
+      - event: TrancheClaimed
+      - event: WhitelistUpdated
+
 networks:
   - id: 31337 # Local Anvil
     start_block: 0
     rpc_config:
-      url: https://vfgvanuabr.eu-central-1.awsapprunner.com/
+      # Allow overriding the RPC endpoint (e.g. local Anvil) via RPC_URL_31337
+      url: ${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}
     contracts:
       - name: ModuleFactory
         address: '0x1e6a900930e6b45c65c6a27db32c504c22173bf2'
@@ -64,4 +84,6 @@ networks:
       - name: CreditFacility
         address:
       - name: SplitterTreasury
+        address:
+      - name: Presale
         address:

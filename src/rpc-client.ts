@@ -4,8 +4,10 @@
 import { type Address, createPublicClient, http, type PublicClient } from 'viem'
 
 // RPC URL mapping from config.yaml
+const DEFAULT_RPC_URL_31337 = 'https://vfgvanuabr.eu-central-1.awsapprunner.com/'
+
 const RPC_URLS: Record<number, string> = {
-  31337: 'https://vfgvanuabr.eu-central-1.awsapprunner.com/',
+  31337: process.env.RPC_URL_31337?.trim() || DEFAULT_RPC_URL_31337,
 }
 
 // Cache for public clients per chain

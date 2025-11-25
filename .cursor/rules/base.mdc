@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+- **Never**: write migrations, envio redeploy from scratch every deployment hence db migrations are redundant
