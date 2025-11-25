@@ -618,9 +618,7 @@ describe('Floor Markets Indexer', () => {
       assert.equal(presaleContract?.globalDepositCapRaw, 1_000_000n)
       assert.equal(presaleContract?.perAddressDepositCapRaw, 200_000n)
 
-      const configEvent = db.entities.PresaleConfigEvent.get('0xcaps-0')
-      assert.ok(configEvent, 'PresaleConfigEvent should capture config updates')
-      assert.equal(configEvent?.eventType, 'CAPS_UPDATED')
+      // Config events are now stored directly on the contract entity, no separate event entity
 
       const claim = db.entities.PresaleClaim.get('0xclaim-0')
       assert.ok(claim, 'PresaleClaim should be recorded for direct token claims')

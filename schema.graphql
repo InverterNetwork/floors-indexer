@@ -45,19 +45,6 @@ enum PresaleClaimType {
   TRANCHE
 }
 
-enum PresaleConfigEventType {
-  CAPS_UPDATED
-  BASE_COMMISSION_UPDATED
-  PRICE_BREAKPOINTS_SET
-  PRESALE_STATE_SET
-  END_TIMESTAMP_SET
-  TIME_SAFEGUARD_SET
-  WHITELIST_UPDATED
-  LENDING_FACILITY_SET
-  MODULE_INITIALIZED
-  GENERIC
-}
-
 # User Group
 # ------------------------------------------------------------
 
@@ -186,15 +173,19 @@ type PreSaleContract {
   perAddressDepositCapRaw: BigInt!
   perAddressDepositCapFormatted: String!
   whitelistSize: BigInt!
-  commissionBpsJson: String
-  priceBreakpointsJson: String
+  commissionBps: [BigInt!]
+  priceBreakpointsFlat: [BigInt!]
+  priceBreakpointOffsets: [Int!]
   lendingFacility: String
+
+  authorizer: String
+  feeTreasury: String
+  whitelistedAddresses: [String!]
 
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
   participations: [PresaleParticipation!]! @derivedFrom(field: "presale_id")
   claims: [PresaleClaim!]! @derivedFrom(field: "presale_id")
-  configEvents: [PresaleConfigEvent!]! @derivedFrom(field: "presale_id")
 }
 
 # Market
@@ -391,15 +382,6 @@ type PresaleClaim {
   amountFormatted: String!
   trancheIndex: BigInt
   loanId: BigInt
-  timestamp: BigInt!
-  transactionHash: String!
-}
-
-type PresaleConfigEvent {
-  id: ID!
-  presale_id: ID!
-  eventType: PresaleConfigEventType!
-  payloadJson: String!
   timestamp: BigInt!
   transactionHash: String!
 }

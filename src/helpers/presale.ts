@@ -1,19 +1,15 @@
 import type { HandlerContext } from 'generated'
 import type { Market_t, PreSaleContract_t, Token_t } from 'generated/src/db/Entities.gen'
-import type { PresaleConfigEventType_t } from 'generated/src/db/Enums.gen'
 
-import { normalizeAddress } from './misc'
+import { formatAmount, normalizeAddress } from './misc'
 import { getOrCreateToken } from './token'
+import {
+  buildUpdatedUserMarketPosition,
+  getOrCreateAccount,
+  getOrCreateUserMarketPosition,
+} from './user'
 
-type ConfigEventParams = {
-  context: HandlerContext
-  presaleId: string
-  eventType: PresaleConfigEventType_t
-  payload?: Record<string, unknown>
-  timestamp: bigint
-  transactionHash: string
-  logIndex: number
-}
+export const PRESALE_LOG_PREFIX = '[Presale]'
 
 export type PresaleContext = {
   presale: PreSaleContract_t
@@ -21,6 +17,15 @@ export type PresaleContext = {
   market?: Market_t
   saleToken?: Token_t
   purchaseToken?: Token_t
+  timestamp: bigint
+}
+
+type ParticipationArgs = {
+  userAddress: string
+  depositRaw: bigint
+  mintedRaw: bigint
+  leverage: bigint
+  positionId?: bigint
 }
 
 /**
@@ -63,25 +68,162 @@ export async function resolvePresaleContext(
     saleToken,
     purchaseToken,
     marketId: presale.market_id,
+    timestamp: params.timestamp,
   }
 }
 
-export function recordPresaleConfigEvent({
-  context,
-  presaleId,
-  eventType,
-  payload,
-  timestamp,
-  transactionHash,
-  logIndex,
-}: ConfigEventParams) {
-  const entityId = `${transactionHash}-${logIndex}`
-  context.PresaleConfigEvent.set({
-    id: entityId,
-    presale_id: normalizeAddress(presaleId),
-    eventType,
-    payloadJson: JSON.stringify(payload ?? {}),
+export async function loadPresaleContextOrWarn(
+  context: HandlerContext,
+  event: { srcAddress: string; chainId: number; block: { timestamp: number } },
+  handlerName: string
+): Promise<PresaleContext | null> {
+  const timestamp = BigInt(event.block.timestamp)
+  const presaleContext = await resolvePresaleContext(context, {
+    presaleAddress: event.srcAddress,
+    chainId: event.chainId,
     timestamp,
-    transactionHash,
   })
+
+  if (!presaleContext) {
+    context.log.error(
+      `${PRESALE_LOG_PREFIX} ${handlerName} aborted - presale not registered | presale=${event.srcAddress} | action=reindex`
+    )
+    return null
+  }
+
+  return presaleContext
+}
+
+export function applyPresalePatch(
+  presale: PreSaleContract_t,
+  patch: Partial<PreSaleContract_t>,
+  timestamp: bigint
+): PreSaleContract_t {
+  return {
+    ...presale,
+    ...patch,
+    lastUpdatedAt: timestamp,
+  }
+}
+
+export async function handleParticipation(
+  context: HandlerContext,
+  event: {
+    transaction: { hash: string }
+    logIndex: number
+    srcAddress: string
+    chainId: number
+    block: { timestamp: number }
+  },
+  args: ParticipationArgs,
+  handlerName: string
+) {
+  const presaleContext = await loadPresaleContextOrWarn(context, event, handlerName)
+  if (!presaleContext) return
+
+  const { presale, marketId, saleToken, purchaseToken, timestamp } = presaleContext
+
+  const account = await getOrCreateAccount(context, args.userAddress)
+
+  const depositDecimals = purchaseToken?.decimals ?? 18
+  const mintedDecimals = saleToken?.decimals ?? 18
+  const depositAmount = formatAmount(args.depositRaw, depositDecimals)
+  const mintedAmount = formatAmount(args.mintedRaw, mintedDecimals)
+  const participationId = `${event.transaction.hash}-${event.logIndex}`
+
+  context.PresaleParticipation.set({
+    id: participationId,
+    user_id: account.id,
+    presale_id: presale.id,
+    positionId: args.positionId,
+    depositAmountRaw: args.depositRaw,
+    depositAmountFormatted: depositAmount.formatted,
+    mintedAmountRaw: args.mintedRaw,
+    mintedAmountFormatted: mintedAmount.formatted,
+    loopCount: args.leverage,
+    leverage: args.leverage,
+    timestamp,
+    transactionHash: event.transaction.hash,
+  })
+
+  const nextTotalRaisedRaw = presale.totalRaisedRaw + args.depositRaw
+  const nextTotalRaisedFormatted = formatAmount(nextTotalRaisedRaw, depositDecimals).formatted
+
+  const updatedPresale: PreSaleContract_t = {
+    ...presale,
+    totalRaisedRaw: nextTotalRaisedRaw,
+    totalRaisedFormatted: nextTotalRaisedFormatted,
+    totalParticipants: presale.totalParticipants + 1n,
+    maxLeverage: args.leverage > presale.maxLeverage ? args.leverage : presale.maxLeverage,
+    lastUpdatedAt: timestamp,
+  }
+  context.PreSaleContract.set(updatedPresale)
+
+  const userPosition = await getOrCreateUserMarketPosition(
+    context,
+    account.id,
+    marketId,
+    saleToken?.decimals
+  )
+
+  const updatedPosition = buildUpdatedUserMarketPosition(userPosition, {
+    presaleDepositDelta: args.depositRaw,
+    presaleLeverage: args.leverage,
+    issuanceTokenDecimals: saleToken?.decimals ?? 18,
+    reserveTokenDecimals: purchaseToken?.decimals ?? 18,
+    timestamp,
+  })
+  context.UserMarketPosition.set(updatedPosition)
+
+  context.log.info(
+    `${PRESALE_LOG_PREFIX} ${handlerName} recorded | presale=${presale.id} | user=${account.id} | deposit=${depositAmount.formatted}`
+  )
+}
+
+export function updateWhitelist(
+  currentWhitelist: readonly string[],
+  addresses: readonly string[],
+  added: boolean
+): string[] {
+  const normalizedAddresses = addresses.map(normalizeAddress)
+  if (added) {
+    const set = new Set(currentWhitelist)
+    normalizedAddresses.forEach((addr) => set.add(addr))
+    return Array.from(set)
+  } else {
+    const set = new Set(currentWhitelist)
+    normalizedAddresses.forEach((addr) => set.delete(addr))
+    return Array.from(set)
+  }
+}
+
+export type FlattenedPriceBreakpoints = {
+  flat: bigint[]
+  offsets: number[]
+}
+
+/**
+ * Flatten jagged breakpoint arrays into a single array plus cumulative
+ * offsets for compact storage. Consumers can reconstruct row i by slicing
+ * `flat[start:end]`, where start is the previous offset (or 0) and end is
+ * offsets[i].
+ */
+export function flattenPriceBreakpoints(
+  breakpoints: readonly (readonly bigint[])[] | undefined
+): FlattenedPriceBreakpoints | undefined {
+  if (!breakpoints) {
+    return undefined
+  }
+
+  const flat: bigint[] = []
+  const offsets: number[] = []
+  let runningLength = 0
+
+  breakpoints.forEach((row) => {
+    flat.push(...row)
+    runningLength += row.length
+    offsets.push(runningLength)
+  })
+
+  return { flat, offsets }
 }

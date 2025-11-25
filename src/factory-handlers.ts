@@ -203,13 +203,34 @@ ModuleFactory.ModuleCreated.handler(
       }
 
       const timestamp = BigInt(event.block.timestamp)
-      const presaleRecord = buildInitialPresaleContract({
-        presaleAddress: presaleId,
-        marketId: market.id,
-        saleTokenId: market.issuanceToken_id,
-        purchaseTokenId: market.reserveToken_id,
-        timestamp,
-      })
+      const presaleRecord = {
+        id: normalizeAddress(presaleId),
+        saleToken_id: normalizeAddress(market.issuanceToken_id),
+        purchaseToken_id: normalizeAddress(market.reserveToken_id),
+        market_id: normalizeAddress(market.id),
+        startTime: 0n,
+        endTime: 0n,
+        timeSafeguardTs: 0n,
+        maxLeverage: 0n,
+        currentState: 0,
+        totalParticipants: 0n,
+        totalRaisedRaw: 0n,
+        totalRaisedFormatted: '0',
+        globalDepositCapRaw: 0n,
+        globalDepositCapFormatted: '0',
+        perAddressDepositCapRaw: 0n,
+        perAddressDepositCapFormatted: '0',
+        whitelistSize: 0n,
+        commissionBps: undefined,
+        priceBreakpointsFlat: [],
+        priceBreakpointOffsets: [],
+        whitelistedAddresses: [],
+        lendingFacility: undefined,
+        authorizer: undefined,
+        feeTreasury: undefined,
+        createdAt: timestamp,
+        lastUpdatedAt: timestamp,
+      }
 
       context.PreSaleContract.set(presaleRecord)
       context.log.info(
@@ -218,38 +239,3 @@ ModuleFactory.ModuleCreated.handler(
     }
   })
 )
-
-type PresaleBootstrapArgs = {
-  presaleAddress: string
-  marketId: string
-  saleTokenId: string
-  purchaseTokenId: string
-  timestamp: bigint
-}
-
-function buildInitialPresaleContract(args: PresaleBootstrapArgs): PreSaleContract_t {
-  return {
-    id: normalizeAddress(args.presaleAddress),
-    saleToken_id: normalizeAddress(args.saleTokenId),
-    purchaseToken_id: normalizeAddress(args.purchaseTokenId),
-    market_id: normalizeAddress(args.marketId),
-    startTime: 0n,
-    endTime: 0n,
-    timeSafeguardTs: 0n,
-    maxLeverage: 0n,
-    currentState: 0,
-    totalParticipants: 0n,
-    totalRaisedRaw: 0n,
-    totalRaisedFormatted: '0',
-    globalDepositCapRaw: 0n,
-    globalDepositCapFormatted: '0',
-    perAddressDepositCapRaw: 0n,
-    perAddressDepositCapFormatted: '0',
-    whitelistSize: 0n,
-    commissionBpsJson: '',
-    priceBreakpointsJson: '',
-    lendingFacility: '',
-    createdAt: args.timestamp,
-    lastUpdatedAt: args.timestamp,
-  }
-}
