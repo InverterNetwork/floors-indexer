@@ -8,7 +8,7 @@
     "lint": "eslint . --ext .ts --fix",
     "mocha": "ts-mocha test/**/*.ts",
     "codegen": "envio codegen",
-    "dev": "bash -lc \"set -euo pipefail; if [ -t 0 ]; then read -p 'Select RPC source ([l]ocal/[r]emote, default remote): ' choice; else choice='remote'; fi; if [ -z \\\"${choice:-}\\\" ]; then choice='remote'; fi; choice=$(printf '%s' \\\"$choice\\\" | tr '[:upper:]' '[:lower:]'); if [ \\\"$choice\\\" = 'local' ] || [ \\\"$choice\\\" = 'l' ]; then export RPC_URL_31337=\\\"${RPC_URL_31337:-http://127.0.0.1:8545}\\\"; echo \\\"→ Using local RPC: $RPC_URL_31337\\\"; else unset RPC_URL_31337 || true; echo '→ Using remote RPC: https://vfgvanuabr.eu-central-1.awsapprunner.com/'; fi; LOG_LEVEL=${LOG_LEVEL:-trace} LOG_STRATEGY=${LOG_STRATEGY:-console-pretty} TUI_OFF=${TUI_OFF:-true} envio dev\"",
+    "dev": "eval \"$(scripts/select_rpc.sh)\" && LOG_LEVEL=trace LOG_STRATEGY=console-pretty TUI_OFF=true envio dev",
     "start": "envio start",
     "test": "pnpm mocha",
     "db-up": "cd generated && pnpm db-up && cd -",
