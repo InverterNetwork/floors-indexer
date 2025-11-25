@@ -1,0 +1,1019 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "trustedForwarder_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "MAX_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addToWhitelist",
+    "inputs": [
+      {
+        "name": "addresses_",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "authorizer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "buyPresale",
+    "inputs": [
+      {
+        "name": "deposit_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "feePaid_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tokensMinted_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "buyPresaleWithLeverage",
+    "inputs": [
+      {
+        "name": "deposit_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "leverageIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "feePaid_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "tokensMinted_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimAll",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "feeTreasury",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "floor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBaseCommissionBps",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "baseCommissionBps_",
+        "type": "uint16[]",
+        "internalType": "uint16[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDepositsBy",
+    "inputs": [
+      {
+        "name": "account_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "deposits_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getEndTimestamp",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "endTimestamp_",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGlobalDepositCap",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "globalDepositCap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getGlobalDeposits",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "globalDeposits_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLendingFacility",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "lendingFacility_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPerAddressDepositCap",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "perAddressDepositCap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPosition",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "position_",
+        "type": "tuple",
+        "internalType": "struct IPresale_v1.Position",
+        "components": [
+          {
+            "name": "owner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "totalDeposit",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalMinted",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "leverage",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "loanIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "directTokens",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPositionCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "count_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPositionState",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "claimableTokens_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedTokens_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "claimedTokens_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPositionsByOwner",
+    "inputs": [
+      {
+        "name": "owner_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "positionIds_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPresaleState",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "state_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPriceBreakpoints",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "priceBreakpoints_",
+        "type": "uint256[][]",
+        "internalType": "uint256[][]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTimeSafeguardTs",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "timeSafeguardTs_",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "init",
+    "inputs": [
+      {
+        "name": "floor_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "configData_",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isTrustedForwarder",
+    "inputs": [
+      {
+        "name": "forwarder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isWhitelisted",
+    "inputs": [
+      {
+        "name": "account_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "isWhitelisted_",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "removeFromWhitelist",
+    "inputs": [
+      {
+        "name": "addresses_",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setBaseCommissionBpsAndPriceBreakpoints",
+    "inputs": [
+      {
+        "name": "baseCommissionBps_",
+        "type": "uint16[]",
+        "internalType": "uint16[]"
+      },
+      {
+        "name": "priceBreakpoints_",
+        "type": "uint256[][]",
+        "internalType": "uint256[][]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setCaps",
+    "inputs": [
+      {
+        "name": "globalCap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "perAddressCap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setEndTimestamp",
+    "inputs": [
+      {
+        "name": "endTimestamp_",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setLendingFacility",
+    "inputs": [
+      {
+        "name": "lendingFacility_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPresaleState",
+    "inputs": [
+      {
+        "name": "state_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setTimeSafeguard",
+    "inputs": [
+      {
+        "name": "timeSafeguardTs_",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId_",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "trustedForwarder",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "BaseCommissionUpdated",
+    "inputs": [
+      {
+        "name": "baseCommissionBps_",
+        "type": "uint16[]",
+        "indexed": false,
+        "internalType": "uint16[]"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CapsUpdated",
+    "inputs": [
+      {
+        "name": "globalCap_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "perAddressCap_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DirectTokensClaimed",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EndTimestampSet",
+    "inputs": [
+      {
+        "name": "endTimestamp_",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LendingFacilitySet",
+    "inputs": [
+      {
+        "name": "lendingFacility_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ModuleInitialized",
+    "inputs": [
+      {
+        "name": "floor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "authorizer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "feeTreasury",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "configData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PositionCreated",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "owner_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "totalDeposit_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalMinted_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "loops_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PresaleBought",
+    "inputs": [
+      {
+        "name": "buyer_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "deposit_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "loopCount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalMinted_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PresaleStateSet",
+    "inputs": [
+      {
+        "name": "state_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PriceBreakpointsSet",
+    "inputs": [
+      {
+        "name": "priceBreakpoints_",
+        "type": "uint256[][]",
+        "indexed": false,
+        "internalType": "uint256[][]"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TimeSafeguardSet",
+    "inputs": [
+      {
+        "name": "timeSafeguardTs_",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TrancheClaimed",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "trancheIndex_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "loanId_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WhitelistUpdated",
+    "inputs": [
+      {
+        "name": "addresses_",
+        "type": "address[]",
+        "indexed": false,
+        "internalType": "address[]"
+      },
+      {
+        "name": "added_",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CallerNotPermissioned",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__InvalidArrayLength",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__AfterEndTimestamp",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__GlobalCapExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__InvalidBps",
+    "inputs": [
+      {
+        "name": "bps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__InvalidEndTimestamp",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__InvalidLeverageIndex",
+    "inputs": [
+      {
+        "name": "leverageIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__InvalidPosition",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__InvalidTranche",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "trancheIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__NotEnded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__NotOpen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__NotWhitelisted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__PerAddressCapExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__TrancheNotClaimable",
+    "inputs": [
+      {
+        "name": "positionId_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "trancheIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
+]

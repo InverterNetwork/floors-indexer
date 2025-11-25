@@ -1,5 +1,6 @@
 import assert from 'assert'
 import { TestHelpers } from 'generated'
+import type { Token_t } from 'generated/src/db/Entities.gen'
 import { getAddress } from 'viem'
 
 import { __resetMarketHandlerTestState } from '../src/market-handlers'
@@ -26,6 +27,24 @@ const BUY_DEPOSIT_AMOUNT = 10_000_000n // 10 USDC with 6 decimals
 const BUY_RECEIVED_AMOUNT = 9_900_000n // 9.9 FLOOR with 18 decimals
 const SELL_DEPOSIT_AMOUNT = 4_950_000n // 4.95 FLOOR with 18 decimals
 const SELL_RECEIVED_AMOUNT = 4_900_500n // 4.900500 USDC with 6 decimals
+
+const USDC_TOKEN: Token_t = {
+  id: USDC_ADDRESS,
+  name: 'Test USDC',
+  symbol: 'TUSDC',
+  decimals: USDC_DECIMALS,
+  maxSupplyRaw: 0n,
+  maxSupplyFormatted: '0',
+}
+
+const FLOOR_TOKEN: Token_t = {
+  id: FLOOR_ADDRESS,
+  name: 'Floor Token',
+  symbol: 'FLOOR',
+  decimals: FLOOR_DECIMALS,
+  maxSupplyRaw: 0n,
+  maxSupplyFormatted: '0',
+}
 
 describe('Floor Markets Indexer', () => {
   describe('ModuleCreated Handler', () => {
@@ -112,23 +131,9 @@ describe('Floor Markets Indexer', () => {
         },
       })
 
-      // Set up tokens manually (since RPC calls aren't available in tests)
-      const usdcToken = {
-        id: USDC_ADDRESS,
-        name: 'Test USDC',
-        symbol: 'TUSDC',
-        decimals: USDC_DECIMALS,
-      }
-      const floorToken = {
-        id: FLOOR_ADDRESS,
-        name: 'Floor Token',
-        symbol: 'FLOOR',
-        decimals: FLOOR_DECIMALS,
-      }
-
       let dbWithModule = await mockDb.processEvents([moduleCreatedEvent])
-      dbWithModule = dbWithModule.entities.Token.set(usdcToken)
-      dbWithModule = dbWithModule.entities.Token.set(floorToken)
+      dbWithModule = dbWithModule.entities.Token.set(USDC_TOKEN)
+      dbWithModule = dbWithModule.entities.Token.set(FLOOR_TOKEN)
 
       // Update Market to reference tokens
       const market = dbWithModule.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
@@ -209,21 +214,7 @@ describe('Floor Markets Indexer', () => {
     it('formats token amounts correctly with different decimals', async () => {
       const mockDb = MockDb.createMockDb()
 
-      // Set up tokens
-      const usdcToken = {
-        id: USDC_ADDRESS,
-        name: 'Test USDC',
-        symbol: 'TUSDC',
-        decimals: USDC_DECIMALS,
-      }
-      const floorToken = {
-        id: FLOOR_ADDRESS,
-        name: 'Floor Token',
-        symbol: 'FLOOR',
-        decimals: FLOOR_DECIMALS,
-      }
-
-      let db = mockDb.entities.Token.set(usdcToken).entities.Token.set(floorToken)
+      let db = mockDb.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
 
       // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
@@ -301,21 +292,8 @@ describe('Floor Markets Indexer', () => {
         },
       })
 
-      const usdcToken = {
-        id: USDC_ADDRESS,
-        name: 'Test USDC',
-        symbol: 'TUSDC',
-        decimals: USDC_DECIMALS,
-      }
-      const floorToken = {
-        id: FLOOR_ADDRESS,
-        name: 'Floor Token',
-        symbol: 'FLOOR',
-        decimals: FLOOR_DECIMALS,
-      }
-
       let db = await mockDb.processEvents([moduleCreatedEvent])
-      db = db.entities.Token.set(usdcToken).entities.Token.set(floorToken)
+      db = db.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
 
       const market = db.entities.Market.get(MARKET_ADDRESS_2_CHECKSUM)
       if (market) {
@@ -373,21 +351,7 @@ describe('Floor Markets Indexer', () => {
     it('creates Trade and updates Market', async () => {
       const mockDb = MockDb.createMockDb()
 
-      // Set up tokens
-      const usdcToken = {
-        id: USDC_ADDRESS,
-        name: 'Test USDC',
-        symbol: 'TUSDC',
-        decimals: USDC_DECIMALS,
-      }
-      const floorToken = {
-        id: FLOOR_ADDRESS,
-        name: 'Floor Token',
-        symbol: 'FLOOR',
-        decimals: FLOOR_DECIMALS,
-      }
-
-      let db = mockDb.entities.Token.set(usdcToken).entities.Token.set(floorToken)
+      let db = mockDb.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
 
       // Create Market
       const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
