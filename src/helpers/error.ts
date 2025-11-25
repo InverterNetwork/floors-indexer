@@ -1,4 +1,4 @@
-import { eventLog, handlerContext } from 'generated'
+import type { eventLog, handlerContext } from 'generated'
 
 export const handlerErrorWrapper =
   <T>(

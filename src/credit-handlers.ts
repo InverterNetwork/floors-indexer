@@ -532,7 +532,9 @@ async function updateMarketFloorPriceViaFacility(
   const nextInitialFloorPriceRaw =
     market.initialFloorPriceRaw > 0n ? market.initialFloorPriceRaw : nextFloorPriceRaw
   const nextInitialFloorPriceFormatted =
-    market.initialFloorPriceRaw > 0n ? market.initialFloorPriceFormatted : floorPriceAmount.formatted
+    market.initialFloorPriceRaw > 0n
+      ? market.initialFloorPriceFormatted
+      : floorPriceAmount.formatted
 
   context.Market.set({
     ...market,

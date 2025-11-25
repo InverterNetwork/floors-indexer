@@ -5,6 +5,7 @@
     "clean": "tsc --clean",
     "build": "tsc --build",
     "watch": "tsc --watch",
+    "lint": "eslint . --ext .ts --fix",
     "mocha": "ts-mocha test/**/*.ts",
     "codegen": "envio codegen",
     "dev": "LOG_LEVEL=trace LOG_STRATEGY=console-pretty TUI_OFF=true envio dev",

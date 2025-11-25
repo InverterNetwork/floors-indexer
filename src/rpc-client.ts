@@ -1,7 +1,7 @@
 // RPC client helper for making contract calls via viem
 // Chain-aware public client getter
 
-import { createPublicClient, http, type Address, type PublicClient } from 'viem'
+import { type Address, createPublicClient, http, type PublicClient } from 'viem'
 
 // RPC URL mapping from config.yaml
 const RPC_URLS: Record<number, string> = {
@@ -36,4 +36,3 @@ export function getPublicClient(chainId: number): PublicClient {
   clientCache.set(chainId, client)
   return client
 }
-
