@@ -78,7 +78,8 @@ networks:
       url: "${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}"
     contracts:
       - name: ModuleFactory
-        address: '0xa55c74da2382019f7bb22eb23845824df6bee904'
+        # Allow overriding the ModuleFactory address via MODULE_FACTORY
+        address: "${MODULE_FACTORY:-0xa55c74da2382019f7bb22eb23845824df6bee904}"
       - name: FloorMarket
         address:
       - name: CreditFacility
