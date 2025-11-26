@@ -1,6 +1,8 @@
+import type { PreSaleContract_t } from '../generated/src/db/Entities.gen'
 import { Presale } from '../generated/src/Handlers.gen'
 import {
   applyPresalePatch,
+  decodePresaleConfig,
   flattenPriceBreakpoints,
   formatAmount,
   handleParticipation,
@@ -243,20 +245,46 @@ Presale.ModuleInitialized.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const presaleContext = await loadPresaleContextOrWarn(context, event, 'ModuleInitialized')
     if (!presaleContext) return
-    const { presale, timestamp } = presaleContext
+    const { presale, purchaseToken, timestamp } = presaleContext
 
     const floorAddress = normalizeAddress(event.params.floor)
-    context.PreSaleContract.set(
-      applyPresalePatch(
-        presale,
-        {
-          market_id: floorAddress,
-          authorizer: normalizeAddress(event.params.authorizer),
-          feeTreasury: normalizeAddress(event.params.feeTreasury),
-        },
-        timestamp
+
+    let patch: Partial<PreSaleContract_t> = {
+      market_id: floorAddress,
+      authorizer: normalizeAddress(event.params.authorizer),
+      feeTreasury: normalizeAddress(event.params.feeTreasury),
+    }
+
+    if (presale.startTime === 0n) {
+      patch = { ...patch, startTime: timestamp }
+    }
+
+    const decodedConfig = decodePresaleConfig(event.params.configData)
+    if (decodedConfig) {
+      const depositDecimals = purchaseToken?.decimals ?? 18
+      const globalCapAmount = formatAmount(decodedConfig.globalDepositCapRaw, depositDecimals)
+      const perAddressCapAmount = formatAmount(
+        decodedConfig.perAddressDepositCapRaw,
+        depositDecimals
       )
-    )
+
+      patch = {
+        ...patch,
+        lendingFacility: decodedConfig.lendingFacility,
+        timeSafeguardTs: decodedConfig.timeSafeguardTs,
+        endTime: decodedConfig.endTime,
+        globalDepositCapRaw: decodedConfig.globalDepositCapRaw,
+        globalDepositCapFormatted: globalCapAmount.formatted,
+        perAddressDepositCapRaw: decodedConfig.perAddressDepositCapRaw,
+        perAddressDepositCapFormatted: perAddressCapAmount.formatted,
+        commissionBps: Array.from(decodedConfig.commissionBps),
+        priceBreakpointsFlat: [...decodedConfig.priceBreakpointsFlat],
+        priceBreakpointOffsets: [...decodedConfig.priceBreakpointOffsets],
+        maxLeverage: BigInt(decodedConfig.maxLeverage),
+      }
+    }
+
+    context.PreSaleContract.set(applyPresalePatch(presale, patch, timestamp))
   })
 )
 

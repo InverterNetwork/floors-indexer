@@ -155,8 +155,8 @@ type StakingContract {
 type PreSaleContract {
   id: ID!
 
-  saleToken_id: ID!
-  purchaseToken_id: ID!
+  saleToken: Token!
+  purchaseToken: Token!
 
   market_id: ID
   startTime: BigInt!

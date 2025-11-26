@@ -1,5 +1,6 @@
 import type { HandlerContext } from 'generated'
 import type { Market_t, PreSaleContract_t, Token_t } from 'generated/src/db/Entities.gen'
+import { decodeAbiParameters } from 'viem'
 
 import { formatAmount, normalizeAddress } from './misc'
 import { getOrCreateToken } from './token'
@@ -226,4 +227,67 @@ export function flattenPriceBreakpoints(
   })
 
   return { flat, offsets }
+}
+
+const PRESALE_CONFIG_PARAMS = [
+  { type: 'address' },
+  { type: 'uint16[]' },
+  { type: 'uint64' },
+  { type: 'uint64' },
+  { type: 'uint256' },
+  { type: 'uint256' },
+  { type: 'uint256[][]' },
+] as const
+
+export type DecodedPresaleConfig = {
+  lendingFacility: string
+  commissionBps: readonly bigint[]
+  timeSafeguardTs: bigint
+  endTime: bigint
+  globalDepositCapRaw: bigint
+  perAddressDepositCapRaw: bigint
+  priceBreakpointsFlat: bigint[]
+  priceBreakpointOffsets: number[]
+  maxLeverage: number
+}
+
+export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | null {
+  if (!encoded || encoded === '0x') {
+    return null
+  }
+
+  try {
+    const [
+      lendingFacility,
+      commissionBps,
+      timeSafeguardTs,
+      endTime,
+      globalDepositCapRaw,
+      perAddressDepositCapRaw,
+      priceBreakpoints,
+    ] = decodeAbiParameters(PRESALE_CONFIG_PARAMS, encoded as `0x${string}`)
+
+    const commissionValues = (commissionBps as readonly (number | bigint)[]).map((bps) =>
+      BigInt(bps)
+    )
+    const priceBreakpointsValues = (
+      priceBreakpoints as readonly (readonly (number | bigint)[])[]
+    ).map((row) => row.map((value) => BigInt(value)) as readonly bigint[])
+
+    const flattened = flattenPriceBreakpoints(priceBreakpointsValues)
+
+    return {
+      lendingFacility: normalizeAddress(lendingFacility as string),
+      commissionBps: commissionValues,
+      timeSafeguardTs: timeSafeguardTs as bigint,
+      endTime: endTime as bigint,
+      globalDepositCapRaw: globalDepositCapRaw as bigint,
+      perAddressDepositCapRaw: perAddressDepositCapRaw as bigint,
+      priceBreakpointsFlat: flattened?.flat ?? [],
+      priceBreakpointOffsets: flattened?.offsets ?? [],
+      maxLeverage: commissionValues.length > 0 ? commissionValues.length - 1 : 0,
+    }
+  } catch (error) {
+    return null
+  }
 }
