@@ -75,11 +75,11 @@ networks:
     start_block: 0
     rpc_config:
       # Allow overriding the RPC endpoint (e.g. local Anvil) via RPC_URL_31337
-      url: "${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}"
+      url: '${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}'
     contracts:
       - name: ModuleFactory
         # Allow overriding the ModuleFactory address via MODULE_FACTORY
-        address: "${MODULE_FACTORY:-0xa55c74da2382019f7bb22eb23845824df6bee904}"
+        address: '${MODULE_FACTORY:-0xa4a09d6310272bb92c8f85823ab311732f28ff11}'
       - name: FloorMarket
         address:
       - name: CreditFacility
