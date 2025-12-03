@@ -188,6 +188,50 @@ type PreSaleContract {
   claims: [PresaleClaim!]! @derivedFrom(field: "presale_id")
 }
 
+type AuthorizerContract {
+  id: ID!
+  floor: String!
+  admin: String
+  lastAssignedRoleId: BigInt!
+  roles: [Role!]! @derivedFrom(field: "authorizer_id")
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+}
+
+# Access Control
+# ------------------------------------------------------------
+
+type Role {
+  id: ID!
+  authorizer_id: ID!
+  roleId: String!
+  name: String
+  adminRole: String
+  isAdminBurned: Boolean!
+  permissions: [RolePermission!]! @derivedFrom(field: "role_id")
+  members: [RoleMember!]! @derivedFrom(field: "role_id")
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+}
+
+type RolePermission {
+  id: ID!
+  role_id: ID!
+  target: String!
+  selector: String!
+  addedAt: BigInt!
+  transactionHash: String!
+}
+
+type RoleMember {
+  id: ID!
+  role_id: ID!
+  member: String!
+  grantedBy: String!
+  grantedAt: BigInt!
+  transactionHash: String!
+}
+
 # Market
 # ------------------------------------------------------------
 

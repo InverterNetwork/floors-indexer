@@ -13,3 +13,5 @@ import './treasury-handlers'
 // import './staking-handlers'
 // Presale handlers
 import './presale-handlers'
+// Authorizer handlers
+import './authorizer-handlers'

@@ -70,6 +70,19 @@ contracts:
       - event: TrancheClaimed
       - event: WhitelistUpdated
 
+  - name: AUT_Roles_v2
+    abi_file_path: abis/AUT_Roles_v2.json
+    handler: src/index.ts
+    events:
+      - event: ModuleInitialized
+      - event: RoleCreated
+      - event: RoleLabeled
+      - event: AccessPermissionAdded
+      - event: AccessPermissionRemoved
+      - event: RoleGranted
+      - event: RoleRevoked
+      - event: RoleAdminBurned
+
 networks:
   - id: 31337 # Local Anvil
     start_block: 0
@@ -87,4 +100,6 @@ networks:
       - name: SplitterTreasury
         address:
       - name: Presale
+        address:
+      - name: AUT_Roles_v2
         address:
