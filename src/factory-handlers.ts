@@ -41,6 +41,11 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
   if (moduleType === 'presale') {
     context.addPresale(module as `0x${string}`)
   }
+
+  // Register Authorizer modules for role management event listening
+  if (moduleType === 'authorizer') {
+    context.addAuthorizer(module as `0x${string}`)
+  }
 })
 
 /**
@@ -235,6 +240,66 @@ ModuleFactory.ModuleCreated.handler(
       context.PreSaleContract.set(presaleRecord)
       context.log.info(
         `[ModuleCreated] Presale contract registered | presale=${presaleRecord.id} | market=${presaleRecord.market_id}`
+      )
+    }
+
+    // If this is an authorizer module, create the AuthorizerContract entity
+    if (moduleType === 'authorizer') {
+      const authorizerId = normalizeAddress(module)
+      const existing = await context.AuthorizerContract.get(authorizerId)
+
+      if (existing) {
+        context.log.debug(
+          `[ModuleCreated] Authorizer already registered | authorizer=${authorizerId}`
+        )
+        return
+      }
+
+      const timestamp = BigInt(event.block.timestamp)
+
+      // Create AuthorizerContract entity
+      const authorizerRecord = {
+        id: authorizerId,
+        floor: normalizeAddress(orchestrator),
+        admin: undefined,
+        lastAssignedRoleId: 1n, // Start at 1 for DEFAULT_ADMIN_ROLE (0) and PUBLIC_ROLE (1)
+        createdAt: timestamp,
+        lastUpdatedAt: timestamp,
+      }
+
+      context.AuthorizerContract.set(authorizerRecord)
+
+      // Create static roles: DEFAULT_ADMIN_ROLE and PUBLIC_ROLE
+      const DEFAULT_ADMIN_ROLE =
+        '0x0000000000000000000000000000000000000000000000000000000000000000'
+      const PUBLIC_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000001'
+
+      // DEFAULT_ADMIN_ROLE (roleId = 0)
+      context.Role.set({
+        id: `${authorizerId}-${DEFAULT_ADMIN_ROLE}`,
+        authorizer_id: authorizerId,
+        roleId: DEFAULT_ADMIN_ROLE,
+        name: 'DEFAULT_ADMIN_ROLE',
+        adminRole: DEFAULT_ADMIN_ROLE,
+        isAdminBurned: false,
+        createdAt: timestamp,
+        lastUpdatedAt: timestamp,
+      })
+
+      // PUBLIC_ROLE (roleId = 1)
+      context.Role.set({
+        id: `${authorizerId}-${PUBLIC_ROLE}`,
+        authorizer_id: authorizerId,
+        roleId: PUBLIC_ROLE,
+        name: 'PUBLIC_ROLE',
+        adminRole: DEFAULT_ADMIN_ROLE,
+        isAdminBurned: false,
+        createdAt: timestamp,
+        lastUpdatedAt: timestamp,
+      })
+
+      context.log.info(
+        `[ModuleCreated] Authorizer contract registered | authorizer=${authorizerId} | floor=${orchestrator}`
       )
     }
   })

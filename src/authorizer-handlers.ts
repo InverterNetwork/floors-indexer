@@ -1,20 +1,14 @@
 // Authorizer event handlers for Floor Markets DeFi Platform
-// Handles role creation, permissions, and role member assignment from AUT_Roles_v2 contract
+// Handles role creation, permissions, and role member assignment
+// Note: AuthorizerContract entity creation is handled in factory-handlers.ts
 
-import type {
-  AuthorizerContract_t,
-  Role_t,
-  RoleMember_t,
-  RolePermission_t,
-} from '../generated/src/db/Entities.gen'
-import { AUT_Roles_v2 } from '../generated/src/Handlers.gen'
+import type { Role_t, RoleMember_t, RolePermission_t } from '../generated/src/db/Entities.gen'
+import { Authorizer } from '../generated/src/Handlers.gen'
 import { handlerErrorWrapper, normalizeAddress } from './helpers'
 
 /**
  * Constants for static roles
  */
-const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const PUBLIC_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BURN_ADMIN_ROLE = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 
 /**
@@ -49,73 +43,10 @@ function createMemberId(roleId: string, member: string): string {
 }
 
 /**
- * @notice Handles ModuleInitialized event to create AuthorizerContract entity
- * This event fires when the AUT_Roles_v2 contract is initialized with a floor address
- */
-AUT_Roles_v2.ModuleInitialized.handler(
-  handlerErrorWrapper(async ({ event, context }) => {
-    const authorizerAddress = event.srcAddress
-    const floorAddress = event.params.floor
-    const timestamp = BigInt(event.block.timestamp)
-
-    context.log.info(
-      `[ModuleInitialized] Authorizer initialized | authorizer=${authorizerAddress} | floor=${floorAddress}`
-    )
-
-    const normalizedAuthorizer = normalizeAddress(authorizerAddress)
-    const normalizedFloor = normalizeAddress(floorAddress)
-
-    // Create AuthorizerContract entity
-    const authorizer: AuthorizerContract_t = {
-      id: normalizedAuthorizer,
-      floor: normalizedFloor,
-      admin: undefined,
-      lastAssignedRoleId: 1n, // Start at 1 to account for DEFAULT_ADMIN_ROLE and PUBLIC_ROLE
-      createdAt: timestamp,
-      lastUpdatedAt: timestamp,
-    }
-
-    context.AuthorizerContract.set(authorizer)
-
-    // Create DEFAULT_ADMIN_ROLE (roleId = 0)
-    const defaultAdminRole: Role_t = {
-      id: createRoleId(normalizedAuthorizer, DEFAULT_ADMIN_ROLE),
-      authorizer_id: normalizedAuthorizer,
-      roleId: DEFAULT_ADMIN_ROLE,
-      name: 'DEFAULT_ADMIN_ROLE',
-      adminRole: DEFAULT_ADMIN_ROLE,
-      isAdminBurned: false,
-      createdAt: timestamp,
-      lastUpdatedAt: timestamp,
-    }
-
-    context.Role.set(defaultAdminRole)
-
-    // Create PUBLIC_ROLE (roleId = 1)
-    const publicRole: Role_t = {
-      id: createRoleId(normalizedAuthorizer, PUBLIC_ROLE),
-      authorizer_id: normalizedAuthorizer,
-      roleId: PUBLIC_ROLE,
-      name: 'PUBLIC_ROLE',
-      adminRole: DEFAULT_ADMIN_ROLE,
-      isAdminBurned: false,
-      createdAt: timestamp,
-      lastUpdatedAt: timestamp,
-    }
-
-    context.Role.set(publicRole)
-
-    context.log.debug(
-      `[ModuleInitialized] ✅ AuthorizerContract created | authorizer=${normalizedAuthorizer} | floor=${normalizedFloor}`
-    )
-  })
-)
-
-/**
  * @notice Handles RoleCreated event
  * Creates a new Role entity when a role is dynamically created in the authorizer
  */
-AUT_Roles_v2.RoleCreated.handler(
+Authorizer.RoleCreated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const roleId = normalizeHexString(event.params.roleId_)
@@ -171,7 +102,7 @@ AUT_Roles_v2.RoleCreated.handler(
  * @notice Handles RoleLabeled event
  * Updates the name/label of an existing role
  */
-AUT_Roles_v2.RoleLabeled.handler(
+Authorizer.RoleLabeled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const roleId = normalizeHexString(event.params.roleId_)
@@ -208,7 +139,7 @@ AUT_Roles_v2.RoleLabeled.handler(
  * @notice Handles AccessPermissionAdded event
  * Creates a RolePermission entity when a function is assigned to a role
  */
-AUT_Roles_v2.AccessPermissionAdded.handler(
+Authorizer.AccessPermissionAdded.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const target = event.params.target_
@@ -247,7 +178,7 @@ AUT_Roles_v2.AccessPermissionAdded.handler(
  * @notice Handles AccessPermissionRemoved event
  * Deletes a RolePermission entity when a function is removed from a role
  */
-AUT_Roles_v2.AccessPermissionRemoved.handler(
+Authorizer.AccessPermissionRemoved.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const target = event.params.target_
@@ -276,7 +207,7 @@ AUT_Roles_v2.AccessPermissionRemoved.handler(
  * @notice Handles RoleGranted event
  * Creates a RoleMember entity when an address is granted a role
  */
-AUT_Roles_v2.RoleGranted.handler(
+Authorizer.RoleGranted.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const roleId = normalizeHexString(event.params.role)
@@ -316,7 +247,7 @@ AUT_Roles_v2.RoleGranted.handler(
  * @notice Handles RoleRevoked event
  * Deletes a RoleMember entity when an address is revoked from a role
  */
-AUT_Roles_v2.RoleRevoked.handler(
+Authorizer.RoleRevoked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const roleId = normalizeHexString(event.params.role)
@@ -345,7 +276,7 @@ AUT_Roles_v2.RoleRevoked.handler(
  * @notice Handles RoleAdminBurned event
  * Updates Role.isAdminBurned flag when an admin role is burned (made immutable)
  */
-AUT_Roles_v2.RoleAdminBurned.handler(
+Authorizer.RoleAdminBurned.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const authorizerAddress = event.srcAddress
     const roleId = normalizeHexString(event.params.roleId_)
