@@ -206,6 +206,7 @@ type Role {
   roleId: String!
   name: String
   adminRole: String
+  adminRoleName: String
   isAdminBurned: Boolean!
   permissions: [RolePermission!]! @derivedFrom(field: "role_id")
   members: [RoleMember!]! @derivedFrom(field: "role_id")
@@ -218,6 +219,7 @@ type RolePermission {
   role_id: ID!
   target: String!
   selector: String!
+  selectorName: String!
   addedAt: BigInt!
   transactionHash: String!
 }

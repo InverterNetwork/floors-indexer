@@ -4,12 +4,23 @@
 
 import type { Role_t, RoleMember_t, RolePermission_t } from '../generated/src/db/Entities.gen'
 import { Authorizer } from '../generated/src/Handlers.gen'
-import { handlerErrorWrapper, normalizeAddress } from './helpers'
+import { getSelectorName, handlerErrorWrapper, normalizeAddress } from './helpers'
 
 /**
  * Constants for static roles
  */
+const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
+const PUBLIC_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BURN_ADMIN_ROLE = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+
+/**
+ * Static role name mapping for well-known roles
+ */
+const STATIC_ROLE_NAMES: Record<string, string> = {
+  [DEFAULT_ADMIN_ROLE]: 'DEFAULT_ADMIN_ROLE',
+  [PUBLIC_ROLE]: 'PUBLIC_ROLE',
+  [BURN_ADMIN_ROLE]: 'BURN_ADMIN_ROLE',
+}
 
 /**
  * Helper function to normalize hex string (already in bytes32 format from events)
@@ -79,12 +90,14 @@ Authorizer.RoleCreated.handler(
     }
 
     // Create new Role entity
+    // Note: adminRole and adminRoleName will be set by the subsequent RoleAdminChanged event
     const role: Role_t = {
       id: createRoleId(normalizedAuthorizer, roleId),
       authorizer_id: normalizedAuthorizer,
       roleId: roleId,
       name: roleName || undefined,
       adminRole: undefined,
+      adminRoleName: undefined,
       isAdminBurned: false,
       createdAt: timestamp,
       lastUpdatedAt: timestamp,
@@ -164,14 +177,23 @@ Authorizer.RoleAdminChanged.handler(
       return
     }
 
+    // Resolve admin role name - check static roles first, then look up dynamic role
+    let adminRoleName: string | undefined = STATIC_ROLE_NAMES[newAdminRole]
+    if (!adminRoleName) {
+      const adminRoleEntityId = createRoleId(normalizedAuthorizer, newAdminRole)
+      const adminRoleEntity = await context.Role.get(adminRoleEntityId)
+      adminRoleName = adminRoleEntity?.name || undefined
+    }
+
     context.Role.set({
       ...role,
       adminRole: newAdminRole,
+      adminRoleName: adminRoleName,
       lastUpdatedAt: timestamp,
     })
 
     context.log.debug(
-      `[RoleAdminChanged] ✅ Role admin updated | roleId=${roleEntityId} | adminRole=${newAdminRole}`
+      `[RoleAdminChanged] ✅ Role admin updated | roleId=${roleEntityId} | adminRole=${newAdminRole} (${adminRoleName || 'unknown'})`
     )
   })
 )
@@ -188,8 +210,10 @@ Authorizer.AccessPermissionAdded.handler(
     const roleId = normalizeHexString(event.params.roleId_)
     const timestamp = BigInt(event.block.timestamp)
 
+    const selectorName = getSelectorName(selector)
+
     context.log.info(
-      `[AccessPermissionAdded] Permission added | authorizer=${authorizerAddress} | roleId=${roleId} | target=${target} | selector=${selector}`
+      `[AccessPermissionAdded] Permission added | authorizer=${authorizerAddress} | roleId=${roleId} | target=${target} | selector=${selector} (${selectorName})`
     )
 
     const normalizedAuthorizer = normalizeAddress(authorizerAddress)
@@ -203,6 +227,7 @@ Authorizer.AccessPermissionAdded.handler(
       role_id: roleEntityId,
       target: normalizedTarget,
       selector: selector,
+      selectorName: selectorName,
       addedAt: timestamp,
       transactionHash: event.transaction.hash,
     }
@@ -210,7 +235,7 @@ Authorizer.AccessPermissionAdded.handler(
     context.RolePermission.set(permission)
 
     context.log.debug(
-      `[AccessPermissionAdded] ✅ Permission created | permissionId=${permissionId}`
+      `[AccessPermissionAdded] ✅ Permission created | permissionId=${permissionId} | function=${selectorName}`
     )
   })
 )
@@ -341,11 +366,12 @@ Authorizer.RoleAdminBurned.handler(
       ...role,
       isAdminBurned: true,
       adminRole: BURN_ADMIN_ROLE,
+      adminRoleName: 'BURN_ADMIN_ROLE',
       lastUpdatedAt: timestamp,
     })
 
     context.log.debug(
-      `[RoleAdminBurned] ✅ Role admin burned | roleId=${roleEntityId} | adminRole=${BURN_ADMIN_ROLE}`
+      `[RoleAdminBurned] ✅ Role admin burned | roleId=${roleEntityId} | adminRole=BURN_ADMIN_ROLE`
     )
   })
 )
