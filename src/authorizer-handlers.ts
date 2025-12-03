@@ -136,6 +136,47 @@ Authorizer.RoleLabeled.handler(
 )
 
 /**
+ * @notice Handles RoleAdminChanged event
+ * Updates the adminRole field when a role's admin is set or transferred
+ * This event is emitted when:
+ * - A role is created (to set initial admin via _setRoleAdmin)
+ * - Admin is transferred via transferAdminRole()
+ */
+Authorizer.RoleAdminChanged.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const authorizerAddress = event.srcAddress
+    const roleId = normalizeHexString(event.params.role)
+    const previousAdminRole = normalizeHexString(event.params.previousAdminRole)
+    const newAdminRole = normalizeHexString(event.params.newAdminRole)
+    const timestamp = BigInt(event.block.timestamp)
+
+    context.log.info(
+      `[RoleAdminChanged] Admin changed | authorizer=${authorizerAddress} | roleId=${roleId} | previousAdmin=${previousAdminRole} | newAdmin=${newAdminRole}`
+    )
+
+    const normalizedAuthorizer = normalizeAddress(authorizerAddress)
+    const roleEntityId = createRoleId(normalizedAuthorizer, roleId)
+
+    // Get and update the role
+    const role = await context.Role.get(roleEntityId)
+    if (!role) {
+      context.log.warn(`[RoleAdminChanged] Role not found | roleId=${roleEntityId}`)
+      return
+    }
+
+    context.Role.set({
+      ...role,
+      adminRole: newAdminRole,
+      lastUpdatedAt: timestamp,
+    })
+
+    context.log.debug(
+      `[RoleAdminChanged] ✅ Role admin updated | roleId=${roleEntityId} | adminRole=${newAdminRole}`
+    )
+  })
+)
+
+/**
  * @notice Handles AccessPermissionAdded event
  * Creates a RolePermission entity when a function is assigned to a role
  */

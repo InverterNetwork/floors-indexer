@@ -261,7 +261,6 @@ ModuleFactory.ModuleCreated.handler(
       const authorizerRecord = {
         id: authorizerId,
         floor: normalizeAddress(orchestrator),
-        admin: undefined,
         lastAssignedRoleId: 1n, // Start at 1 for DEFAULT_ADMIN_ROLE (0) and PUBLIC_ROLE (1)
         createdAt: timestamp,
         lastUpdatedAt: timestamp,

@@ -76,6 +76,7 @@ contracts:
     events:
       - event: RoleCreated
       - event: RoleLabeled
+      - event: RoleAdminChanged
       - event: AccessPermissionAdded
       - event: AccessPermissionRemoved
       - event: RoleGranted

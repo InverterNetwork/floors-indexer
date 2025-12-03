@@ -191,7 +191,6 @@ type PreSaleContract {
 type AuthorizerContract {
   id: ID!
   floor: String!
-  admin: String
   lastAssignedRoleId: BigInt!
   roles: [Role!]! @derivedFrom(field: "authorizer_id")
   createdAt: BigInt!
