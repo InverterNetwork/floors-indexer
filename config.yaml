@@ -92,7 +92,7 @@ networks:
     contracts:
       - name: ModuleFactory
         # Allow overriding the ModuleFactory address via MODULE_FACTORY
-        address: '${MODULE_FACTORY:-0x1776124006fd62a2daf00a3488452e7538ac726c}'
+        address: '${MODULE_FACTORY:-0x35bcca163ab4460f4123e41ed9861d5f899d4d0c}'
       - name: FloorMarket
         address:
       - name: CreditFacility
