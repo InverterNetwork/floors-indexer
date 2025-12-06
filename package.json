@@ -4,7 +4,8 @@
   "scripts": {
     "clean": "tsc --clean",
     "build": "tsc --build",
-    "watch": "tsc --watch",
+    "watch": "tsc --watch --noEmit --pretty",
+    "type-check": "tsc --noEmit --pretty",
     "lint": "eslint . --ext .ts --fix",
     "mocha": "ts-mocha test/**/*.ts",
     "codegen": "envio codegen",

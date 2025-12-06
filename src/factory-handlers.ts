@@ -230,7 +230,7 @@ ModuleFactory.ModuleCreated.handler(
         priceBreakpointsFlat: [],
         priceBreakpointOffsets: [],
         whitelistedAddresses: [],
-        lendingFacility: undefined,
+        creditFacility: undefined,
         authorizer: undefined,
         feeTreasury: undefined,
         createdAt: timestamp,

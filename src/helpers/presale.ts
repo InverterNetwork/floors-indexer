@@ -233,16 +233,14 @@ const PRESALE_CONFIG_PARAMS = [
   { type: 'address' },
   { type: 'uint16[]' },
   { type: 'uint64' },
-  { type: 'uint64' },
   { type: 'uint256' },
   { type: 'uint256' },
   { type: 'uint256[][]' },
 ] as const
 
 export type DecodedPresaleConfig = {
-  lendingFacility: string
+  creditFacility: string
   commissionBps: readonly bigint[]
-  timeSafeguardTs: bigint
   endTime: bigint
   globalDepositCapRaw: bigint
   perAddressDepositCapRaw: bigint
@@ -258,9 +256,8 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
 
   try {
     const [
-      lendingFacility,
+      creditFacility,
       commissionBps,
-      timeSafeguardTs,
       endTime,
       globalDepositCapRaw,
       perAddressDepositCapRaw,
@@ -277,9 +274,8 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
     const flattened = flattenPriceBreakpoints(priceBreakpointsValues)
 
     return {
-      lendingFacility: normalizeAddress(lendingFacility as string),
+      creditFacility: normalizeAddress(creditFacility as string),
       commissionBps: commissionValues,
-      timeSafeguardTs: timeSafeguardTs as bigint,
       endTime: endTime as bigint,
       globalDepositCapRaw: globalDepositCapRaw as bigint,
       perAddressDepositCapRaw: perAddressDepositCapRaw as bigint,

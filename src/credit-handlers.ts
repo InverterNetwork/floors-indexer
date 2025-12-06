@@ -43,7 +43,8 @@ CreditFacility.LoanCreated.handler(
     const onChainLoan = await fetchLoanState(event.chainId, event.srcAddress, event.params.loanId_)
     const lockedCollateralRaw = onChainLoan?.lockedIssuanceTokens ?? 0n
     const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? event.params.loanAmount_
-    const floorPriceRaw = onChainLoan?.floorPriceAtBorrow ?? event.params.floorPriceAtBorrow_
+    // Note: floorPriceAtBorrow was removed from the contract, use 0 as default
+    const floorPriceRaw = 0n
 
     const borrowAmount = formatAmount(event.params.loanAmount_, borrowToken.decimals)
     const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
@@ -188,14 +189,6 @@ CreditFacility.LoanRebalanced.handler(
       transactionHash: event.transaction.hash,
       logIndex: event.logIndex,
     })
-
-    await updateMarketFloorPriceViaFacility(
-      context,
-      facility.market_id,
-      event.params.currentFloorPrice_,
-      borrowToken.decimals,
-      timestamp
-    )
 
     context.log.info(
       `[LoanRebalanced] ✅ Loan collateral updated | loanId=${loanId} | locked=${lockedCollateral.formatted} | delta=${lockedCollateralDelta}`

@@ -8,7 +8,6 @@ export type CreditFacilityLoanState = {
   id: bigint
   borrower: string
   lockedIssuanceTokens: bigint
-  floorPriceAtBorrow: bigint
   remainingLoanAmount: bigint
   timestamp: bigint
   isActive: boolean
@@ -30,7 +29,6 @@ export async function fetchLoanState(
       id: bigint
       borrower: string
       lockedIssuanceTokens: bigint
-      floorPriceAtBorrow: bigint
       remainingLoanAmount: bigint
       timestamp: bigint
       isActive: boolean

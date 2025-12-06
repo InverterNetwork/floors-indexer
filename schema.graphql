@@ -161,7 +161,6 @@ type PreSaleContract {
   market_id: ID
   startTime: BigInt!
   endTime: BigInt!
-  timeSafeguardTs: BigInt
 
   maxLeverage: BigInt!
   currentState: Int!
@@ -176,7 +175,7 @@ type PreSaleContract {
   commissionBps: [BigInt!]
   priceBreakpointsFlat: [BigInt!]
   priceBreakpointOffsets: [Int!]
-  lendingFacility: String
+  creditFacility: String
 
   authorizer: String
   feeTreasury: String
@@ -360,9 +359,6 @@ type Loan {
 
   remainingDebtRaw: BigInt!
   remainingDebtFormatted: String!
-
-  floorPriceAtBorrowRaw: BigInt!
-  floorPriceAtBorrowFormatted: String!
 
   status: LoanStatus!
 
