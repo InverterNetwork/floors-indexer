@@ -1,7 +1,6 @@
 // Factory event handlers for Floor Markets DeFi Platform
 // Discovers new BC (bonding curve) and CreditFacility contracts
 
-import type { PreSaleContract_t } from '../generated/src/db/Entities.gen'
 import { FloorFactory, ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
