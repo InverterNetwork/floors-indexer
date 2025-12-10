@@ -239,11 +239,6 @@
             "internalType": "uint256"
           },
           {
-            "name": "floorPriceAtBorrow",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
             "name": "remainingLoanAmount",
             "type": "uint256",
             "internalType": "uint256"
@@ -336,11 +331,6 @@
           },
           {
             "name": "lockedIssuanceTokens",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "floorPriceAtBorrow",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -660,12 +650,6 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      },
-      {
-        "name": "floorPriceAtBorrow_",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -688,18 +672,6 @@
       },
       {
         "name": "newLockedIssuanceTokens_",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "oldFloorPrice_",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "currentFloorPrice_",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -874,11 +846,6 @@
   },
   {
     "type": "error",
-    "name": "Module__CreditFacility_FloorPriceNotIncreased",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "Module__CreditFacility_InsufficientCollateralForLeverage",
     "inputs": []
   },
@@ -960,6 +927,11 @@
   {
     "type": "error",
     "name": "Module__CreditFacility_NoSegmentsConfigured",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__CreditFacility_NothingToRebalance",
     "inputs": []
   },
   {

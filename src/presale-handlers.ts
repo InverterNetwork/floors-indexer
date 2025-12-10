@@ -184,25 +184,13 @@ Presale.EndTimestampSet.handler(
   })
 )
 
-Presale.TimeSafeguardSet.handler(
+Presale.CreditFacilitySet.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'TimeSafeguardSet')
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'CreditFacilitySet')
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
-    context.PreSaleContract.set(
-      applyPresalePatch(presale, { timeSafeguardTs: event.params.timeSafeguardTs_ }, timestamp)
-    )
-  })
-)
-
-Presale.LendingFacilitySet.handler(
-  handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'LendingFacilitySet')
-    if (!presaleContext) return
-    const { presale, timestamp } = presaleContext
-
-    const lendingFacility = normalizeAddress(event.params.lendingFacility_)
+    const lendingFacility = normalizeAddress(event.params.creditFacility_)
     context.PreSaleContract.set(applyPresalePatch(presale, { lendingFacility }, timestamp))
   })
 )

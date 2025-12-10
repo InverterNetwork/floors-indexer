@@ -11,6 +11,7 @@ import {
   getMarketIdForModule,
   getOrCreateAccount,
   getOrCreateMarket,
+  getOrCreateToken,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
   normalizeAddress,
@@ -874,6 +875,150 @@ FloorMarket.SellFeeUpdated.handler(
     })
     context.log.info(
       `[SellFeeUpdated] Sell fee updated | marketId=${marketId} | feeBps=${newSellFee.toString()}`
+    )
+  })
+)
+
+FloorMarket.VirtualCollateralSupplySet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[VirtualCollateralSupplySet] Market not found: ${marketId}`)
+      return
+    }
+
+    const reserveToken = await context.Token.get(market.reserveToken_id)
+    if (!reserveToken) {
+      context.log.warn(`[VirtualCollateralSupplySet] Reserve token not found`)
+      return
+    }
+
+    const updatedMarket = {
+      ...market,
+      floorSupplyRaw: event.params.newSupply_,
+      floorSupplyFormatted: formatAmount(event.params.newSupply_, reserveToken.decimals).formatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    ensurePriceHistoryEntry(updatedMarket)
+    context.log.info(
+      `[VirtualCollateralSupplySet] ✅ Updated floorSupply | marketId=${marketId} | newSupply=${updatedMarket.floorSupplyFormatted}`
+    )
+  })
+)
+
+FloorMarket.CollateralTokenSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[CollateralTokenSet] Market not found: ${marketId}`)
+      return
+    }
+
+    const collateralTokenAddress = normalizeAddress(event.params.collateralToken_)
+    const collateralToken = await getOrCreateToken(context, event.chainId, collateralTokenAddress)
+
+    const updatedMarket = {
+      ...market,
+      reserveToken_id: collateralToken.id,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[CollateralTokenSet] ✅ Updated collateral token | marketId=${marketId} | token=${collateralToken.id}`
+    )
+  })
+)
+
+FloorMarket.IssuanceTokenSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[IssuanceTokenSet] Market not found: ${marketId}`)
+      return
+    }
+
+    const issuanceTokenAddress = normalizeAddress(event.params.issuanceToken_)
+    const issuanceToken = await getOrCreateToken(context, event.chainId, issuanceTokenAddress)
+
+    const updatedMarket = {
+      ...market,
+      issuanceToken_id: issuanceToken.id,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[IssuanceTokenSet] ✅ Updated issuance token | marketId=${marketId} | token=${issuanceToken.id}`
+    )
+  })
+)
+
+FloorMarket.SegmentsSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[SegmentsSet] Market not found: ${marketId}`)
+      return
+    }
+
+    // Segments are stored as bytes32[] - we can store as JSON string for now
+    const segmentsJson = JSON.stringify(event.params.segments_.map((seg: string) => seg))
+
+    const updatedMarket = {
+      ...market,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[SegmentsSet] ✅ Segments updated | marketId=${marketId} | segmentCount=${event.params.segments_.length}`
     )
   })
 )

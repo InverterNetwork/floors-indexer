@@ -43,7 +43,7 @@ CreditFacility.LoanCreated.handler(
     const onChainLoan = await fetchLoanState(event.chainId, event.srcAddress, event.params.loanId_)
     const lockedCollateralRaw = onChainLoan?.lockedIssuanceTokens ?? 0n
     const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? event.params.loanAmount_
-    const floorPriceRaw = onChainLoan?.floorPriceAtBorrow ?? event.params.floorPriceAtBorrow_
+    const floorPriceRaw = onChainLoan?.floorPriceAtBorrow ?? 0n
 
     const borrowAmount = formatAmount(event.params.loanAmount_, borrowToken.decimals)
     const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
@@ -189,13 +189,8 @@ CreditFacility.LoanRebalanced.handler(
       logIndex: event.logIndex,
     })
 
-    await updateMarketFloorPriceViaFacility(
-      context,
-      facility.market_id,
-      event.params.currentFloorPrice_,
-      borrowToken.decimals,
-      timestamp
-    )
+    // Note: currentFloorPrice is not in LoanRebalanced event params
+    // Floor price updates are handled by FloorPriceUpdated events from the Floor contract
 
     context.log.info(
       `[LoanRebalanced] ✅ Loan collateral updated | loanId=${loanId} | locked=${lockedCollateral.formatted} | delta=${lockedCollateralDelta}`
@@ -416,6 +411,174 @@ CreditFacility.IssuanceTokensUnlocked.handler(
     const user = await getOrCreateAccount(context, event.params.user_)
     context.log.info(
       `[IssuanceTokensUnlocked] Event observed | facility=${event.srcAddress} | user=${user.id} | amount=${event.params.amount_}`
+    )
+  })
+)
+
+CreditFacility.LoanTransferred.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const loanId = event.params.loanId_.toString()
+    const loan = await context.Loan.get(loanId)
+
+    if (!loan) {
+      context.log.warn(
+        `[LoanTransferred] Loan not indexed | loanId=${loanId} | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const newBorrower = await getOrCreateAccount(context, event.params.newBorrower_)
+
+    const updatedLoan = {
+      ...loan,
+      borrower_id: newBorrower.id,
+      lastUpdatedAt: timestamp,
+    }
+    context.Loan.set(updatedLoan)
+
+    context.log.info(
+      `[LoanTransferred] ✅ Loan transferred | loanId=${loanId} | from=${event.params.previousBorrower_} | to=${newBorrower.id}`
+    )
+  })
+)
+
+CreditFacility.LoansConsolidated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facilityContext = await loadFacilityContext(context, facilityId)
+
+    if (!facilityContext) {
+      context.log.warn(
+        `[LoansConsolidated] Facility context missing | facilityId=${facilityId} | block=${event.block.number} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const { facility, borrowToken, collateralToken } = facilityContext
+    const borrower = await getOrCreateAccount(context, event.params.borrower_)
+    const newLoanId = event.params.newLoanId_.toString()
+
+    // Close old loans
+    for (const oldLoanId of event.params.oldLoanIds_) {
+      const oldLoan = await context.Loan.get(oldLoanId.toString())
+      if (oldLoan) {
+        const closedLoan = {
+          ...oldLoan,
+          status: 'REPAID' as LoanStatus_t,
+          closedAt: timestamp,
+          lastUpdatedAt: timestamp,
+        }
+        context.Loan.set(closedLoan)
+      }
+    }
+
+    // Create new consolidated loan
+    const consolidatedLoan = {
+      id: newLoanId,
+      borrower_id: borrower.id,
+      facility_id: facility.id,
+      market_id: facility.market_id,
+      lockedCollateralRaw: event.params.totalLockedIssuanceTokens_,
+      lockedCollateralFormatted: formatAmount(
+        event.params.totalLockedIssuanceTokens_,
+        collateralToken.decimals
+      ).formatted,
+      borrowAmountRaw: 0n, // Will be calculated from old loans
+      borrowAmountFormatted: '0',
+      originationFeeRaw: 0n,
+      originationFeeFormatted: '0',
+      remainingDebtRaw: 0n, // Will be calculated from old loans
+      remainingDebtFormatted: '0',
+      floorPriceAtBorrowRaw: 0n,
+      floorPriceAtBorrowFormatted: '0',
+      status: 'ACTIVE' as LoanStatus_t,
+      openedAt: timestamp,
+      closedAt: undefined,
+      lastUpdatedAt: timestamp,
+      transactionHash: event.transaction.hash,
+    }
+    context.Loan.set(consolidatedLoan)
+
+    context.log.info(
+      `[LoansConsolidated] ✅ Loans consolidated | oldLoans=${event.params.oldLoanIds_.length} | newLoanId=${newLoanId} | borrower=${borrower.id}`
+    )
+  })
+)
+
+CreditFacility.BorrowingFeeRateUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facility = await context.CreditFacilityContract.get(facilityId)
+
+    if (!facility) {
+      context.log.warn(
+        `[BorrowingFeeRateUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const updatedFacility = {
+      ...facility,
+      lastUpdatedAt: timestamp,
+    }
+    context.CreditFacilityContract.set(updatedFacility)
+
+    context.log.info(
+      `[BorrowingFeeRateUpdated] ✅ Borrowing fee rate updated | facilityId=${facilityId} | newFeeRate=${event.params.newFeeRate_.toString()}`
+    )
+  })
+)
+
+CreditFacility.MaxLeverageUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facility = await context.CreditFacilityContract.get(facilityId)
+
+    if (!facility) {
+      context.log.warn(
+        `[MaxLeverageUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const updatedFacility = {
+      ...facility,
+      lastUpdatedAt: timestamp,
+    }
+    context.CreditFacilityContract.set(updatedFacility)
+
+    context.log.info(
+      `[MaxLeverageUpdated] ✅ Max leverage updated | facilityId=${facilityId} | newMaxLeverage=${event.params.newMaxLeverage_.toString()}`
+    )
+  })
+)
+
+CreditFacility.DynamicFeeCalculatorUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facility = await context.CreditFacilityContract.get(facilityId)
+
+    if (!facility) {
+      context.log.warn(
+        `[DynamicFeeCalculatorUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const updatedFacility = {
+      ...facility,
+      lastUpdatedAt: timestamp,
+    }
+    context.CreditFacilityContract.set(updatedFacility)
+
+    context.log.info(
+      `[DynamicFeeCalculatorUpdated] ✅ Fee calculator updated | facilityId=${facilityId} | newCalculator=${event.params.newCalculator_}`
     )
   })
 )

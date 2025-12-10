@@ -166,19 +166,13 @@
   },
   {
     "type": "function",
-    "name": "getDepositsBy",
-    "inputs": [
-      {
-        "name": "account_",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "name": "getCreditFacility",
+    "inputs": [],
     "outputs": [
       {
-        "name": "deposits_",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "creditFacility_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -198,11 +192,11 @@
   },
   {
     "type": "function",
-    "name": "getGlobalDepositCap",
+    "name": "getGlobalIssuance",
     "inputs": [],
     "outputs": [
       {
-        "name": "globalDepositCap_",
+        "name": "globalIssuance_",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -211,11 +205,11 @@
   },
   {
     "type": "function",
-    "name": "getGlobalDeposits",
+    "name": "getGlobalIssuanceCap",
     "inputs": [],
     "outputs": [
       {
-        "name": "globalDeposits_",
+        "name": "globalIssuanceCap_",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -224,24 +218,30 @@
   },
   {
     "type": "function",
-    "name": "getLendingFacility",
-    "inputs": [],
-    "outputs": [
+    "name": "getIssuanceBy",
+    "inputs": [
       {
-        "name": "lendingFacility_",
+        "name": "account_",
         "type": "address",
         "internalType": "address"
       }
     ],
+    "outputs": [
+      {
+        "name": "issuance_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "getPerAddressDepositCap",
+    "name": "getPerAddressIssuanceCap",
     "inputs": [],
     "outputs": [
       {
-        "name": "perAddressDepositCap_",
+        "name": "perAddressIssuanceCap_",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -388,19 +388,6 @@
   },
   {
     "type": "function",
-    "name": "getTimeSafeguardTs",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "timeSafeguardTs_",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "init",
     "inputs": [
       {
@@ -516,6 +503,19 @@
   },
   {
     "type": "function",
+    "name": "setCreditFacility",
+    "inputs": [
+      {
+        "name": "creditFacility_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setEndTimestamp",
     "inputs": [
       {
@@ -529,38 +529,12 @@
   },
   {
     "type": "function",
-    "name": "setLendingFacility",
-    "inputs": [
-      {
-        "name": "lendingFacility_",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "setPresaleState",
     "inputs": [
       {
         "name": "state_",
         "type": "uint8",
         "internalType": "enum IPresale_v1.PresaleState"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setTimeSafeguard",
-    "inputs": [
-      {
-        "name": "timeSafeguardTs_",
-        "type": "uint64",
-        "internalType": "uint64"
       }
     ],
     "outputs": [],
@@ -632,6 +606,19 @@
   },
   {
     "type": "event",
+    "name": "CreditFacilitySet",
+    "inputs": [
+      {
+        "name": "creditFacility_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "DirectTokensClaimed",
     "inputs": [
       {
@@ -671,19 +658,6 @@
         "type": "uint64",
         "indexed": false,
         "internalType": "uint64"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "LendingFacilitySet",
-    "inputs": [
-      {
-        "name": "lendingFacility_",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -809,19 +783,6 @@
         "type": "uint256[][]",
         "indexed": false,
         "internalType": "uint256[][]"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "TimeSafeguardSet",
-    "inputs": [
-      {
-        "name": "timeSafeguardTs_",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -972,6 +933,11 @@
   {
     "type": "error",
     "name": "Presale__NotOpen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__NotStarted",
     "inputs": []
   },
   {

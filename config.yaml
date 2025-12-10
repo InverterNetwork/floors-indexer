@@ -12,6 +12,11 @@ contracts:
     handler: src/index.ts
     events:
       - event: ModuleCreated
+      - event: MetadataRegistered
+      - event: GovernorSet
+      - event: Initialized
+      - event: OwnershipTransferStarted
+      - event: OwnershipTransferred
 
   - name: FloorMarket
     abi_file_path: abis/Floor_v1.json
@@ -22,6 +27,7 @@ contracts:
       - event: FloorPriceUpdated
       - event: VirtualCollateralAmountAdded
       - event: VirtualCollateralAmountSubtracted
+      - event: VirtualCollateralSupplySet
       - event: FloorIncreased
       - event: BuyingEnabled
       - event: BuyingDisabled
@@ -31,6 +37,10 @@ contracts:
       - event: SellFeeUpdated
       - event: CollateralDeposited
       - event: CollateralWithdrawn
+      - event: CollateralTokenSet
+      - event: IssuanceTokenSet
+      - event: SegmentsSet
+      - event: ModuleInitialized
 
   - name: CreditFacility
     abi_file_path: abis/CreditFacility_v1.json
@@ -40,16 +50,28 @@ contracts:
       - event: LoanRebalanced
       - event: LoanRepaid
       - event: LoanClosed
+      - event: LoanTransferred
+      - event: LoansConsolidated
       - event: LoanToValueRatioUpdated
+      - event: BorrowingFeeRateUpdated
+      - event: MaxLeverageUpdated
+      - event: DynamicFeeCalculatorUpdated
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked
+      - event: ModuleInitialized
 
   - name: SplitterTreasury
     abi_file_path: abis/SplitterTreasury_v1.json
     handler: src/index.ts
     events:
       - event: FloorFeePaid
+      - event: FloorFeePercentageUpdated
+      - event: FloorFeeTreasuryUpdated
       - event: RecipientPayment
+      - event: RecipientAdded
+      - event: RecipientsCleared
+      - event: Treasury_FundsReceived
+      - event: ModuleInitialized
 
   - name: Presale
     abi_file_path: abis/Presale_v1.json
@@ -57,16 +79,15 @@ contracts:
     events:
       - event: BaseCommissionUpdated
       - event: CapsUpdated
+      - event: CreditFacilitySet
       - event: DirectTokensClaimed
       - event: EndTimestampSet
       - event: Initialized
-      - event: LendingFacilitySet
       - event: ModuleInitialized
       - event: PositionCreated
       - event: PresaleBought
       - event: PresaleStateSet
       - event: PriceBreakpointsSet
-      - event: TimeSafeguardSet
       - event: TrancheClaimed
       - event: WhitelistUpdated
 
