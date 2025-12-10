@@ -2,7 +2,7 @@
 // Discovers new BC (bonding curve) and CreditFacility contracts
 
 import type { PreSaleContract_t } from '../generated/src/db/Entities.gen'
-import { ModuleFactory } from '../generated/src/Handlers.gen'
+import { FloorFactory, ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
   fetchTokenAddressesFromBC,
@@ -12,6 +12,37 @@ import {
   resolveMarketId,
 } from './helpers'
 import { handlerErrorWrapper } from './helpers/error'
+
+/**
+ * @notice Contract registration handler for FloorFactoryInitialized event
+ * Fires BEFORE regular handlers to dynamically register the module factory
+ * This tells Envio to start listening for events from the module factory
+ */
+FloorFactory.FloorFactoryInitialized.contractRegister(async ({ event, context }) => {
+  const moduleFactoryAddress = event.params.moduleFactory_
+  context.log.info(
+    `[FloorFactoryInitialized] Registering module factory | moduleFactoryAddress=${moduleFactoryAddress}`
+  )
+  context.addModuleFactory(moduleFactoryAddress)
+})
+
+/**
+ * @notice Regular event handler for FloorFactoryInitialized event
+ * Populates GlobalRegistry with the floor factory and module factory addresses
+ */
+FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
+  const moduleFactoryAddress = event.params.moduleFactory_
+  context.log.info(
+    `[FloorFactoryInitialized] Handler entry | moduleFactoryAddress=${moduleFactoryAddress}`
+  )
+  context.GlobalRegistry.set({
+    id: 'global-registry',
+    floorFactoryAddress: event.srcAddress,
+    moduleFactoryAddress: event.params.moduleFactory_,
+    createdAt: BigInt(event.block.timestamp),
+    lastUpdatedAt: BigInt(event.block.timestamp),
+  })
+})
 
 /**
  * @notice Contract registration handler for ModuleCreated event

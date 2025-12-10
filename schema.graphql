@@ -45,6 +45,29 @@ enum PresaleClaimType {
   TRANCHE
 }
 
+enum PresaleConfigEventType {
+  CAPS_UPDATED
+  BASE_COMMISSION_UPDATED
+  PRICE_BREAKPOINTS_SET
+  PRESALE_STATE_SET
+  END_TIMESTAMP_SET
+  TIME_SAFEGUARD_SET
+  WHITELIST_UPDATED
+  LENDING_FACILITY_SET
+  MODULE_INITIALIZED
+  GENERIC
+}
+
+# Global
+# ------------------------------------------------------------
+type GlobalRegistry {
+  id: ID! # global-registry
+  floorFactoryAddress: String!
+  moduleFactoryAddress: String!
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+}
+
 # User Group
 # ------------------------------------------------------------
 

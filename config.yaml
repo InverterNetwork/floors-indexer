@@ -7,6 +7,11 @@ field_selection:
     - 'hash'
     - 'from'
 contracts:
+  - name: FloorFactory
+    abi_file_path: abis/FloorFactory_v1.json
+    handler: src/index.ts
+    events:
+      - event: FloorFactoryInitialized
   - name: ModuleFactory
     abi_file_path: abis/ModuleFactory_v1.json
     handler: src/index.ts
@@ -111,6 +116,8 @@ networks:
       # Allow overriding the RPC endpoint (e.g. local Anvil) via RPC_URL_31337
       url: '${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}'
     contracts:
+      - name: FloorFactory
+        address: '0x68e1F33AAeB92dc30f742b3a151e7Da7D5364B05'
       - name: ModuleFactory
         # Allow overriding the ModuleFactory address via MODULE_FACTORY
         address: '${MODULE_FACTORY:-0x35bcca163ab4460f4123e41ed9861d5f899d4d0c}'
