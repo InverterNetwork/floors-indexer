@@ -72,6 +72,11 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
     context.addPresale(module as `0x${string}`)
   }
 
+  // Register SplitterTreasury modules for fee distribution event listening
+  if (moduleType === 'feeTreasury') {
+    context.addSplitterTreasury(module as `0x${string}`)
+  }
+
   // Register Authorizer modules for role management event listening
   if (moduleType === 'authorizer') {
     context.addAuthorizer(module as `0x${string}`)
