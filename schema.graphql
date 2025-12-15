@@ -302,7 +302,6 @@ type Market {
 
   trades: [Trade!]! @derivedFrom(field: "market_id")
   floorElevations: [FloorElevation!]! @derivedFrom(field: "market_id")
-  feeDistributions: [FeeDistribution!]! @derivedFrom(field: "market_id")
 
   createdAt: BigInt!
 }
@@ -343,23 +342,6 @@ type FloorElevation {
 
   deployedAmountRaw: BigInt!
   deployedAmountFormatted: String!
-
-  timestamp: BigInt!
-  transactionHash: String!
-}
-
-type FeeDistribution {
-  id: ID!
-  market_id: ID!
-
-  floorAmountRaw: BigInt!
-  floorAmountFormatted: String!
-
-  stakingAmountRaw: BigInt!
-  stakingAmountFormatted: String!
-
-  treasuryAmountRaw: BigInt!
-  treasuryAmountFormatted: String!
 
   timestamp: BigInt!
   transactionHash: String!
@@ -515,4 +497,46 @@ type GlobalStats {
   totalLockedCollateralRaw: BigInt!
   totalLockedCollateralFormatted: String!
   lastUpdatedAt: BigInt!
+}
+
+# Fee Splitter Distribution
+# ============================================================
+
+type Treasury {
+  id: ID!
+  market_id: ID!
+  treasuryAddress: String!
+  totalFeesReceivedRaw: BigInt!
+  totalFeesReceivedFormatted: String!
+  totalFeesDistributedRaw: BigInt!
+  totalFeesDistributedFormatted: String!
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+  feeSplitterReceipts: [FeeSplitterReceipt!]! @derivedFrom(field: "treasury_id")
+  feeSplitterPayments: [FeeSplitterPayment!]! @derivedFrom(field: "treasury_id")
+}
+
+type FeeSplitterReceipt {
+  id: ID!
+  market_id: ID!
+  treasury_id: ID!
+  token_id: ID!
+  sender: String!
+  amountRaw: BigInt!
+  amountFormatted: String!
+  timestamp: BigInt!
+  transactionHash: String!
+}
+
+type FeeSplitterPayment {
+  id: ID!
+  market_id: ID!
+  treasury_id: ID!
+  token_id: ID!
+  recipient: String!
+  isFloorFee: Boolean!
+  amountRaw: BigInt!
+  amountFormatted: String!
+  timestamp: BigInt!
+  transactionHash: String!
 }

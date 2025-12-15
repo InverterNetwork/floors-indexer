@@ -7,7 +7,7 @@ import { __resetMarketHandlerTestState } from '../src/market-handlers'
 
 process.env.MOCK_RPC = 'true'
 
-const { MockDb, ModuleFactory, FloorMarket, Presale, Addresses } = TestHelpers
+const { MockDb, ModuleFactory, FloorMarket, Presale, SplitterTreasury, Addresses } = TestHelpers
 
 // Test data from deployment
 const USDC_ADDRESS = '0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8' as const
@@ -471,6 +471,192 @@ describe('Floor Markets Indexer', () => {
       const market = dbAfterTrade.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
       // Handler may return early if market doesn't exist, which is acceptable
       // Or it may create entities defensively (preferred)
+    })
+  })
+
+  describe('SplitterTreasury handlers', () => {
+    async function bootstrapSplitterTreasuryDb() {
+      let db = MockDb.createMockDb()
+
+      const moduleCreatedEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'BC_Discrete_Redeeming_VirtualSupply_v1',
+        ],
+        mockEventData: {
+          block: { timestamp: 1000 },
+        },
+      })
+
+      db = await db.processEvents([moduleCreatedEvent])
+      return db.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
+    }
+
+    it('creates FeeSplitterReceipt on Treasury_FundsReceived', async () => {
+      let db = await bootstrapSplitterTreasuryDb()
+
+      const feesReceivedEvent = SplitterTreasury.Treasury_FundsReceived.createMockEvent({
+        token: USDC_ADDRESS,
+        sender: Addresses.defaultAddress,
+        amount: BUY_DEPOSIT_AMOUNT, // 10 USDC
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS, // Treasury address
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xfees1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([feesReceivedEvent])
+
+      const receipt = db.entities.FeeSplitterReceipt.get('0xfees1-0')
+      assert.ok(receipt, 'FeeSplitterReceipt should be created')
+      assert.equal(receipt?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
+      assert.equal(receipt?.token_id, USDC_ADDRESS_CHECKSUM, 'token_id should match')
+      assert.equal(receipt?.sender, getAddress(Addresses.defaultAddress), 'sender should match')
+      assert.equal(receipt?.amountRaw, BUY_DEPOSIT_AMOUNT, 'amountRaw should match deposit')
+      assert.equal(receipt?.amountFormatted, '10', 'amountFormatted should be 10 USDC')
+    })
+
+    it('creates FeeSplitterPayment on RecipientPayment', async () => {
+      let db = await bootstrapSplitterTreasuryDb()
+
+      const recipientAddress = '0x1234567890123456789012345678901234567890' as const
+      const normalizedRecipient = getAddress(recipientAddress)
+
+      const recipientPaymentEvent = SplitterTreasury.RecipientPayment.createMockEvent({
+        token_: USDC_ADDRESS,
+        recipient_: recipientAddress,
+        amount_: BUY_DEPOSIT_AMOUNT, // 10 USDC
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS, // Treasury address
+          chainId: 31337,
+          block: { timestamp: 2100 },
+          transaction: { hash: '0xpay1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([recipientPaymentEvent])
+
+      const payment = db.entities.FeeSplitterPayment.get('0xpay1-0')
+      assert.ok(payment, 'FeeSplitterPayment should be created')
+      assert.equal(payment?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
+      assert.equal(payment?.token_id, USDC_ADDRESS_CHECKSUM, 'token_id should match')
+      assert.equal(payment?.recipient, normalizedRecipient, 'recipient should match')
+      assert.equal(payment?.isFloorFee, false, 'isFloorFee should be false for recipient payments')
+      assert.equal(payment?.amountRaw, BUY_DEPOSIT_AMOUNT, 'amountRaw should match')
+      assert.equal(payment?.amountFormatted, '10', 'amountFormatted should be 10 USDC')
+    })
+
+    it('creates FeeSplitterPayment on FloorFeePaid with isFloorFee=true', async () => {
+      let db = await bootstrapSplitterTreasuryDb()
+
+      const floorFeeEvent = SplitterTreasury.FloorFeePaid.createMockEvent({
+        token_: USDC_ADDRESS,
+        amount_: 1_000_000n, // 1 USDC with 6 decimals
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS, // Treasury address
+          chainId: 31337,
+          block: { timestamp: 2200 },
+          transaction: { hash: '0xfloor1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([floorFeeEvent])
+
+      const payment = db.entities.FeeSplitterPayment.get('0xfloor1-0')
+      assert.ok(payment, 'FeeSplitterPayment should be created for floor fee')
+      assert.equal(payment?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
+      assert.equal(payment?.token_id, USDC_ADDRESS_CHECKSUM, 'token_id should match')
+      assert.equal(payment?.isFloorFee, true, 'isFloorFee should be true for floor fees')
+      assert.equal(payment?.amountRaw, 1_000_000n, 'amountRaw should match floor fee')
+      assert.equal(payment?.amountFormatted, '1', 'amountFormatted should be 1 USDC')
+    })
+
+    it('tracks multiple receipts and payments from same transaction', async () => {
+      let db = await bootstrapSplitterTreasuryDb()
+
+      const feesReceivedEvent = SplitterTreasury.Treasury_FundsReceived.createMockEvent({
+        token: USDC_ADDRESS,
+        sender: Addresses.defaultAddress,
+        amount: 10_000_000n, // 10 USDC
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xmulti1' },
+          logIndex: 0,
+        },
+      })
+
+      const recipient1 = '0x1111111111111111111111111111111111111111' as const
+      const recipient2 = '0x2222222222222222222222222222222222222222' as const
+
+      const payment1Event = SplitterTreasury.RecipientPayment.createMockEvent({
+        token_: USDC_ADDRESS,
+        recipient_: recipient1,
+        amount_: 5_000_000n, // 5 USDC
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xmulti1' },
+          logIndex: 1,
+        },
+      })
+
+      const payment2Event = SplitterTreasury.RecipientPayment.createMockEvent({
+        token_: USDC_ADDRESS,
+        recipient_: recipient2,
+        amount_: 5_000_000n, // 5 USDC
+        mockEventData: {
+          srcAddress: MARKET_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xmulti1' },
+          logIndex: 2,
+        },
+      })
+
+      db = await db.processEvents([feesReceivedEvent, payment1Event, payment2Event])
+
+      // Check receipt
+      const receipt = db.entities.FeeSplitterReceipt.get('0xmulti1-0')
+      assert.ok(receipt, 'FeeSplitterReceipt should exist')
+      assert.equal(receipt?.amountRaw, 10_000_000n)
+
+      // Check payments
+      const payment1 = db.entities.FeeSplitterPayment.get('0xmulti1-1')
+      assert.ok(payment1, 'First FeeSplitterPayment should exist')
+      assert.equal(payment1?.recipient, getAddress(recipient1))
+      assert.equal(payment1?.amountRaw, 5_000_000n)
+
+      const payment2 = db.entities.FeeSplitterPayment.get('0xmulti1-2')
+      assert.ok(payment2, 'Second FeeSplitterPayment should exist')
+      assert.equal(payment2?.recipient, getAddress(recipient2))
+      assert.equal(payment2?.amountRaw, 5_000_000n)
+
+      // Check Treasury entity aggregates
+      const treasury = db.entities.Treasury.get(MARKET_ADDRESS_CHECKSUM)
+      assert.ok(treasury, 'Treasury should exist')
+      assert.equal(
+        treasury?.totalFeesReceivedRaw,
+        10_000_000n,
+        'Treasury should track total fees received'
+      )
+      assert.equal(
+        treasury?.totalFeesDistributedRaw,
+        10_000_000n,
+        'Treasury should track total fees distributed (10M from payments)'
+      )
     })
   })
 
