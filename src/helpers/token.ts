@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { Token_t } from 'generated/src/db/Entities.gen'
 import type { Abi } from 'viem'
 import { erc20Abi } from 'viem'
@@ -97,7 +97,7 @@ export async function fetchTokenMetadata(chainId: number, tokenAddress: string) 
  * Stores token info with decimals
  */
 export async function getOrCreateToken(
-  context: HandlerContext,
+  context: handlerContext,
   chainId: number,
   address: string
 ): Promise<Token_t> {

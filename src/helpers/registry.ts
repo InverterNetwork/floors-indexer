@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { ModuleAddress_t, ModuleRegistry_t } from 'generated/src/db/Entities.gen'
 
 import { normalizeAddress } from './misc'
@@ -17,7 +17,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
  * @returns The created or updated ModuleRegistry entity
  */
 export async function getOrCreateModuleRegistry(
-  context: HandlerContext,
+  context: handlerContext,
   marketId: string,
   moduleType: string,
   module: string,
@@ -80,7 +80,7 @@ export async function getOrCreateModuleRegistry(
 }
 
 async function upsertModuleAddress(
-  context: HandlerContext,
+  context: handlerContext,
   moduleAddress: string,
   marketId: string,
   moduleType: string,
@@ -103,7 +103,7 @@ async function upsertModuleAddress(
 }
 
 export async function getMarketIdForModule(
-  context: HandlerContext,
+  context: handlerContext,
   moduleAddress: string
 ): Promise<string | null> {
   const normalizedModule = normalizeAddress(moduleAddress)

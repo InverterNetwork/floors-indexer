@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { Market_t, PreSaleContract_t, Token_t } from 'generated/src/db/Entities.gen'
 import { decodeAbiParameters } from 'viem'
 
@@ -34,7 +34,7 @@ type ParticipationArgs = {
  * Returns null if the presale entity has not been registered yet.
  */
 export async function resolvePresaleContext(
-  context: HandlerContext,
+  context: handlerContext,
   params: { presaleAddress: string; chainId: number; timestamp: bigint }
 ): Promise<PresaleContext | null> {
   const normalizedAddress = normalizeAddress(params.presaleAddress)
@@ -74,7 +74,7 @@ export async function resolvePresaleContext(
 }
 
 export async function loadPresaleContextOrWarn(
-  context: HandlerContext,
+  context: handlerContext,
   event: { srcAddress: string; chainId: number; block: { timestamp: number } },
   handlerName: string
 ): Promise<PresaleContext | null> {
@@ -108,7 +108,7 @@ export function applyPresalePatch(
 }
 
 export async function handleParticipation(
-  context: HandlerContext,
+  context: handlerContext,
   event: {
     transaction: { hash: string }
     logIndex: number

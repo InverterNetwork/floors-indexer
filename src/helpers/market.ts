@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { Market_t } from 'generated/src/db/Entities.gen'
 import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
@@ -16,7 +16,7 @@ import { getOrCreateAccount } from './user'
  * @param chainId Chain ID for RPC calls
  */
 export async function getOrCreateMarket(
-  context: HandlerContext,
+  context: handlerContext,
   chainId: number,
   marketId: string,
   timestamp: bigint,

@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { MarketSnapshot_t } from 'generated/src/db/Entities.gen'
 import type { CandlePeriod_t } from 'generated/src/db/Enums.gen'
 
@@ -9,7 +9,7 @@ import { formatAmount } from './misc'
  * Aggregates trades into OHLCV candles
  */
 export async function updatePriceCandles(
-  context: HandlerContext,
+  context: handlerContext,
   marketId: string,
   trade: {
     newPriceRaw: bigint
@@ -81,7 +81,7 @@ export async function updatePriceCandles(
  * Note: Market entity contains both static and dynamic state fields
  */
 export async function createMarketSnapshot(
-  context: HandlerContext,
+  context: handlerContext,
   marketId: string,
   market: {
     currentPriceRaw: bigint

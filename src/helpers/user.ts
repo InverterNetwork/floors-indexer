@@ -1,4 +1,4 @@
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 import type { Account_t, UserMarketPosition_t } from 'generated/src/db/Entities.gen'
 
 import { formatAmount, normalizeAddress } from './misc'
@@ -7,7 +7,7 @@ import { formatAmount, normalizeAddress } from './misc'
  * Get or create Account entity
  */
 export async function getOrCreateAccount(
-  context: HandlerContext,
+  context: handlerContext,
   address: string
 ): Promise<Account_t> {
   const normalizedAddress = normalizeAddress(address)
@@ -25,7 +25,7 @@ export async function getOrCreateAccount(
  * Get or create UserMarketPosition
  */
 export async function getOrCreateUserMarketPosition(
-  context: HandlerContext,
+  context: handlerContext,
   userId: string,
   marketId: string,
   tokenDecimals: number = 18

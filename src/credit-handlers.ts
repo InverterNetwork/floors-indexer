@@ -1,6 +1,6 @@
 // Credit facility event handlers for Floor Markets DeFi Platform
 
-import type { HandlerContext } from 'generated'
+import type { handlerContext } from 'generated'
 
 import type { CreditFacilityContract_t, Market_t, Token_t } from '../generated/src/db/Entities.gen'
 import type { LoanStatus_t } from '../generated/src/db/Enums.gen'
@@ -590,7 +590,7 @@ type FacilityContext = {
 }
 
 async function loadFacilityContext(
-  context: HandlerContext,
+  context: handlerContext,
   facilityId: string
 ): Promise<FacilityContext | null> {
   const facility = await context.CreditFacilityContract.get(facilityId)
@@ -609,7 +609,7 @@ async function loadFacilityContext(
 }
 
 function recordLoanStatusHistory(
-  context: HandlerContext,
+  context: handlerContext,
   params: {
     loanId: string
     status: LoanStatus_t
@@ -658,7 +658,7 @@ function updateFacilityLtvHistory(marketId: string, nextRatio: bigint): Facility
 }
 
 async function updateMarketMaxLtv(
-  context: HandlerContext,
+  context: handlerContext,
   marketId: string,
   nextRatio: bigint,
   timestamp: bigint
@@ -677,7 +677,7 @@ async function updateMarketMaxLtv(
 }
 
 async function updateMarketFloorPriceViaFacility(
-  context: HandlerContext,
+  context: handlerContext,
   marketId: string,
   nextFloorPriceRaw: bigint,
   reserveTokenDecimals: number,
