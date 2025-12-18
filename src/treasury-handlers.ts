@@ -1,31 +1,14 @@
 import { SplitterTreasury } from '../generated/src/Handlers.gen'
 import {
+  buildFeeSplitterPayment,
+  buildFeeSplitterReceipt,
+  buildTreasury,
   formatAmount,
   getMarketIdForModule,
   getOrCreateToken,
   handlerErrorWrapper,
   normalizeAddress,
 } from './helpers'
-
-function buildBaseFeeDistribution(params: {
-  id: string
-  marketId: string
-  timestamp: bigint
-  transactionHash: string
-}) {
-  return {
-    id: params.id,
-    market_id: params.marketId,
-    floorAmountRaw: 0n,
-    floorAmountFormatted: '0',
-    stakingAmountRaw: 0n,
-    stakingAmountFormatted: '0',
-    treasuryAmountRaw: 0n,
-    treasuryAmountFormatted: '0',
-    timestamp: params.timestamp,
-    transactionHash: params.transactionHash,
-  }
-}
 
 SplitterTreasury.FloorFeePaid.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -37,20 +20,53 @@ SplitterTreasury.FloorFeePaid.handler(
       return
     }
 
-    const token = await getOrCreateToken(context, event.chainId, event.params.token_)
-    const amount = formatAmount(event.params.amount_, token.decimals)
-    const distribution = {
-      ...buildBaseFeeDistribution({
-        id: `${event.transaction.hash}-${event.logIndex}`,
+    const treasuryId = normalizeAddress(event.srcAddress)
+    let treasury = await context.Treasury.get(treasuryId)
+    if (!treasury) {
+      treasury = buildTreasury({
+        id: treasuryId,
         marketId,
-        timestamp: BigInt(event.block.timestamp),
-        transactionHash: event.transaction.hash,
-      }),
-      floorAmountRaw: event.params.amount_,
-      floorAmountFormatted: amount.formatted,
+        treasuryAddress: treasuryId,
+        createdAt: BigInt(event.block.timestamp),
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      })
+      context.Treasury.set(treasury)
     }
 
-    context.FeeDistribution.set(distribution)
+    const token = await getOrCreateToken(context, event.chainId, event.params.token_)
+    const amount = formatAmount(event.params.amount_, token.decimals)
+
+    // Create FeeSplitterPayment for floor fee
+    const payment = buildFeeSplitterPayment({
+      id: `${event.transaction.hash}-${event.logIndex}`,
+      marketId,
+      treasuryId,
+      tokenId: token.id,
+      recipient: normalizeAddress(event.srcAddress), // Treasury is the recipient of floor fees
+      isFloorFee: true,
+      amountRaw: event.params.amount_,
+      amountFormatted: amount.formatted,
+      timestamp: BigInt(event.block.timestamp),
+      transactionHash: event.transaction.hash,
+    })
+
+    context.FeeSplitterPayment.set(payment)
+
+    // Update treasury totals
+    treasury = await context.Treasury.get(treasuryId)
+    if (treasury) {
+      const newTotalReceivedRaw = treasury.totalFeesReceivedRaw + event.params.amount_
+      const newTotalReceivedFormatted = formatAmount(newTotalReceivedRaw, token.decimals).formatted
+
+      const updatedTreasury = {
+        ...treasury,
+        totalFeesReceivedRaw: newTotalReceivedRaw,
+        totalFeesReceivedFormatted: newTotalReceivedFormatted,
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      }
+      context.Treasury.set(updatedTreasury)
+    }
+
     context.log.info(
       `[FloorFeePaid] Recorded floor fee | marketId=${marketId} | amount=${amount.formatted} ${token.symbol}`
     )
@@ -67,22 +83,58 @@ SplitterTreasury.RecipientPayment.handler(
       return
     }
 
-    const token = await getOrCreateToken(context, event.chainId, event.params.token_)
-    const amount = formatAmount(event.params.amount_, token.decimals)
-    const distribution = {
-      ...buildBaseFeeDistribution({
-        id: `${event.transaction.hash}-${event.logIndex}`,
+    const treasuryId = normalizeAddress(event.srcAddress)
+    let treasury = await context.Treasury.get(treasuryId)
+    if (!treasury) {
+      treasury = buildTreasury({
+        id: treasuryId,
         marketId,
-        timestamp: BigInt(event.block.timestamp),
-        transactionHash: event.transaction.hash,
-      }),
-      treasuryAmountRaw: event.params.amount_,
-      treasuryAmountFormatted: amount.formatted,
+        treasuryAddress: treasuryId,
+        createdAt: BigInt(event.block.timestamp),
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      })
+      context.Treasury.set(treasury)
     }
 
-    context.FeeDistribution.set(distribution)
+    const token = await getOrCreateToken(context, event.chainId, event.params.token_)
+    const amount = formatAmount(event.params.amount_, token.decimals)
+
+    // Create FeeSplitterPayment for recipient payment
+    const payment = buildFeeSplitterPayment({
+      id: `${event.transaction.hash}-${event.logIndex}`,
+      marketId,
+      treasuryId,
+      tokenId: token.id,
+      recipient: normalizeAddress(event.params.recipient_),
+      isFloorFee: false,
+      amountRaw: event.params.amount_,
+      amountFormatted: amount.formatted,
+      timestamp: BigInt(event.block.timestamp),
+      transactionHash: event.transaction.hash,
+    })
+
+    context.FeeSplitterPayment.set(payment)
+
+    // Update treasury totals
+    treasury = await context.Treasury.get(treasuryId)
+    if (treasury) {
+      const newTotalDistributedRaw = treasury.totalFeesDistributedRaw + event.params.amount_
+      const newTotalDistributedFormatted = formatAmount(
+        newTotalDistributedRaw,
+        token.decimals
+      ).formatted
+
+      const updatedTreasury = {
+        ...treasury,
+        totalFeesDistributedRaw: newTotalDistributedRaw,
+        totalFeesDistributedFormatted: newTotalDistributedFormatted,
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      }
+      context.Treasury.set(updatedTreasury)
+    }
+
     context.log.info(
-      `[RecipientPayment] Recorded recipient payment | marketId=${marketId} | recipient=${event.params.recipient_} | amount=${amount.formatted} ${token.symbol}`
+      `[RecipientPayment] Recorded recipient payment | marketId=${marketId} | recipient=${normalizeAddress(event.params.recipient_)} | amount=${amount.formatted} ${token.symbol}`
     )
   })
 )
@@ -159,23 +211,54 @@ SplitterTreasury.Treasury_FundsReceived.handler(
       return
     }
 
+    const treasuryId = normalizeAddress(event.srcAddress)
+    let treasury = await context.Treasury.get(treasuryId)
+    if (!treasury) {
+      treasury = buildTreasury({
+        id: treasuryId,
+        marketId,
+        treasuryAddress: treasuryId,
+        createdAt: BigInt(event.block.timestamp),
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      })
+      context.Treasury.set(treasury)
+    }
+
     const token = await getOrCreateToken(context, event.chainId, event.params.token)
     const amount = formatAmount(event.params.amount, token.decimals)
 
-    const distribution = {
-      ...buildBaseFeeDistribution({
-        id: `${event.transaction.hash}-${event.logIndex}`,
-        marketId,
-        timestamp: BigInt(event.block.timestamp),
-        transactionHash: event.transaction.hash,
-      }),
-      treasuryAmountRaw: event.params.amount,
-      treasuryAmountFormatted: amount.formatted,
+    // Create FeeSplitterReceipt for fees received
+    const receipt = buildFeeSplitterReceipt({
+      id: `${event.transaction.hash}-${event.logIndex}`,
+      marketId,
+      treasuryId,
+      tokenId: token.id,
+      sender: normalizeAddress(event.params.sender),
+      amountRaw: event.params.amount,
+      amountFormatted: amount.formatted,
+      timestamp: BigInt(event.block.timestamp),
+      transactionHash: event.transaction.hash,
+    })
+
+    context.FeeSplitterReceipt.set(receipt)
+
+    // Update treasury totals
+    treasury = await context.Treasury.get(treasuryId)
+    if (treasury) {
+      const newTotalReceivedRaw = treasury.totalFeesReceivedRaw + event.params.amount
+      const newTotalReceivedFormatted = formatAmount(newTotalReceivedRaw, token.decimals).formatted
+
+      const updatedTreasury = {
+        ...treasury,
+        totalFeesReceivedRaw: newTotalReceivedRaw,
+        totalFeesReceivedFormatted: newTotalReceivedFormatted,
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      }
+      context.Treasury.set(updatedTreasury)
     }
 
-    context.FeeDistribution.set(distribution)
     context.log.info(
-      `[Treasury_FundsReceived] ✅ Treasury funds received | marketId=${marketId} | token=${token.symbol} | amount=${amount.formatted} | sender=${event.params.sender}`
+      `[Treasury_FundsReceived] ✅ Treasury funds received | marketId=${marketId} | token=${token.symbol} | amount=${amount.formatted} | sender=${normalizeAddress(event.params.sender)}`
     )
   })
 )
