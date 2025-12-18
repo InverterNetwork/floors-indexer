@@ -276,6 +276,16 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
 
     const flattened = flattenPriceBreakpoints(priceBreakpointsValues)
 
+    // Calculate maxLeverage: commissionBps.length - 1 (index 0 = non-leveraged)
+    // Fallback to priceBreakpoints.length if commissionBps is empty
+    let maxLeverage = 0
+    if (commissionValues.length > 0) {
+      maxLeverage = commissionValues.length - 1
+    } else if (priceBreakpointsValues.length > 0) {
+      // priceBreakpoints array length equals max leverage (one sub-array per leverage level)
+      maxLeverage = priceBreakpointsValues.length
+    }
+
     return {
       lendingFacility: normalizeAddress(lendingFacility as string),
       commissionBps: commissionValues,
@@ -285,7 +295,7 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
       perAddressDepositCapRaw: perAddressDepositCapRaw as bigint,
       priceBreakpointsFlat: flattened?.flat ?? [],
       priceBreakpointOffsets: flattened?.offsets ?? [],
-      maxLeverage: commissionValues.length > 0 ? commissionValues.length - 1 : 0,
+      maxLeverage,
     }
   } catch (error) {
     return null
