@@ -111,7 +111,7 @@ contracts:
 
 networks:
   - id: 31337 # Local Anvil
-    start_block: 0
+    start_block: 73000000
     rpc_config:
       # Allow overriding the RPC endpoint (e.g. local Anvil) via RPC_URL_31337
       url: '${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}'
@@ -119,6 +119,7 @@ networks:
       - name: FloorFactory
         address: '${FLOOR_FACTORY:-0xec8c677e1db317e328a1919298afcb36d36a0b08}'
       - name: ModuleFactory
+
         address:
       - name: FloorMarket
         address:
