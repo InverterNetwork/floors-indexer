@@ -117,7 +117,7 @@ networks:
       url: '${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}'
     contracts:
       - name: FloorFactory
-        address: '${FLOOR_FACTORY:-0x68e1F33AAeB92dc30f742b3a151e7Da7D5364B05}'
+        address: '${FLOOR_FACTORY:-0xec8c677e1db317e328a1919298afcb36d36a0b08}'
       - name: ModuleFactory
         address:
       - name: FloorMarket
