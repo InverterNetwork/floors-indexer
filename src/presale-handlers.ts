@@ -256,6 +256,11 @@ Presale.ModuleInitialized.handler(
         depositDecimals
       )
 
+      // Use calculated maxLeverage from commissionBps or priceBreakpoints
+      // Note: We avoid RPC calls in indexer for performance/reliability
+      // If maxLeverage is 0, it means no leverage is configured (direct purchases only)
+      const maxLeverage = BigInt(decodedConfig.maxLeverage)
+
       patch = {
         ...patch,
         lendingFacility: decodedConfig.lendingFacility,
@@ -268,7 +273,7 @@ Presale.ModuleInitialized.handler(
         commissionBps: Array.from(decodedConfig.commissionBps),
         priceBreakpointsFlat: [...decodedConfig.priceBreakpointsFlat],
         priceBreakpointOffsets: [...decodedConfig.priceBreakpointOffsets],
-        maxLeverage: BigInt(decodedConfig.maxLeverage),
+        maxLeverage,
       }
     }
 
