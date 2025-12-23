@@ -233,7 +233,6 @@ const PRESALE_CONFIG_PARAMS = [
   { type: 'address' },
   { type: 'uint16[]' },
   { type: 'uint64' },
-  { type: 'uint64' },
   { type: 'uint256' },
   { type: 'uint256' },
   { type: 'uint256[][]' },
@@ -242,10 +241,9 @@ const PRESALE_CONFIG_PARAMS = [
 export type DecodedPresaleConfig = {
   lendingFacility: string
   commissionBps: readonly bigint[]
-  timeSafeguardTs: bigint
   endTime: bigint
-  globalDepositCapRaw: bigint
-  perAddressDepositCapRaw: bigint
+  globalIssuanceCapRaw: bigint
+  perAddressIssuanceCapRaw: bigint
   priceBreakpointsFlat: bigint[]
   priceBreakpointOffsets: number[]
   maxLeverage: number
@@ -260,10 +258,9 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
     const [
       lendingFacility,
       commissionBps,
-      timeSafeguardTs,
       endTime,
-      globalDepositCapRaw,
-      perAddressDepositCapRaw,
+      globalIssuanceCapRaw,
+      perAddressIssuanceCapRaw,
       priceBreakpoints,
     ] = decodeAbiParameters(PRESALE_CONFIG_PARAMS, encoded as `0x${string}`)
 
@@ -289,10 +286,9 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
     return {
       lendingFacility: normalizeAddress(lendingFacility as string),
       commissionBps: commissionValues,
-      timeSafeguardTs: timeSafeguardTs as bigint,
       endTime: endTime as bigint,
-      globalDepositCapRaw: globalDepositCapRaw as bigint,
-      perAddressDepositCapRaw: perAddressDepositCapRaw as bigint,
+      globalIssuanceCapRaw: globalIssuanceCapRaw as bigint,
+      perAddressIssuanceCapRaw: perAddressIssuanceCapRaw as bigint,
       priceBreakpointsFlat: flattened?.flat ?? [],
       priceBreakpointOffsets: flattened?.offsets ?? [],
       maxLeverage,

@@ -107,15 +107,18 @@ Presale.CapsUpdated.handler(
     const presaleContext = await loadPresaleContextOrWarn(context, event, 'CapsUpdated')
     if (!presaleContext) return
 
-    const { presale, purchaseToken, timestamp } = presaleContext
-    const purchaseDecimals = purchaseToken?.decimals ?? 18
-    const nextGlobal = formatAmount(event.params.globalCap_, purchaseDecimals)
-    const nextPerAddress = formatAmount(event.params.perAddressCap_, purchaseDecimals)
+    // Caps are on issuance tokens (saleToken), not purchase tokens
+    const { presale, saleToken, timestamp } = presaleContext
+    const issuanceDecimals = saleToken?.decimals ?? 18
+    const nextGlobal = formatAmount(event.params.globalCap_, issuanceDecimals)
+    const nextPerAddress = formatAmount(event.params.perAddressCap_, issuanceDecimals)
 
     context.PreSaleContract.set(
       applyPresalePatch(
         presale,
         {
+          // Note: Schema uses globalDepositCapRaw name for backward compatibility
+          // but it actually stores globalIssuanceCap (cap on issuance tokens)
           globalDepositCapRaw: event.params.globalCap_,
           globalDepositCapFormatted: nextGlobal.formatted,
           perAddressDepositCapRaw: event.params.perAddressCap_,
@@ -249,11 +252,13 @@ Presale.ModuleInitialized.handler(
 
     const decodedConfig = decodePresaleConfig(event.params.configData)
     if (decodedConfig) {
-      const depositDecimals = purchaseToken?.decimals ?? 18
-      const globalCapAmount = formatAmount(decodedConfig.globalDepositCapRaw, depositDecimals)
+      // globalIssuanceCap is a cap on issuance tokens (saleToken), not purchase tokens
+      const { presale, saleToken } = presaleContext
+      const issuanceDecimals = saleToken?.decimals ?? 18
+      const globalCapAmount = formatAmount(decodedConfig.globalIssuanceCapRaw, issuanceDecimals)
       const perAddressCapAmount = formatAmount(
-        decodedConfig.perAddressDepositCapRaw,
-        depositDecimals
+        decodedConfig.perAddressIssuanceCapRaw,
+        issuanceDecimals
       )
 
       // Use calculated maxLeverage from commissionBps or priceBreakpoints
@@ -264,11 +269,12 @@ Presale.ModuleInitialized.handler(
       patch = {
         ...patch,
         lendingFacility: decodedConfig.lendingFacility,
-        timeSafeguardTs: decodedConfig.timeSafeguardTs,
         endTime: decodedConfig.endTime,
-        globalDepositCapRaw: decodedConfig.globalDepositCapRaw,
+        // Note: Schema uses globalDepositCapRaw name for backward compatibility
+        // but it actually stores globalIssuanceCap (cap on issuance tokens)
+        globalDepositCapRaw: decodedConfig.globalIssuanceCapRaw,
         globalDepositCapFormatted: globalCapAmount.formatted,
-        perAddressDepositCapRaw: decodedConfig.perAddressDepositCapRaw,
+        perAddressDepositCapRaw: decodedConfig.perAddressIssuanceCapRaw,
         perAddressDepositCapFormatted: perAddressCapAmount.formatted,
         commissionBps: Array.from(decodedConfig.commissionBps),
         priceBreakpointsFlat: [...decodedConfig.priceBreakpointsFlat],
