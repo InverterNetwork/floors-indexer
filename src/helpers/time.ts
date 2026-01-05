@@ -1,8 +1,84 @@
 import type { handlerContext } from 'generated'
-import type { MarketSnapshot_t } from 'generated/src/db/Entities.gen'
-import type { CandlePeriod_t } from 'generated/src/db/Enums.gen'
+import type { GlobalStatsSnapshot_t, MarketSnapshot_t } from 'generated/src/db/Entities.gen'
+import type { CandlePeriod_t, SnapshotPeriod_t } from 'generated/src/db/Enums.gen'
 
 import { formatAmount } from './misc'
+
+/**
+ * Snapshot period configurations for GlobalStatsSnapshot
+ */
+const SNAPSHOT_PERIOD_SECONDS: Record<SnapshotPeriod_t, bigint> = {
+  ONE_HOUR: 3600n,
+  FOUR_HOURS: 14400n,
+  ONE_DAY: 86400n,
+}
+
+/**
+ * Update GlobalStatsSnapshots for all periods (1h, 4h, 1d)
+ * Creates time-bucketed snapshots of TVL, Market Cap, and volume
+ */
+export async function updateGlobalStatsSnapshots(
+  context: handlerContext,
+  timestamp: bigint,
+  metrics: {
+    totalValueLockedRaw: bigint
+    totalMarketCapRaw: bigint
+    periodVolumeRaw: bigint
+    totalMarkets: bigint
+    activeMarkets: bigint
+  }
+): Promise<void> {
+  const periods: SnapshotPeriod_t[] = ['ONE_HOUR', 'FOUR_HOURS', 'ONE_DAY']
+
+  for (const period of periods) {
+    const periodSeconds = SNAPSHOT_PERIOD_SECONDS[period]
+    const snapshotTimestamp = (timestamp / periodSeconds) * periodSeconds
+    const snapshotId = `global-${period}-${snapshotTimestamp}`
+
+    const existing = await context.GlobalStatsSnapshot.get(snapshotId)
+
+    if (existing) {
+      // Update with latest TVL/MarketCap (point-in-time), accumulate volume
+      const newVolume = existing.periodVolumeRaw + metrics.periodVolumeRaw
+      const volumeFormatted = formatAmount(newVolume, 18)
+      const tvlFormatted = formatAmount(metrics.totalValueLockedRaw, 18)
+      const mcFormatted = formatAmount(metrics.totalMarketCapRaw, 18)
+
+      context.GlobalStatsSnapshot.set({
+        ...existing,
+        totalValueLockedRaw: metrics.totalValueLockedRaw,
+        totalValueLockedFormatted: tvlFormatted.formatted,
+        totalMarketCapRaw: metrics.totalMarketCapRaw,
+        totalMarketCapFormatted: mcFormatted.formatted,
+        periodVolumeRaw: newVolume,
+        periodVolumeFormatted: volumeFormatted.formatted,
+        totalMarkets: metrics.totalMarkets,
+        activeMarkets: metrics.activeMarkets,
+      })
+    } else {
+      // Create new snapshot
+      const tvlFormatted = formatAmount(metrics.totalValueLockedRaw, 18)
+      const mcFormatted = formatAmount(metrics.totalMarketCapRaw, 18)
+      const volumeFormatted = formatAmount(metrics.periodVolumeRaw, 18)
+
+      const snapshot: GlobalStatsSnapshot_t = {
+        id: snapshotId,
+        period,
+        timestamp: snapshotTimestamp,
+        totalValueLockedRaw: metrics.totalValueLockedRaw,
+        totalValueLockedFormatted: tvlFormatted.formatted,
+        totalMarketCapRaw: metrics.totalMarketCapRaw,
+        totalMarketCapFormatted: mcFormatted.formatted,
+        periodVolumeRaw: metrics.periodVolumeRaw,
+        periodVolumeFormatted: volumeFormatted.formatted,
+        totalMarkets: metrics.totalMarkets,
+        activeMarkets: metrics.activeMarkets,
+      }
+
+      context.GlobalStatsSnapshot.set(snapshot)
+    }
+  }
+}
 
 /**
  * Update PriceCandle for charting data

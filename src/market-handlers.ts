@@ -15,6 +15,7 @@ import {
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
   normalizeAddress,
+  updateGlobalStatsSnapshots,
   updatePriceCandles,
 } from './helpers'
 
@@ -1125,7 +1126,8 @@ async function updateDerivedMetricsAfterTrade(params: {
     reserveToken.decimals
   )
 
-  await updateGlobalStatsEntity(context, tradeTimestamp)
+  // Pass trade volume for snapshot accumulation
+  await updateGlobalStatsEntity(context, tradeTimestamp, reserveVolumeRaw, reserveToken.decimals)
 }
 
 function updateRollingWindowState(
@@ -1202,12 +1204,33 @@ async function persistMarketRollingStatsEntity(
 
 async function updateGlobalStatsEntity(
   context: Parameters<typeof updatePriceCandles>[0],
-  timestamp: bigint
+  timestamp: bigint,
+  tradeVolumeRaw: bigint = 0n,
+  tradeVolumeDecimals: number = 18
 ): Promise<void> {
+  // Calculate total 24h volume across all markets (normalized to 18 decimals)
   let totalVolumeRaw18 = 0n
   rollingStatsCache.forEach((state) => {
     totalVolumeRaw18 += normalizeAmount(state.totalVolumeRaw, state.reserveTokenDecimals, 18)
   })
+
+  // Calculate TVL and Market Cap across all seen markets
+  // TVL = sum(totalSupply * currentPrice), MarketCap = sum(marketSupply * currentPrice)
+  let totalValueLockedRaw = 0n
+  let totalMarketCapRaw = 0n
+
+  for (const marketId of marketsSeen) {
+    const market = await context.Market.get(marketId)
+    if (market && market.currentPriceRaw > 0n) {
+      // TVL = totalSupply * currentPrice / 1e18 (assuming 18 decimals for price)
+      // We store the raw multiplication result, formatting handles decimals
+      const marketTVL = (market.totalSupplyRaw * market.currentPriceRaw) / BigInt(1e18)
+      const marketCap = (market.marketSupplyRaw * market.currentPriceRaw) / BigInt(1e18)
+
+      totalValueLockedRaw += marketTVL
+      totalMarketCapRaw += marketCap
+    }
+  }
 
   const volumeFormatted = formatAmount(totalVolumeRaw18, 18)
   const existingGlobal =
@@ -1232,6 +1255,18 @@ async function updateGlobalStatsEntity(
     totalVolumeRaw: totalVolumeRaw18,
     totalVolumeFormatted: volumeFormatted.formatted,
     lastUpdatedAt: timestamp,
+  })
+
+  // Create GlobalStatsSnapshots for 1h, 4h, 1d periods
+  // Normalize trade volume to 18 decimals for snapshot
+  const normalizedTradeVolume = normalizeAmount(tradeVolumeRaw, tradeVolumeDecimals, 18)
+
+  await updateGlobalStatsSnapshots(context, timestamp, {
+    totalValueLockedRaw,
+    totalMarketCapRaw,
+    periodVolumeRaw: normalizedTradeVolume,
+    totalMarkets: BigInt(marketsSeen.size),
+    activeMarkets: BigInt(activeMarkets.size),
   })
 }
 

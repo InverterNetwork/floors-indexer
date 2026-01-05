@@ -499,6 +499,34 @@ type GlobalStats {
   lastUpdatedAt: BigInt!
 }
 
+enum SnapshotPeriod {
+  ONE_HOUR
+  FOUR_HOURS
+  ONE_DAY
+}
+
+type GlobalStatsSnapshot {
+  id: ID!
+  period: SnapshotPeriod!
+  timestamp: BigInt!
+
+  # TVL = sum(market.totalSupply * market.currentPrice) in reserve tokens
+  totalValueLockedRaw: BigInt!
+  totalValueLockedFormatted: String!
+
+  # Market Cap = sum(market.marketSupply * market.currentPrice) in reserve tokens
+  totalMarketCapRaw: BigInt!
+  totalMarketCapFormatted: String!
+
+  # Volume accumulated within the snapshot period
+  periodVolumeRaw: BigInt!
+  periodVolumeFormatted: String!
+
+  # Counts at snapshot time
+  totalMarkets: BigInt!
+  activeMarkets: BigInt!
+}
+
 # Fee Splitter Distribution
 # ============================================================
 
