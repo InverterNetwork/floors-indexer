@@ -5,6 +5,7 @@ import { FloorFactory, ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
   fetchTokenAddressesFromBC,
+  fetchTrustedForwarder,
   getOrCreateMarket,
   getOrCreateModuleRegistry,
   normalizeAddress,
@@ -27,17 +28,34 @@ FloorFactory.FloorFactoryInitialized.contractRegister(async ({ event, context })
 
 /**
  * @notice Regular event handler for FloorFactoryInitialized event
- * Populates GlobalRegistry with the floor factory and module factory addresses
+ * Populates GlobalRegistry with the floor factory, module factory, and trusted forwarder addresses
  */
 FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
   const moduleFactoryAddress = event.params.moduleFactory_
+  const floorFactoryAddress = event.srcAddress as `0x${string}`
+
   context.log.info(
     `[FloorFactoryInitialized] Handler entry | moduleFactoryAddress=${moduleFactoryAddress}`
   )
+
+  // Fetch trusted forwarder address from FloorFactory via RPC
+  const trustedForwarderAddress = await fetchTrustedForwarder(event.chainId, floorFactoryAddress)
+
+  if (trustedForwarderAddress) {
+    context.log.info(
+      `[FloorFactoryInitialized] ✅ Fetched trustedForwarder | address=${trustedForwarderAddress}`
+    )
+  } else {
+    context.log.warn(
+      `[FloorFactoryInitialized] ⚠️ Could not fetch trustedForwarder | floorFactory=${floorFactoryAddress}`
+    )
+  }
+
   context.GlobalRegistry.set({
     id: 'global-registry',
-    floorFactoryAddress: event.srcAddress,
-    moduleFactoryAddress: event.params.moduleFactory_,
+    floorFactoryAddress: normalizeAddress(floorFactoryAddress),
+    moduleFactoryAddress: normalizeAddress(moduleFactoryAddress),
+    trustedForwarderAddress: trustedForwarderAddress || '',
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })

@@ -1,7 +1,12 @@
 import type { handlerContext } from 'generated'
 import type { ModuleAddress_t, ModuleRegistry_t } from 'generated/src/db/Entities.gen'
+import type { Abi } from 'viem'
 
+import FLOOR_FACTORY_ABI from '../../abis/FloorFactory_v1.json'
+import { getPublicClient } from '../rpc-client'
 import { normalizeAddress } from './misc'
+
+const FLOOR_FACTORY_ABI_TYPED = FLOOR_FACTORY_ABI as Abi
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -109,4 +114,30 @@ export async function getMarketIdForModule(
   const normalizedModule = normalizeAddress(moduleAddress)
   const mapping = await context.ModuleAddress.get(normalizedModule)
   return mapping?.market_id ?? null
+}
+
+/**
+ * Fetch the trusted forwarder address from FloorFactory contract via RPC
+ * The trusted forwarder is used for ERC-2771 meta-transactions
+ *
+ * @param chainId The chain ID to query
+ * @param floorFactoryAddress The FloorFactory contract address
+ * @returns The trusted forwarder address or null if fetch fails
+ */
+export async function fetchTrustedForwarder(
+  chainId: number,
+  floorFactoryAddress: `0x${string}`
+): Promise<string | null> {
+  try {
+    const publicClient = getPublicClient(chainId)
+    const result = await publicClient.readContract({
+      address: floorFactoryAddress,
+      abi: FLOOR_FACTORY_ABI_TYPED,
+      functionName: 'trustedForwarder',
+    })
+
+    return normalizeAddress(result as string)
+  } catch {
+    return null
+  }
 }

@@ -64,6 +64,7 @@ type GlobalRegistry {
   id: ID! # global-registry
   floorFactoryAddress: String!
   moduleFactoryAddress: String!
+  trustedForwarderAddress: String!
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
 }
