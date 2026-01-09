@@ -32,7 +32,7 @@ export function getPublicClient(chainId: number): PublicClient {
 
   // Create and cache public client
   const client = createPublicClient({
-    transport: http(rpcUrl),
+    transport: http(rpcUrl, { batch: true }),
   })
 
   clientCache.set(chainId, client)

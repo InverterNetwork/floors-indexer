@@ -1,3 +1,4 @@
+import { createEffect, S } from 'envio'
 import type { handlerContext } from 'generated'
 import type { Token_t } from 'generated/src/db/Entities.gen'
 import type { Abi } from 'viem'
@@ -6,95 +7,168 @@ import { erc20Abi } from 'viem'
 import ERC20IssuanceABIJson from '../../abis/ERC20Issuance_v1.json'
 import FLOOR_ABI from '../../abis/Floor_v1.json'
 import { getPublicClient } from '../rpc-client'
+import { wrapEffect } from './effects'
 import { formatAmount, normalizeAddress } from './misc'
 
+// =============================================================================
+// ABI Type Casts
+// =============================================================================
+
 const ERC20IssuanceABI = ERC20IssuanceABIJson as Abi
+const FLOOR_ABI_TYPED = FLOOR_ABI as Abi
+
 const CAP_FUNCTION_ABI = ERC20IssuanceABI.filter(
   (entry: Abi[number]) => entry.type === 'function' && entry.name === 'cap'
 ) as Abi
 
-/**
- * Fetch token metadata from the contract
- * @param chainId - The chain ID
- * @param tokenAddress - The token address
- * @returns The token metadata
- */
-export async function fetchTokenMetadata(chainId: number, tokenAddress: string) {
-  let name = 'Unknown Token'
-  let symbol = 'UNK'
-  let decimals = 18
-  let maxSupplyRaw = 0n
+// =============================================================================
+// Token Metadata Effect
+// =============================================================================
 
-  const publicClient = getPublicClient(chainId)
+export const fetchTokenMetadataEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchTokenMetadata',
+      input: { chainId: S.number, address: S.string },
+      output: S.nullable(
+        S.schema({
+          name: S.string,
+          symbol: S.string,
+          decimals: S.number,
+          maxSupplyRaw: S.string,
+        })
+      ),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.address as `0x${string}`
 
-  const contractName = await publicClient.readContract({
-    address: tokenAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'name',
-  })
+        const [nameCall, symbolCall, decimalsCall] = await client.multicall({
+          allowFailure: true,
+          contracts: [
+            { address: target, abi: erc20Abi, functionName: 'name' },
+            { address: target, abi: erc20Abi, functionName: 'symbol' },
+            { address: target, abi: erc20Abi, functionName: 'decimals' },
+          ],
+        })
 
-  if (contractName) {
-    name = contractName
-  }
+        const name =
+          nameCall.status === 'success' && typeof nameCall.result === 'string'
+            ? nameCall.result
+            : 'Unknown Token'
+        const symbol =
+          symbolCall.status === 'success' && typeof symbolCall.result === 'string'
+            ? symbolCall.result
+            : 'UNK'
+        const decimals =
+          decimalsCall.status === 'success' && typeof decimalsCall.result === 'number'
+            ? decimalsCall.result
+            : 18
 
-  const contractSymbol = await publicClient.readContract({
-    address: tokenAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'symbol',
-  })
+        // Try to fetch cap (ERC20Issuance), fallback to totalSupply
+        let maxSupplyRaw = 0n
+        try {
+          const capResult = await client.readContract({
+            address: target,
+            abi: CAP_FUNCTION_ABI,
+            functionName: 'cap',
+          })
+          if (typeof capResult === 'bigint') {
+            maxSupplyRaw = capResult
+          }
+        } catch {
+          try {
+            const totalSupplyResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'totalSupply',
+            })
+            if (typeof totalSupplyResult === 'bigint') {
+              maxSupplyRaw = totalSupplyResult
+            }
+          } catch {
+            // Use 0 as fallback
+          }
+        }
 
-  if (contractSymbol) {
-    symbol = contractSymbol
-  }
-
-  const contractDecimals = await publicClient.readContract({
-    address: tokenAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'decimals',
-  })
-
-  if (contractDecimals) {
-    decimals = contractDecimals
-  }
-
-  try {
-    const capValue = await publicClient.readContract({
-      address: tokenAddress as `0x${string}`,
-      abi: CAP_FUNCTION_ABI,
-      functionName: 'cap',
-    })
-
-    if (typeof capValue === 'bigint') {
-      maxSupplyRaw = capValue
-    }
-  } catch {
-    try {
-      const totalSupplyValue = await publicClient.readContract({
-        address: tokenAddress as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'totalSupply',
-      })
-
-      if (typeof totalSupplyValue === 'bigint') {
-        maxSupplyRaw = totalSupplyValue
+        return {
+          name,
+          symbol,
+          decimals,
+          maxSupplyRaw: maxSupplyRaw.toString(),
+        }
+      } catch {
+        context.cache = false
+        return undefined
       }
-    } catch {
-      maxSupplyRaw = 0n
     }
-  }
+  )
+)
 
-  return {
-    name,
-    symbol,
-    decimals,
-    maxSupplyRaw,
-    maxSupplyFormatted: formatAmount(maxSupplyRaw, decimals).formatted,
-  }
-}
+// =============================================================================
+// Token Addresses from BC Effect
+// =============================================================================
+
+export const fetchTokenAddressesFromBCEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchTokenAddressesFromBC',
+      input: { chainId: S.number, bcAddress: S.string },
+      output: S.nullable(
+        S.schema({
+          issuanceToken: S.string,
+          reserveToken: S.string,
+        })
+      ),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.bcAddress as `0x${string}`
+
+        const [issuanceTokenCall, reserveTokenCall] = await client.multicall({
+          allowFailure: true,
+          contracts: [
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getIssuanceToken' },
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getCollateralToken' },
+          ],
+        })
+
+        if (
+          issuanceTokenCall.status !== 'success' ||
+          reserveTokenCall.status !== 'success' ||
+          typeof issuanceTokenCall.result !== 'string' ||
+          typeof reserveTokenCall.result !== 'string'
+        ) {
+          context.cache = false
+          return undefined
+        }
+
+        return {
+          issuanceToken: (issuanceTokenCall.result as string).toLowerCase(),
+          reserveToken: (reserveTokenCall.result as string).toLowerCase(),
+        }
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
+// Token Helper Functions
+// =============================================================================
 
 /**
  * Get or create Token entity
  * Stores token info with decimals
+ * Uses Effect API for RPC calls with caching
  */
 export async function getOrCreateToken(
   context: handlerContext,
@@ -105,65 +179,24 @@ export async function getOrCreateToken(
   let token = await context.Token.get(normalizedAddress)
 
   if (!token) {
-    const metadata = await fetchTokenMetadata(chainId, normalizedAddress)
+    const metadata = await fetchTokenMetadataEffect(context.effect)({
+      chainId,
+      address: normalizedAddress,
+    })
+
+    const maxSupplyRaw = metadata?.maxSupplyRaw ? BigInt(metadata.maxSupplyRaw) : 0n
+    const decimals = metadata?.decimals ?? 18
+
     token = {
       id: normalizedAddress,
-      name: metadata.name,
-      symbol: metadata.symbol,
-      decimals: metadata.decimals,
-      maxSupplyRaw: metadata.maxSupplyRaw,
-      maxSupplyFormatted: metadata.maxSupplyFormatted,
+      name: metadata?.name ?? 'Unknown Token',
+      symbol: metadata?.symbol ?? 'UNK',
+      decimals,
+      maxSupplyRaw,
+      maxSupplyFormatted: formatAmount(maxSupplyRaw, decimals).formatted,
     }
     context.Token.set(token)
   }
 
   return token
-}
-
-/**
- * Fetch token addresses from BC (bonding curve) contract via RPC
- * Calls getIssuanceToken() and getCollateralToken() view functions
- */
-export async function fetchTokenAddressesFromBC(
-  chainId: number,
-  bcAddress: `0x${string}`
-): Promise<{ issuanceToken: `0x${string}`; reserveToken: `0x${string}` } | null> {
-  if (process.env.MOCK_RPC === 'true') {
-    return null
-  }
-
-  try {
-    const publicClient = getPublicClient(chainId)
-
-    // Call getIssuanceToken() view function
-    const issuanceToken = await publicClient.readContract({
-      address: bcAddress,
-      abi: FLOOR_ABI,
-      functionName: 'getIssuanceToken',
-    })
-
-    // Call getCollateralToken() view function (reserve token)
-    const reserveToken = await publicClient.readContract({
-      address: bcAddress,
-      abi: FLOOR_ABI,
-      functionName: 'getCollateralToken',
-    })
-
-    if (
-      issuanceToken &&
-      reserveToken &&
-      typeof issuanceToken === 'string' &&
-      typeof reserveToken === 'string'
-    ) {
-      return {
-        issuanceToken: normalizeAddress(issuanceToken) as `0x${string}`,
-        reserveToken: normalizeAddress(reserveToken) as `0x${string}`,
-      }
-    }
-  } catch (error) {
-    // RPC call failed - return null
-    // Tokens can be created later with placeholder values
-  }
-
-  return null
 }

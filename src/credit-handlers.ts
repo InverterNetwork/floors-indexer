@@ -8,12 +8,13 @@ import { CreditFacility } from '../generated/src/Handlers.gen'
 import {
   applyFacilityDeltas,
   buildUpdatedUserMarketPosition,
-  fetchLoanState,
+  fetchLoanStateEffect,
   formatAmount,
   getOrCreateAccount,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
   normalizeAddress,
+  parseLoanStateResult,
 } from './helpers'
 
 type FacilityLtvEntry = {
@@ -40,7 +41,12 @@ CreditFacility.LoanCreated.handler(
     const borrower = await getOrCreateAccount(context, event.params.borrower_)
     const loanId = event.params.loanId_.toString()
 
-    const onChainLoan = await fetchLoanState(event.chainId, event.srcAddress, event.params.loanId_)
+    const loanStateResult = await fetchLoanStateEffect(context.effect)({
+      chainId: event.chainId,
+      facilityAddress: event.srcAddress,
+      loanId: event.params.loanId_.toString(),
+    })
+    const onChainLoan = parseLoanStateResult(loanStateResult)
     const lockedCollateralRaw = onChainLoan?.lockedIssuanceTokens ?? 0n
     const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? event.params.loanAmount_
     const floorPriceRaw = onChainLoan?.floorPriceAtBorrow ?? 0n

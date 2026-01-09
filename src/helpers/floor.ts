@@ -1,10 +1,82 @@
+import { createEffect, S } from 'envio'
 import type { Abi } from 'viem'
 
 import FLOOR_ABI from '../../abis/Floor_v1.json'
 import { getPublicClient } from '../rpc-client'
-import { normalizeAddress } from './misc'
+import { wrapEffect } from './effects'
 
-type FloorPricingResult = {
+// =============================================================================
+// ABI Type Casts
+// =============================================================================
+
+const FLOOR_ABI_TYPED = FLOOR_ABI as Abi
+
+// =============================================================================
+// Floor Pricing Effect
+// =============================================================================
+
+export const fetchFloorPricingEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchFloorPricing',
+      input: { chainId: S.number, floorAddress: S.string },
+      output: S.nullable(
+        S.schema({
+          buyPrice: S.nullable(S.string),
+          sellPrice: S.nullable(S.string),
+          buyFeeBps: S.nullable(S.string),
+          sellFeeBps: S.nullable(S.string),
+          floorPrice: S.nullable(S.string),
+        })
+      ),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: false, // Prices change frequently
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.floorAddress as `0x${string}`
+
+        const response = await client.multicall({
+          allowFailure: true,
+          contracts: [
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getStaticPriceForBuying' },
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getStaticPriceForSelling' },
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getBuyFee' },
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getSellFee' },
+            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getFloorPrice' },
+          ],
+        })
+
+        type MulticallResult = { status: 'success'; result: bigint } | { status: 'failure' }
+        const extractValue = (result: MulticallResult): string | undefined => {
+          if (result.status !== 'success') return undefined
+          return result.result.toString()
+        }
+
+        return {
+          buyPrice: extractValue(response[0] as MulticallResult),
+          sellPrice: extractValue(response[1] as MulticallResult),
+          buyFeeBps: extractValue(response[2] as MulticallResult),
+          sellFeeBps: extractValue(response[3] as MulticallResult),
+          floorPrice: extractValue(response[4] as MulticallResult),
+        }
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
+// Floor Helper Types & Functions
+// =============================================================================
+
+/**
+ * Helper type for floor pricing result (parsed from effect output)
+ */
+export type FloorPricingResult = {
   buyPrice?: bigint
   sellPrice?: bigint
   buyFeeBps?: bigint
@@ -12,86 +84,28 @@ type FloorPricingResult = {
   floorPrice?: bigint
 }
 
-const FLOOR_ABI_TYPED = FLOOR_ABI as Abi
+/**
+ * Parse the string-based effect output to bigint values
+ */
+export function parseFloorPricingResult(
+  effectResult:
+    | {
+        buyPrice?: string | null
+        sellPrice?: string | null
+        buyFeeBps?: string | null
+        sellFeeBps?: string | null
+        floorPrice?: string | null
+      }
+    | null
+    | undefined
+): FloorPricingResult {
+  if (!effectResult) return {}
 
-type FloorPricingCacheEntry = {
-  blockNumber: bigint | null
-  data: FloorPricingResult
-}
-
-const pricingCache = new Map<string, FloorPricingCacheEntry>()
-
-export async function fetchFloorPricing(
-  chainId: number,
-  floorAddress: `0x${string}`,
-  blockNumber?: bigint
-): Promise<FloorPricingResult> {
-  const cacheKey = normalizeAddress(floorAddress)
-  const cached = pricingCache.get(cacheKey)
-  if (cached) {
-    if (!blockNumber || cached.blockNumber === blockNumber) {
-      return cached.data
-    }
+  return {
+    buyPrice: effectResult.buyPrice ? BigInt(effectResult.buyPrice) : undefined,
+    sellPrice: effectResult.sellPrice ? BigInt(effectResult.sellPrice) : undefined,
+    buyFeeBps: effectResult.buyFeeBps ? BigInt(effectResult.buyFeeBps) : undefined,
+    sellFeeBps: effectResult.sellFeeBps ? BigInt(effectResult.sellFeeBps) : undefined,
+    floorPrice: effectResult.floorPrice ? BigInt(effectResult.floorPrice) : undefined,
   }
-
-  try {
-    const publicClient = getPublicClient(chainId)
-    const response = (await publicClient.multicall({
-      contracts: [
-        {
-          address: floorAddress,
-          abi: FLOOR_ABI_TYPED,
-          functionName: 'getStaticPriceForBuying',
-        },
-        {
-          address: floorAddress,
-          abi: FLOOR_ABI_TYPED,
-          functionName: 'getStaticPriceForSelling',
-        },
-        {
-          address: floorAddress,
-          abi: FLOOR_ABI_TYPED,
-          functionName: 'getBuyFee',
-        },
-        {
-          address: floorAddress,
-          abi: FLOOR_ABI_TYPED,
-          functionName: 'getSellFee',
-        },
-        {
-          address: floorAddress,
-          abi: FLOOR_ABI_TYPED,
-          functionName: 'getFloorPrice',
-        },
-      ],
-    })) as FloorMulticallResult[]
-
-    const data = {
-      buyPrice: extractValue(response[0]),
-      sellPrice: extractValue(response[1]),
-      buyFeeBps: extractValue(response[2]),
-      sellFeeBps: extractValue(response[3]),
-      floorPrice: extractValue(response[4]),
-    }
-
-    pricingCache.set(cacheKey, {
-      blockNumber: blockNumber ?? null,
-      data,
-    })
-
-    return data
-  } catch (error) {
-    return {}
-  }
-}
-
-type FloorMulticallResult =
-  | { status: 'success'; result: bigint }
-  | { status: 'failure'; error: unknown }
-
-function extractValue(result?: FloorMulticallResult): bigint | undefined {
-  if (!result || result.status !== 'success') {
-    return undefined
-  }
-  return result.result
 }

@@ -3,7 +3,7 @@ import type { Market_t } from 'generated/src/db/Entities.gen'
 import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
 import { normalizeAddress } from './misc'
-import { fetchTokenAddressesFromBC, getOrCreateToken } from './token'
+import { fetchTokenAddressesFromBCEffect, getOrCreateToken } from './token'
 import { getOrCreateAccount } from './user'
 
 /**
@@ -55,10 +55,14 @@ export async function getOrCreateMarket(
     context.log.debug(
       `[getOrCreateMarket] Fetching token addresses | bcAddress=${bcAddress} | chainId=${chainId}`
     )
-    const tokenAddresses = await fetchTokenAddressesFromBC(chainId, bcAddress)
+    const tokenAddresses = await fetchTokenAddressesFromBCEffect(context.effect)({
+      chainId,
+      bcAddress,
+    })
     if (tokenAddresses) {
-      if (!finalReserveTokenId) finalReserveTokenId = tokenAddresses.reserveToken
-      if (!finalIssuanceTokenId) finalIssuanceTokenId = tokenAddresses.issuanceToken
+      if (!finalReserveTokenId) finalReserveTokenId = tokenAddresses.reserveToken as `0x${string}`
+      if (!finalIssuanceTokenId)
+        finalIssuanceTokenId = tokenAddresses.issuanceToken as `0x${string}`
       context.log.info(
         `[getOrCreateMarket] ✅ Tokens resolved | reserveToken=${finalReserveTokenId} | issuanceToken=${finalIssuanceTokenId}`
       )

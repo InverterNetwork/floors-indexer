@@ -4,14 +4,14 @@
 import { FloorFactory, ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
-  fetchTokenAddressesFromBC,
-  fetchTrustedForwarder,
+  fetchTokenAddressesFromBCEffect,
+  fetchTrustedForwarderEffect,
   getOrCreateMarket,
   getOrCreateModuleRegistry,
+  handlerErrorWrapper,
   normalizeAddress,
   resolveMarketId,
 } from './helpers'
-import { handlerErrorWrapper } from './helpers/error'
 
 /**
  * @notice Contract registration handler for FloorFactoryInitialized event
@@ -38,8 +38,13 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     `[FloorFactoryInitialized] Handler entry | moduleFactoryAddress=${moduleFactoryAddress}`
   )
 
-  // Fetch trusted forwarder address from FloorFactory via RPC
-  const trustedForwarderAddress = await fetchTrustedForwarder(event.chainId, floorFactoryAddress)
+  // Fetch trusted forwarder address from FloorFactory via Effect API
+  const trustedForwarderResult = await fetchTrustedForwarderEffect(context.effect)({
+    chainId: event.chainId,
+    floorFactoryAddress,
+  })
+
+  const trustedForwarderAddress = trustedForwarderResult?.trustedForwarder
 
   if (trustedForwarderAddress) {
     context.log.info(
@@ -138,11 +143,14 @@ ModuleFactory.ModuleCreated.handler(
     let createdMarketForFloor: Awaited<ReturnType<typeof getOrCreateMarket>> = null
 
     if (moduleType === 'floor') {
-      // Try to fetch token addresses from the BC contract via RPC
+      // Try to fetch token addresses from the BC contract via Effect API
       context.log.debug(
         `[ModuleCreated] Fetching BC tokens | chainId=${event.chainId} | bcAddress=${module}`
       )
-      const tokenAddresses = await fetchTokenAddressesFromBC(event.chainId, module as `0x${string}`)
+      const tokenAddresses = await fetchTokenAddressesFromBCEffect(context.effect)({
+        chainId: event.chainId,
+        bcAddress: module,
+      })
 
       let reserveTokenId: string | undefined
       let issuanceTokenId: string | undefined

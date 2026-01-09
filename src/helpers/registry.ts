@@ -1,14 +1,64 @@
+import { createEffect, S } from 'envio'
 import type { handlerContext } from 'generated'
 import type { ModuleAddress_t, ModuleRegistry_t } from 'generated/src/db/Entities.gen'
 import type { Abi } from 'viem'
 
 import FLOOR_FACTORY_ABI from '../../abis/FloorFactory_v1.json'
 import { getPublicClient } from '../rpc-client'
+import { wrapEffect } from './effects'
 import { normalizeAddress } from './misc'
+
+// =============================================================================
+// ABI Type Casts
+// =============================================================================
 
 const FLOOR_FACTORY_ABI_TYPED = FLOOR_FACTORY_ABI as Abi
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+// =============================================================================
+// Trusted Forwarder Effect
+// =============================================================================
+
+export const fetchTrustedForwarderEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchTrustedForwarder',
+      input: { chainId: S.number, floorFactoryAddress: S.string },
+      output: S.nullable(S.schema({ trustedForwarder: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true, // Factory config is immutable
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.floorFactoryAddress as `0x${string}`
+
+        const result = await client.readContract({
+          address: target,
+          abi: FLOOR_FACTORY_ABI_TYPED,
+          functionName: 'trustedForwarder',
+        })
+
+        if (typeof result !== 'string') {
+          context.cache = false
+          return undefined
+        }
+
+        return {
+          trustedForwarder: result.toLowerCase(),
+        }
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
+// Module Registry Helper Functions
+// =============================================================================
 
 /**
  * Get or create ModuleRegistry entity for a market
@@ -114,30 +164,4 @@ export async function getMarketIdForModule(
   const normalizedModule = normalizeAddress(moduleAddress)
   const mapping = await context.ModuleAddress.get(normalizedModule)
   return mapping?.market_id ?? null
-}
-
-/**
- * Fetch the trusted forwarder address from FloorFactory contract via RPC
- * The trusted forwarder is used for ERC-2771 meta-transactions
- *
- * @param chainId The chain ID to query
- * @param floorFactoryAddress The FloorFactory contract address
- * @returns The trusted forwarder address or null if fetch fails
- */
-export async function fetchTrustedForwarder(
-  chainId: number,
-  floorFactoryAddress: `0x${string}`
-): Promise<string | null> {
-  try {
-    const publicClient = getPublicClient(chainId)
-    const result = await publicClient.readContract({
-      address: floorFactoryAddress,
-      abi: FLOOR_FACTORY_ABI_TYPED,
-      functionName: 'trustedForwarder',
-    })
-
-    return normalizeAddress(result as string)
-  } catch {
-    return null
-  }
 }
