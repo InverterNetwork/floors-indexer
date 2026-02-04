@@ -46,27 +46,85 @@ export const fetchTokenMetadataEffect = wrapEffect(
         const client = getPublicClient(input.chainId)
         const target = input.address as `0x${string}`
 
-        const [nameCall, symbolCall, decimalsCall] = await client.multicall({
-          allowFailure: true,
-          contracts: [
-            { address: target, abi: erc20Abi, functionName: 'name' },
-            { address: target, abi: erc20Abi, functionName: 'symbol' },
-            { address: target, abi: erc20Abi, functionName: 'decimals' },
-          ],
-        })
+        let name = 'Unknown Token'
+        let symbol = 'UNK'
+        let decimals = 18
+        let useIndividualCalls = false
 
-        const name =
-          nameCall.status === 'success' && typeof nameCall.result === 'string'
-            ? nameCall.result
-            : 'Unknown Token'
-        const symbol =
-          symbolCall.status === 'success' && typeof symbolCall.result === 'string'
-            ? symbolCall.result
-            : 'UNK'
-        const decimals =
-          decimalsCall.status === 'success' && typeof decimalsCall.result === 'number'
-            ? decimalsCall.result
-            : 18
+        // Try multicall first, fallback to individual calls if it fails
+        // (Multicall3 may not be deployed on fresh Anvil instances)
+        try {
+          const [nameCall, symbolCall, decimalsCall] = await client.multicall({
+            allowFailure: true,
+            contracts: [
+              { address: target, abi: erc20Abi, functionName: 'name' },
+              { address: target, abi: erc20Abi, functionName: 'symbol' },
+              { address: target, abi: erc20Abi, functionName: 'decimals' },
+            ],
+          })
+
+          // Check if all calls failed (likely Multicall3 not deployed)
+          const allFailed =
+            nameCall.status === 'failure' &&
+            symbolCall.status === 'failure' &&
+            decimalsCall.status === 'failure'
+
+          if (allFailed) {
+            useIndividualCalls = true
+          } else {
+            name =
+              nameCall.status === 'success' && typeof nameCall.result === 'string'
+                ? nameCall.result
+                : 'Unknown Token'
+            symbol =
+              symbolCall.status === 'success' && typeof symbolCall.result === 'string'
+                ? symbolCall.result
+                : 'UNK'
+            decimals =
+              decimalsCall.status === 'success' && typeof decimalsCall.result === 'number'
+                ? decimalsCall.result
+                : 18
+          }
+        } catch {
+          // Multicall threw (likely no Multicall3 deployed)
+          useIndividualCalls = true
+        }
+
+        // Fallback to individual calls if multicall failed
+        if (useIndividualCalls) {
+          try {
+            const nameResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'name',
+            })
+            if (typeof nameResult === 'string') name = nameResult
+          } catch {
+            // Keep default
+          }
+
+          try {
+            const symbolResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'symbol',
+            })
+            if (typeof symbolResult === 'string') symbol = symbolResult
+          } catch {
+            // Keep default
+          }
+
+          try {
+            const decimalsResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'decimals',
+            })
+            if (typeof decimalsResult === 'number') decimals = decimalsResult
+          } catch {
+            // Keep default
+          }
+        }
 
         // Try to fetch cap (ERC20Issuance), fallback to totalSupply
         let maxSupplyRaw = 0n
@@ -131,27 +189,83 @@ export const fetchTokenAddressesFromBCEffect = wrapEffect(
         const client = getPublicClient(input.chainId)
         const target = input.bcAddress as `0x${string}`
 
-        const [issuanceTokenCall, reserveTokenCall] = await client.multicall({
-          allowFailure: true,
-          contracts: [
-            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getIssuanceToken' },
-            { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getCollateralToken' },
-          ],
-        })
+        let issuanceToken: string | undefined
+        let reserveToken: string | undefined
+        let useIndividualCalls = false
 
-        if (
-          issuanceTokenCall.status !== 'success' ||
-          reserveTokenCall.status !== 'success' ||
-          typeof issuanceTokenCall.result !== 'string' ||
-          typeof reserveTokenCall.result !== 'string'
-        ) {
+        // Try multicall first, fallback to individual calls if it fails
+        // (Multicall3 may not be deployed on fresh Anvil instances)
+        try {
+          const [issuanceTokenCall, reserveTokenCall] = await client.multicall({
+            allowFailure: true,
+            contracts: [
+              { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getIssuanceToken' },
+              { address: target, abi: FLOOR_ABI_TYPED, functionName: 'getCollateralToken' },
+            ],
+          })
+
+          // Check if all calls failed (likely Multicall3 not deployed)
+          const allFailed =
+            issuanceTokenCall.status === 'failure' && reserveTokenCall.status === 'failure'
+
+          if (allFailed) {
+            useIndividualCalls = true
+          } else {
+            if (
+              issuanceTokenCall.status === 'success' &&
+              typeof issuanceTokenCall.result === 'string'
+            ) {
+              issuanceToken = (issuanceTokenCall.result as string).toLowerCase()
+            }
+            if (
+              reserveTokenCall.status === 'success' &&
+              typeof reserveTokenCall.result === 'string'
+            ) {
+              reserveToken = (reserveTokenCall.result as string).toLowerCase()
+            }
+          }
+        } catch {
+          // Multicall threw (likely no Multicall3 deployed)
+          useIndividualCalls = true
+        }
+
+        // Fallback to individual calls if multicall failed
+        if (useIndividualCalls) {
+          try {
+            const issuanceResult = await client.readContract({
+              address: target,
+              abi: FLOOR_ABI_TYPED,
+              functionName: 'getIssuanceToken',
+            })
+            if (typeof issuanceResult === 'string') {
+              issuanceToken = issuanceResult.toLowerCase()
+            }
+          } catch {
+            // Keep undefined
+          }
+
+          try {
+            const reserveResult = await client.readContract({
+              address: target,
+              abi: FLOOR_ABI_TYPED,
+              functionName: 'getCollateralToken',
+            })
+            if (typeof reserveResult === 'string') {
+              reserveToken = reserveResult.toLowerCase()
+            }
+          } catch {
+            // Keep undefined
+          }
+        }
+
+        if (!issuanceToken || !reserveToken) {
           context.cache = false
           return undefined
         }
 
         return {
-          issuanceToken: (issuanceTokenCall.result as string).toLowerCase(),
-          reserveToken: (reserveTokenCall.result as string).toLowerCase(),
+          issuanceToken,
+          reserveToken,
         }
       } catch {
         context.cache = false
