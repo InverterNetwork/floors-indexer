@@ -685,6 +685,19 @@
   },
   {
     "type": "event",
+    "name": "FloorAdjustedToSupply",
+    "inputs": [
+      {
+        "name": "supply_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "FloorIncreased",
     "inputs": [
       {
@@ -1114,6 +1127,22 @@
     "type": "error",
     "name": "Module__CallerNotPermissioned",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__Floor__CollateralTooSmall",
+    "inputs": [
+      {
+        "name": "provided_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minimum_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",

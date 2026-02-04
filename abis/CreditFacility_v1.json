@@ -665,18 +665,6 @@
         "internalType": "uint256"
       },
       {
-        "name": "oldLockedIssuanceTokens_",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newLockedIssuanceTokens_",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
         "name": "releasedCollateralAmount_",
         "type": "uint256",
         "indexed": false,

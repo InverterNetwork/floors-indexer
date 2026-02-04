@@ -389,10 +389,19 @@ CreditFacility.LoanToValueRatioUpdated.handler(
 
     const nextRatio = event.params.newRatio_
     const history = updateFacilityLtvHistory(facility.market_id, nextRatio)
+
+    // Update facility config
+    const updatedFacility = {
+      ...facility,
+      loanToValueRatio: nextRatio,
+      lastUpdatedAt: timestamp,
+    }
+    context.CreditFacilityContract.set(updatedFacility)
+
     await updateMarketMaxLtv(context, facility.market_id, nextRatio, timestamp)
 
     context.log.info(
-      `[LoanToValueRatioUpdated] ✅ Market maxLTV updated | marketId=${facility.market_id} | previous=${history.previousMaxLtv} | next=${history.currentMaxLtv}`
+      `[LoanToValueRatioUpdated] ✅ Facility LTV updated | facilityId=${facilityId} | marketId=${facility.market_id} | previous=${history.previousMaxLtv} | next=${history.currentMaxLtv}`
     )
   })
 )
@@ -529,12 +538,13 @@ CreditFacility.BorrowingFeeRateUpdated.handler(
 
     const updatedFacility = {
       ...facility,
+      borrowingFeeRate: event.params.newFeeRate_,
       lastUpdatedAt: timestamp,
     }
     context.CreditFacilityContract.set(updatedFacility)
 
     context.log.info(
-      `[BorrowingFeeRateUpdated] ✅ Borrowing fee rate updated | facilityId=${facilityId} | newFeeRate=${event.params.newFeeRate_.toString()}`
+      `[BorrowingFeeRateUpdated] ✅ Facility borrowing fee updated | facilityId=${facilityId} | newFeeRate=${event.params.newFeeRate_.toString()}`
     )
   })
 )
@@ -554,12 +564,13 @@ CreditFacility.MaxLeverageUpdated.handler(
 
     const updatedFacility = {
       ...facility,
+      maxLeverage: event.params.newMaxLeverage_,
       lastUpdatedAt: timestamp,
     }
     context.CreditFacilityContract.set(updatedFacility)
 
     context.log.info(
-      `[MaxLeverageUpdated] ✅ Max leverage updated | facilityId=${facilityId} | newMaxLeverage=${event.params.newMaxLeverage_.toString()}`
+      `[MaxLeverageUpdated] ✅ Facility max leverage updated | facilityId=${facilityId} | newMaxLeverage=${event.params.newMaxLeverage_.toString()}`
     )
   })
 )

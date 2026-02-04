@@ -143,6 +143,10 @@ type CreditFacilityContract {
   collateralToken_id: ID!
   borrowToken_id: ID!
 
+  # Configuration fields (matching smart contract state)
+  loanToValueRatio: BigInt! # LTV in bps (0-10000)
+  maxLeverage: BigInt! # Max leverage (1-255)
+  borrowingFeeRate: BigInt! # Fee rate in bps (0-10000)
   totalLoans: BigInt!
 
   totalVolumeRaw: BigInt!

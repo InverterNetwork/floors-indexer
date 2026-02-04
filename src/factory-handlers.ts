@@ -217,6 +217,10 @@ ModuleFactory.ModuleCreated.handler(
           market_id: market.id,
           collateralToken_id: market.issuanceToken_id,
           borrowToken_id: market.reserveToken_id,
+          // Default config values - will be updated by config events
+          loanToValueRatio: 9000n, // Default 90% LTV
+          maxLeverage: 25n, // Default 25x leverage
+          borrowingFeeRate: 600n, // Default 6% fee
           totalLoans: 0n,
           totalVolumeRaw: 0n,
           totalVolumeFormatted: '0',
