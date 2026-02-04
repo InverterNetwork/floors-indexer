@@ -25,18 +25,13 @@ CHOICE_INPUT="$(printf '%s' "${CHOICE_INPUT:-}" | tr '[:upper:]' '[:lower:]' | t
 
 if [[ "${CHOICE_INPUT}" == "local" || "${CHOICE_INPUT}" == "l" ]]; then
   SELECTED_URL="${LOCAL_RPC_URL}"
-  START_BLOCK="0"
   echo "→ Using local RPC: ${SELECTED_URL}" >&2
-  echo "→ Using start block: ${START_BLOCK} (local fresh Anvil)" >&2
 else
   SELECTED_URL="${REMOTE_RPC_URL}"
-  START_BLOCK="73900000"
   echo "→ Using remote RPC: ${SELECTED_URL}" >&2
-  echo "→ Using start block: ${START_BLOCK} (Avalanche fork)" >&2
 fi
 
 printf "export RPC_URL_31337=%q\n" "${SELECTED_URL}"
-printf "export START_BLOCK_31337=%q\n" "${START_BLOCK}"
 
 if [[ -z "${FLOOR_FACTORY_INPUT}" ]]; then
   if [[ -t 0 ]]; then
