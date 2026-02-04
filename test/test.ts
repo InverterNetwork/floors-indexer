@@ -22,6 +22,7 @@ const {
   SplitterTreasury,
   CreditFacility,
   Authorizer,
+  StakingManager,
   Addresses,
 } = TestHelpers
 
@@ -35,6 +36,8 @@ const BC_MODULE_ADDRESS_2 = '0x2222222222222222222222222222222222222222' as cons
 const PRESALE_MODULE_ADDRESS = '0x3333333333333333333333333333333333333333' as const
 const CREDIT_FACILITY_ADDRESS = '0x4444444444444444444444444444444444444444' as const
 const AUTHORIZER_ADDRESS = '0x5555555555555555555555555555555555555555' as const
+const STAKING_MANAGER_ADDRESS = '0x6666666666666666666666666666666666666666' as const
+const STRATEGY_ADDRESS = '0x7777777777777777777777777777777777777777' as const
 // FloorFactory address must match what's in config.yaml for tests to work
 const FLOOR_FACTORY_ADDRESS = '0x8819039b028c75db5bcb93229211dde26f9095b9' as const
 const MODULE_FACTORY_ADDRESS = '0x7777777777777777777777777777777777777777' as const
@@ -48,6 +51,8 @@ const PRESALE_MODULE_ADDRESS_CHECKSUM = getAddress(PRESALE_MODULE_ADDRESS)
 const CREDIT_FACILITY_ADDRESS_CHECKSUM = getAddress(CREDIT_FACILITY_ADDRESS)
 const AUTHORIZER_ADDRESS_CHECKSUM = getAddress(AUTHORIZER_ADDRESS)
 const TREASURY_ADDRESS_CHECKSUM = getAddress(TREASURY_ADDRESS)
+const STAKING_MANAGER_ADDRESS_CHECKSUM = getAddress(STAKING_MANAGER_ADDRESS)
+const STRATEGY_ADDRESS_CHECKSUM = getAddress(STRATEGY_ADDRESS)
 
 // Test values
 const USDC_DECIMALS = 6
@@ -60,6 +65,11 @@ const PRESALE_DEPOSIT_AMOUNT = 5_000_000n // 5 USDC with 6 decimals
 const PRESALE_MINTED_AMOUNT = 5_000_000_000000000000n // 5 FLOOR with 18 decimals
 const LOAN_AMOUNT = 1_000_000n // 1 USDC
 const COLLATERAL_AMOUNT = 2_000_000_000000000000n // 2 FLOOR
+const STAKE_AMOUNT = 10_000_000_000000000000n // 10 FLOOR with 18 decimals
+const COLLATERAL_DEPLOYED = 5_000_000n // 5 USDC with 6 decimals
+const YIELD_AMOUNT = 500_000n // 0.5 USDC with 6 decimals
+const FEE_AMOUNT = 50_000n // 0.05 USDC with 6 decimals
+const FLOOR_PRICE_AT_STAKE = 1_000_000n // 1 USDC per FLOOR
 
 const USDC_TOKEN: Token_t = {
   id: USDC_ADDRESS_CHECKSUM,
@@ -2281,6 +2291,521 @@ describe('Floor Markets Indexer', () => {
         presale?.lendingFacility,
         CREDIT_FACILITY_ADDRESS_CHECKSUM,
         'lendingFacility should be updated'
+      )
+    })
+  })
+
+  // =========================================================================
+  // STAKING HANDLERS
+  // =========================================================================
+
+  describe('Staking Handlers', () => {
+    async function bootstrapStakingDb() {
+      let db = MockDb.createMockDb()
+
+      // Create market first
+      const bcModuleEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'BC_Discrete_Redeeming_VirtualSupply_v1',
+        ],
+        mockEventData: { block: { timestamp: 1000 } },
+      })
+
+      db = await db.processEvents([bcModuleEvent])
+      db = db.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
+
+      const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
+      if (market) {
+        db = db.entities.Market.set({
+          ...market,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
+        })
+      }
+
+      // Create staking manager module
+      const stakingModuleEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: STAKING_MANAGER_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'StakingManager_v1',
+        ],
+        mockEventData: { block: { timestamp: 1500 } },
+      })
+
+      return db.processEvents([stakingModuleEvent])
+    }
+
+    it('handles ModuleInitialized and creates StakingManager', async () => {
+      let db = await bootstrapStakingDb()
+
+      const initEvent = StakingManager.ModuleInitialized.createMockEvent({
+        floor: MARKET_ADDRESS,
+        authorizer: AUTHORIZER_ADDRESS,
+        feeTreasury: TREASURY_ADDRESS,
+        configData: '0x',
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xstkinit' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([initEvent])
+
+      const stakingManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.ok(stakingManager, 'StakingManager should exist')
+      assert.equal(stakingManager?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
+      assert.equal(stakingManager?.totalStakedIssuanceRaw, 0n, 'totalStakedIssuanceRaw should start at 0')
+      assert.equal(stakingManager?.totalCollateralDeployedRaw, 0n, 'totalCollateralDeployedRaw should start at 0')
+    })
+
+    it('handles StrategyAdded', async () => {
+      let db = await bootstrapStakingDb()
+
+      const strategyAddedEvent = StakingManager.StrategyAdded.createMockEvent({
+        strategy_: STRATEGY_ADDRESS,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xstrategy1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([strategyAddedEvent])
+
+      const strategy = db.entities.Strategy.get(STRATEGY_ADDRESS_CHECKSUM)
+      assert.ok(strategy, 'Strategy should exist')
+      assert.equal(strategy?.stakingManager_id, STAKING_MANAGER_ADDRESS_CHECKSUM, 'stakingManager_id should match')
+      assert.equal(strategy?.isActive, true, 'isActive should be true')
+      assert.equal(strategy?.transactionHash, '0xstrategy1', 'transactionHash should match')
+    })
+
+    it('handles StrategyRemoved', async () => {
+      let db = await bootstrapStakingDb()
+
+      // First add strategy
+      const strategyAddedEvent = StakingManager.StrategyAdded.createMockEvent({
+        strategy_: STRATEGY_ADDRESS,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xstrategy2' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([strategyAddedEvent])
+
+      // Remove strategy
+      const strategyRemovedEvent = StakingManager.StrategyRemoved.createMockEvent({
+        strategy_: STRATEGY_ADDRESS,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xremove1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([strategyRemovedEvent])
+
+      const strategy = db.entities.Strategy.get(STRATEGY_ADDRESS_CHECKSUM)
+      assert.ok(strategy, 'Strategy should still exist')
+      assert.equal(strategy?.isActive, false, 'isActive should be false')
+      assert.equal(strategy?.removedAt, 3000n, 'removedAt should be set')
+    })
+
+    it('handles PerformanceFeeUpdated', async () => {
+      let db = await bootstrapStakingDb()
+
+      // Create manager first
+      const stakingManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      if (!stakingManager) {
+        db = db.entities.StakingManager.set({
+          id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          performanceFeeBps: 0n,
+          totalStakedIssuanceRaw: 0n,
+          totalStakedIssuanceFormatted: '0',
+          totalCollateralDeployedRaw: 0n,
+          totalCollateralDeployedFormatted: '0',
+          totalYieldHarvestedRaw: 0n,
+          totalYieldHarvestedFormatted: '0',
+          totalFeesCapturedRaw: 0n,
+          totalFeesCapturedFormatted: '0',
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+      }
+
+      const feeUpdatedEvent = StakingManager.PerformanceFeeUpdated.createMockEvent({
+        oldFeeBps_: 0n,
+        newFeeBps_: 1000n, // 10%
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xfee1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([feeUpdatedEvent])
+
+      const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.ok(updatedManager, 'StakingManager should exist')
+      assert.equal(updatedManager?.performanceFeeBps, 1000n, 'performanceFeeBps should be updated')
+    })
+
+    it('handles Staked event and creates position', async () => {
+      let db = await bootstrapStakingDb()
+
+      // Create manager and strategy
+      db = db.entities.StakingManager.set({
+        id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        market_id: MARKET_ADDRESS_CHECKSUM,
+        performanceFeeBps: 1000n,
+        totalStakedIssuanceRaw: 0n,
+        totalStakedIssuanceFormatted: '0',
+        totalCollateralDeployedRaw: 0n,
+        totalCollateralDeployedFormatted: '0',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeesCapturedRaw: 0n,
+        totalFeesCapturedFormatted: '0',
+        createdAt: 1500n,
+        lastUpdatedAt: 1500n,
+      })
+
+      db = db.entities.Strategy.set({
+        id: STRATEGY_ADDRESS_CHECKSUM,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        isActive: true,
+        addedAt: 1500n,
+        removedAt: undefined,
+        transactionHash: '0xstrategy',
+      })
+
+      const userAddress = Addresses.defaultAddress
+      const normalizedUser = getAddress(userAddress as `0x${string}`)
+
+      const stakedEvent = StakingManager.Staked.createMockEvent({
+        user_: userAddress,
+        strategy_: STRATEGY_ADDRESS,
+        issuanceTokenAmount_: STAKE_AMOUNT,
+        collateralDeployed_: COLLATERAL_DEPLOYED,
+        floorPrice_: FLOOR_PRICE_AT_STAKE,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xstake1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([stakedEvent])
+
+      const positionId = `${normalizedUser}-${STAKING_MANAGER_ADDRESS_CHECKSUM}-${STRATEGY_ADDRESS_CHECKSUM}`
+      const position = db.entities.StakePosition.get(positionId)
+      assert.ok(position, 'StakePosition should exist')
+      assert.equal(position?.user_id, normalizedUser, 'user_id should match')
+      assert.equal(position?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
+      assert.equal(position?.collateralDeployedRaw, COLLATERAL_DEPLOYED, 'collateralDeployedRaw should match')
+      assert.equal(position?.floorPriceAtStakeRaw, FLOOR_PRICE_AT_STAKE, 'floorPriceAtStakeRaw should match')
+      assert.equal(position?.status, 'ACTIVE', 'status should be ACTIVE')
+
+      const activity = db.entities.StakingActivity.get('0xstake1-0')
+      assert.ok(activity, 'StakingActivity should exist')
+      assert.equal(activity?.activityType, 'STAKE', 'activityType should be STAKE')
+      assert.equal(activity?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
+
+      const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.equal(updatedManager?.totalStakedIssuanceRaw, STAKE_AMOUNT, 'totalStakedIssuanceRaw should be updated')
+      assert.equal(updatedManager?.totalCollateralDeployedRaw, COLLATERAL_DEPLOYED, 'totalCollateralDeployedRaw should be updated')
+    })
+
+    it('handles YieldHarvested event', async () => {
+      let db = await bootstrapStakingDb()
+
+      const userAddress = Addresses.defaultAddress
+      const normalizedUser = getAddress(userAddress as `0x${string}`)
+      const positionId = `${normalizedUser}-${STAKING_MANAGER_ADDRESS_CHECKSUM}-${STRATEGY_ADDRESS_CHECKSUM}`
+
+      // Create manager, strategy, and position
+      db = db.entities.StakingManager.set({
+        id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        market_id: MARKET_ADDRESS_CHECKSUM,
+        performanceFeeBps: 1000n,
+        totalStakedIssuanceRaw: STAKE_AMOUNT,
+        totalStakedIssuanceFormatted: '10',
+        totalCollateralDeployedRaw: COLLATERAL_DEPLOYED,
+        totalCollateralDeployedFormatted: '5',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeesCapturedRaw: 0n,
+        totalFeesCapturedFormatted: '0',
+        createdAt: 1500n,
+        lastUpdatedAt: 2000n,
+      })
+
+      db = db.entities.Strategy.set({
+        id: STRATEGY_ADDRESS_CHECKSUM,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        isActive: true,
+        addedAt: 1500n,
+        removedAt: undefined,
+        transactionHash: '0xstrategy',
+      })
+
+      db = db.entities.StakePosition.set({
+        id: positionId,
+        user_id: normalizedUser,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        strategy_id: STRATEGY_ADDRESS_CHECKSUM,
+        issuanceTokenAmountRaw: STAKE_AMOUNT,
+        issuanceTokenAmountFormatted: '10',
+        collateralDeployedRaw: COLLATERAL_DEPLOYED,
+        collateralDeployedFormatted: '5',
+        floorPriceAtStakeRaw: FLOOR_PRICE_AT_STAKE,
+        floorPriceAtStakeFormatted: '1',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeePaidRaw: 0n,
+        totalFeePaidFormatted: '0',
+        status: 'ACTIVE',
+        createdAt: 2000n,
+        lastUpdatedAt: 2000n,
+        transactionHash: '0xstake1',
+      })
+
+      const harvestEvent = StakingManager.YieldHarvested.createMockEvent({
+        user_: userAddress,
+        strategy_: STRATEGY_ADDRESS,
+        receiver_: userAddress,
+        netYield_: YIELD_AMOUNT,
+        fee_: FEE_AMOUNT,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xharvest1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([harvestEvent])
+
+      const updatedPosition = db.entities.StakePosition.get(positionId)
+      assert.ok(updatedPosition, 'StakePosition should exist')
+      assert.equal(updatedPosition?.totalYieldHarvestedRaw, YIELD_AMOUNT, 'totalYieldHarvestedRaw should be updated')
+      assert.equal(updatedPosition?.totalFeePaidRaw, FEE_AMOUNT, 'totalFeePaidRaw should be updated')
+
+      const activity = db.entities.StakingActivity.get('0xharvest1-0')
+      assert.ok(activity, 'StakingActivity should exist')
+      assert.equal(activity?.activityType, 'HARVEST', 'activityType should be HARVEST')
+      assert.equal(activity?.yieldAmountRaw, YIELD_AMOUNT, 'yieldAmountRaw should match')
+      assert.equal(activity?.feeAmountRaw, FEE_AMOUNT, 'feeAmountRaw should match')
+
+      const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.equal(updatedManager?.totalYieldHarvestedRaw, YIELD_AMOUNT, 'totalYieldHarvestedRaw should be updated')
+      assert.equal(updatedManager?.totalFeesCapturedRaw, FEE_AMOUNT, 'totalFeesCapturedRaw should be updated')
+    })
+
+    it('handles FundsWithdrawn event', async () => {
+      let db = await bootstrapStakingDb()
+
+      const userAddress = Addresses.defaultAddress
+      const normalizedUser = getAddress(userAddress as `0x${string}`)
+      const positionId = `${normalizedUser}-${STAKING_MANAGER_ADDRESS_CHECKSUM}-${STRATEGY_ADDRESS_CHECKSUM}`
+
+      // Create manager, strategy, and position
+      db = db.entities.StakingManager.set({
+        id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        market_id: MARKET_ADDRESS_CHECKSUM,
+        performanceFeeBps: 1000n,
+        totalStakedIssuanceRaw: STAKE_AMOUNT,
+        totalStakedIssuanceFormatted: '10',
+        totalCollateralDeployedRaw: COLLATERAL_DEPLOYED,
+        totalCollateralDeployedFormatted: '5',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeesCapturedRaw: 0n,
+        totalFeesCapturedFormatted: '0',
+        createdAt: 1500n,
+        lastUpdatedAt: 2000n,
+      })
+
+      db = db.entities.Strategy.set({
+        id: STRATEGY_ADDRESS_CHECKSUM,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        isActive: true,
+        addedAt: 1500n,
+        removedAt: undefined,
+        transactionHash: '0xstrategy',
+      })
+
+      db = db.entities.StakePosition.set({
+        id: positionId,
+        user_id: normalizedUser,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        strategy_id: STRATEGY_ADDRESS_CHECKSUM,
+        issuanceTokenAmountRaw: STAKE_AMOUNT,
+        issuanceTokenAmountFormatted: '10',
+        collateralDeployedRaw: COLLATERAL_DEPLOYED,
+        collateralDeployedFormatted: '5',
+        floorPriceAtStakeRaw: FLOOR_PRICE_AT_STAKE,
+        floorPriceAtStakeFormatted: '1',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeePaidRaw: 0n,
+        totalFeePaidFormatted: '0',
+        status: 'ACTIVE',
+        createdAt: 2000n,
+        lastUpdatedAt: 2000n,
+        transactionHash: '0xstake1',
+      })
+
+      const withdrawEvent = StakingManager.FundsWithdrawn.createMockEvent({
+        user_: userAddress,
+        strategy_: STRATEGY_ADDRESS,
+        receiver_: userAddress,
+        collateralWithdrawn_: COLLATERAL_DEPLOYED,
+        issuanceTokensReturned_: STAKE_AMOUNT,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xwithdraw1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([withdrawEvent])
+
+      const updatedPosition = db.entities.StakePosition.get(positionId)
+      assert.ok(updatedPosition, 'StakePosition should exist')
+      assert.equal(updatedPosition?.issuanceTokenAmountRaw, 0n, 'issuanceTokenAmountRaw should be 0')
+      assert.equal(updatedPosition?.collateralDeployedRaw, 0n, 'collateralDeployedRaw should be 0')
+      assert.equal(updatedPosition?.status, 'WITHDRAWN', 'status should be WITHDRAWN')
+
+      const activity = db.entities.StakingActivity.get('0xwithdraw1-0')
+      assert.ok(activity, 'StakingActivity should exist')
+      assert.equal(activity?.activityType, 'WITHDRAW', 'activityType should be WITHDRAW')
+      assert.equal(activity?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
+      assert.equal(activity?.collateralAmountRaw, COLLATERAL_DEPLOYED, 'collateralAmountRaw should match')
+
+      const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.equal(updatedManager?.totalStakedIssuanceRaw, 0n, 'totalStakedIssuanceRaw should be 0')
+      assert.equal(updatedManager?.totalCollateralDeployedRaw, 0n, 'totalCollateralDeployedRaw should be 0')
+    })
+
+    it('handles Rebalanced event', async () => {
+      let db = await bootstrapStakingDb()
+
+      const userAddress = Addresses.defaultAddress
+      const normalizedUser = getAddress(userAddress as `0x${string}`)
+      const positionId = `${normalizedUser}-${STAKING_MANAGER_ADDRESS_CHECKSUM}-${STRATEGY_ADDRESS_CHECKSUM}`
+
+      // Create manager, strategy, and position
+      db = db.entities.StakingManager.set({
+        id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        market_id: MARKET_ADDRESS_CHECKSUM,
+        performanceFeeBps: 1000n,
+        totalStakedIssuanceRaw: STAKE_AMOUNT,
+        totalStakedIssuanceFormatted: '10',
+        totalCollateralDeployedRaw: COLLATERAL_DEPLOYED,
+        totalCollateralDeployedFormatted: '5',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeesCapturedRaw: 0n,
+        totalFeesCapturedFormatted: '0',
+        createdAt: 1500n,
+        lastUpdatedAt: 2000n,
+      })
+
+      db = db.entities.Strategy.set({
+        id: STRATEGY_ADDRESS_CHECKSUM,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        isActive: true,
+        addedAt: 1500n,
+        removedAt: undefined,
+        transactionHash: '0xstrategy',
+      })
+
+      db = db.entities.StakePosition.set({
+        id: positionId,
+        user_id: normalizedUser,
+        stakingManager_id: STAKING_MANAGER_ADDRESS_CHECKSUM,
+        strategy_id: STRATEGY_ADDRESS_CHECKSUM,
+        issuanceTokenAmountRaw: STAKE_AMOUNT,
+        issuanceTokenAmountFormatted: '10',
+        collateralDeployedRaw: COLLATERAL_DEPLOYED,
+        collateralDeployedFormatted: '5',
+        floorPriceAtStakeRaw: FLOOR_PRICE_AT_STAKE,
+        floorPriceAtStakeFormatted: '1',
+        totalYieldHarvestedRaw: 0n,
+        totalYieldHarvestedFormatted: '0',
+        totalFeePaidRaw: 0n,
+        totalFeePaidFormatted: '0',
+        status: 'ACTIVE',
+        createdAt: 2000n,
+        lastUpdatedAt: 2000n,
+        transactionHash: '0xstake1',
+      })
+
+      const additionalCollateral = 1_000_000n // 1 USDC
+
+      const rebalanceEvent = StakingManager.Rebalanced.createMockEvent({
+        user_: userAddress,
+        strategy_: STRATEGY_ADDRESS,
+        additionalCollateralDeployed_: additionalCollateral,
+        mockEventData: {
+          srcAddress: STAKING_MANAGER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xrebalance1' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([rebalanceEvent])
+
+      const updatedPosition = db.entities.StakePosition.get(positionId)
+      assert.ok(updatedPosition, 'StakePosition should exist')
+      assert.equal(
+        updatedPosition?.collateralDeployedRaw,
+        COLLATERAL_DEPLOYED + additionalCollateral,
+        'collateralDeployedRaw should be increased'
+      )
+
+      const activity = db.entities.StakingActivity.get('0xrebalance1-0')
+      assert.ok(activity, 'StakingActivity should exist')
+      assert.equal(activity?.activityType, 'REBALANCE', 'activityType should be REBALANCE')
+      assert.equal(activity?.collateralAmountRaw, additionalCollateral, 'collateralAmountRaw should match')
+
+      const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
+      assert.equal(
+        updatedManager?.totalCollateralDeployedRaw,
+        COLLATERAL_DEPLOYED + additionalCollateral,
+        'totalCollateralDeployedRaw should be increased'
       )
     })
   })

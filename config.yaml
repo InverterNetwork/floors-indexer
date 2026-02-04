@@ -117,6 +117,19 @@ contracts:
       - event: RoleRevoked
       - event: RoleAdminBurned
 
+  - name: StakingManager
+    abi_file_path: abis/StakingManager_v1.json
+    handler: src/index.ts
+    events:
+      - event: Staked
+      - event: YieldHarvested
+      - event: FundsWithdrawn
+      - event: Rebalanced
+      - event: StrategyAdded
+      - event: StrategyRemoved
+      - event: PerformanceFeeUpdated
+      - event: ModuleInitialized
+
 networks:
   - id: 31337 # Local Anvil (forked) or Remote Avalanche Fork
     start_block: 73900000
@@ -138,4 +151,6 @@ networks:
       - name: Presale
         address:
       - name: Authorizer
+        address:
+      - name: StakingManager
         address:
