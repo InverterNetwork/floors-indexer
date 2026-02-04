@@ -25,6 +25,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_COMMISSION_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addToWhitelistWithProof",
     "inputs": [
       {
@@ -988,6 +1001,25 @@
   },
   {
     "type": "event",
+    "name": "PresaleReopened",
+    "inputs": [
+      {
+        "name": "previousState_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IPresale_v1.PresaleState"
+      },
+      {
+        "name": "newState_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PresaleStateSet",
     "inputs": [
       {
@@ -1109,6 +1141,11 @@
   },
   {
     "type": "error",
+    "name": "Presale__CannotModifyAfterStart",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "Presale__GlobalCapExceeded",
     "inputs": []
   },
@@ -1168,6 +1205,22 @@
   },
   {
     "type": "error",
+    "name": "Presale__InvalidTransition",
+    "inputs": [
+      {
+        "name": "from_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      },
+      {
+        "name": "to_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "Presale__NotEnded",
     "inputs": []
   },
@@ -1202,6 +1255,17 @@
       },
       {
         "name": "trancheIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__Unsorted",
+    "inputs": [
+      {
+        "name": "idx_",
         "type": "uint256",
         "internalType": "uint256"
       }

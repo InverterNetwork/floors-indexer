@@ -35,6 +35,7 @@ contracts:
       - event: VirtualCollateralAmountSubtracted
       - event: VirtualCollateralSupplySet
       - event: FloorIncreased
+      - event: FloorAdjustedToSupply
       - event: BuyingEnabled
       - event: BuyingDisabled
       - event: SellingEnabled
@@ -95,7 +96,13 @@ contracts:
       - event: PresaleStateSet
       - event: PriceBreakpointsSet
       - event: TrancheClaimed
-      - event: WhitelistUpdated
+      - event: MerkleRootUpdated
+      - event: MerkleWhitelistRegistered
+      - event: PresaleReopened
+      - event: DecayDurationUpdated
+      - event: InitialMultiplierUpdated
+      - event: FeeMultiplierDecayStarted
+      - event: FeeMultiplierDecayReset
 
   - name: Authorizer
     abi_file_path: abis/AUT_Roles_v2.json

@@ -148,8 +148,13 @@ CreditFacility.LoanRebalanced.handler(
       return
     }
 
-    const newLockedCollateralRaw = event.params.newLockedIssuanceTokens_
-    const lockedCollateralDelta = newLockedCollateralRaw - loan.lockedCollateralRaw
+    // LoanRebalanced now provides the released amount (delta), not the new total
+    const releasedAmount = event.params.releasedCollateralAmount_
+    const newLockedCollateralRaw =
+      loan.lockedCollateralRaw > releasedAmount
+        ? loan.lockedCollateralRaw - releasedAmount
+        : 0n
+    const lockedCollateralDelta = -releasedAmount
     const lockedCollateral = formatAmount(newLockedCollateralRaw, collateralToken.decimals)
 
     const updatedLoan = {

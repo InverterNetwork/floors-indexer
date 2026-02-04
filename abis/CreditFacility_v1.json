@@ -834,6 +834,22 @@
   },
   {
     "type": "error",
+    "name": "Module__CreditFacility_FeeTooHigh",
+    "inputs": [
+      {
+        "name": "provided_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maximum_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "Module__CreditFacility_InsufficientCollateralForLeverage",
     "inputs": []
   },

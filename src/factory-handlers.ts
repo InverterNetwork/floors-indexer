@@ -296,6 +296,12 @@ ModuleFactory.ModuleCreated.handler(
         priceBreakpointOffsets: [],
         whitelistedAddresses: [],
         lendingFacility: undefined,
+        // Merkle whitelist fields
+        merkleRoot: undefined,
+        // Fee multiplier decay fields
+        initialMultiplier: undefined,
+        decayDuration: undefined,
+        decayStartTime: undefined,
         authorizer: undefined,
         feeTreasury: undefined,
         createdAt: timestamp,

@@ -52,7 +52,13 @@ enum PresaleConfigEventType {
   PRESALE_STATE_SET
   END_TIMESTAMP_SET
   TIME_SAFEGUARD_SET
-  WHITELIST_UPDATED
+  MERKLE_ROOT_UPDATED
+  MERKLE_WHITELIST_REGISTERED
+  PRESALE_REOPENED
+  DECAY_DURATION_UPDATED
+  INITIAL_MULTIPLIER_UPDATED
+  FEE_MULTIPLIER_DECAY_STARTED
+  FEE_MULTIPLIER_DECAY_RESET
   LENDING_FACILITY_SET
   MODULE_INITIALIZED
   GENERIC
@@ -206,8 +212,17 @@ type PreSaleContract {
   priceBreakpointOffsets: [Int!]
   lendingFacility: String
 
+  # Merkle whitelist fields
+  merkleRoot: String
+
+  # Fee multiplier decay fields
+  initialMultiplier: BigInt
+  decayDuration: BigInt
+  decayStartTime: BigInt
+
   authorizer: String
   feeTreasury: String
+  # Deprecated: Use merkle whitelist instead
   whitelistedAddresses: [String!]
 
   createdAt: BigInt!
