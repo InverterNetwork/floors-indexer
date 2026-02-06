@@ -13,6 +13,7 @@ import { StakingManager } from '../generated/src/Handlers.gen'
 import {
   formatAmount,
   getOrCreateAccount,
+  getOrCreateModuleRegistry,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
   normalizeAddress,
@@ -52,15 +53,8 @@ StakingManager.ModuleInitialized.handler(
 
     context.StakingManager.set(stakingManager)
 
-    // Update ModuleRegistry if it exists
-    const moduleRegistry = await context.ModuleRegistry.get(floorAddress)
-    if (moduleRegistry) {
-      context.ModuleRegistry.set({
-        ...moduleRegistry,
-        staking: stakingManagerId,
-        lastUpdatedAt: timestamp,
-      })
-    }
+    // Create or update ModuleRegistry with staking address
+    await getOrCreateModuleRegistry(context, floorAddress, 'staking', stakingManagerId, timestamp)
 
     context.log.info(
       `[StakingManager.ModuleInitialized] ✅ StakingManager created | id=${stakingManagerId} | market=${floorAddress}`
@@ -202,10 +196,7 @@ StakingManager.Staked.handler(
     const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
     const existingPosition = await context.StakePosition.get(positionId)
 
-    const issuanceAmount = formatAmount(
-      event.params.issuanceTokenAmount_,
-      issuanceToken.decimals
-    )
+    const issuanceAmount = formatAmount(event.params.issuanceTokenAmount_, issuanceToken.decimals)
     const collateralAmount = formatAmount(event.params.collateralDeployed_, issuanceToken.decimals)
     const floorPrice = formatAmount(event.params.floorPrice_, issuanceToken.decimals)
 
@@ -507,8 +498,7 @@ StakingManager.FundsWithdrawn.handler(
     // Update StakingManager totals
     const updatedManager: StakingManager_t = {
       ...manager,
-      totalStakedIssuanceRaw:
-        manager.totalStakedIssuanceRaw - event.params.issuanceTokensReturned_,
+      totalStakedIssuanceRaw: manager.totalStakedIssuanceRaw - event.params.issuanceTokensReturned_,
       totalStakedIssuanceFormatted: formatAmount(
         manager.totalStakedIssuanceRaw - event.params.issuanceTokensReturned_,
         issuanceToken.decimals

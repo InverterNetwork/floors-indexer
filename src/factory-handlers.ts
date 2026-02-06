@@ -104,6 +104,11 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
   if (moduleType === 'authorizer') {
     context.addAuthorizer(module as `0x${string}`)
   }
+
+  // Register StakingManager modules for staking event listening
+  if (moduleType === 'staking') {
+    context.addStakingManager(module as `0x${string}`)
+  }
 })
 
 /**
