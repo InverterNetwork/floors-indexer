@@ -1699,6 +1699,85 @@ describe('Floor Markets Indexer', () => {
       assert.ok(role, 'Role should exist')
       assert.equal(role?.isAdminBurned, true, 'isAdminBurned should be true')
     })
+
+    it('handles ModuleInitialized and updates AuthorizerContract', async () => {
+      let db = await bootstrapAuthorizerDb()
+
+      const initEvent = Authorizer.ModuleInitialized.createMockEvent({
+        floor: MARKET_ADDRESS,
+        authorizer: AUTHORIZER_ADDRESS,
+        feeTreasury: TREASURY_ADDRESS,
+        configData: '0x',
+        mockEventData: {
+          srcAddress: AUTHORIZER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xauthinit' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([initEvent])
+
+      const authorizer = db.entities.AuthorizerContract.get(AUTHORIZER_ADDRESS_CHECKSUM)
+      assert.ok(authorizer, 'AuthorizerContract should exist after ModuleInitialized')
+      assert.equal(authorizer?.floor, MARKET_ADDRESS_CHECKSUM, 'floor should match market address')
+      assert.equal(authorizer?.lastAssignedRoleId, 1n, 'lastAssignedRoleId should default to 1')
+
+      // Verify ModuleRegistry was created/updated
+      const registry = db.entities.ModuleRegistry.get(MARKET_ADDRESS_CHECKSUM)
+      assert.ok(registry, 'ModuleRegistry should exist')
+      assert.equal(
+        registry?.authorizer,
+        AUTHORIZER_ADDRESS_CHECKSUM,
+        'ModuleRegistry authorizer should match'
+      )
+    })
+
+    it('handles ModuleInitialized preserving existing lastAssignedRoleId', async () => {
+      let db = await bootstrapAuthorizerDb()
+
+      // Create a custom role first to increase lastAssignedRoleId
+      const roleCreatedEvent = Authorizer.RoleCreated.createMockEvent({
+        roleId_: CUSTOM_ROLE,
+        roleName: 'SOME_ROLE',
+        mockEventData: {
+          srcAddress: AUTHORIZER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 2000 },
+          transaction: { hash: '0xrole4' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([roleCreatedEvent])
+
+      // Now process ModuleInitialized - should preserve lastAssignedRoleId
+      const initEvent = Authorizer.ModuleInitialized.createMockEvent({
+        floor: MARKET_ADDRESS,
+        authorizer: AUTHORIZER_ADDRESS,
+        feeTreasury: TREASURY_ADDRESS,
+        configData: '0x',
+        mockEventData: {
+          srcAddress: AUTHORIZER_ADDRESS,
+          chainId: 31337,
+          block: { timestamp: 3000 },
+          transaction: { hash: '0xauthinit2' },
+          logIndex: 0,
+        },
+      })
+
+      db = await db.processEvents([initEvent])
+
+      const authorizer = db.entities.AuthorizerContract.get(AUTHORIZER_ADDRESS_CHECKSUM)
+      assert.ok(authorizer, 'AuthorizerContract should exist')
+      // lastAssignedRoleId should be preserved from the RoleCreated event (roleId=2)
+      assert.equal(
+        authorizer?.lastAssignedRoleId,
+        2n,
+        'lastAssignedRoleId should be preserved from prior RoleCreated'
+      )
+    })
   })
 
   // =========================================================================

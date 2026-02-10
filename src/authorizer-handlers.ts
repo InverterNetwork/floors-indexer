@@ -4,7 +4,12 @@
 
 import type { Role_t, RoleMember_t, RolePermission_t } from '../generated/src/db/Entities.gen'
 import { Authorizer } from '../generated/src/Handlers.gen'
-import { getSelectorName, handlerErrorWrapper, normalizeAddress } from './helpers'
+import {
+  getOrCreateModuleRegistry,
+  getSelectorName,
+  handlerErrorWrapper,
+  normalizeAddress,
+} from './helpers'
 
 /**
  * Constants for static roles
@@ -372,6 +377,40 @@ Authorizer.RoleAdminBurned.handler(
 
     context.log.debug(
       `[RoleAdminBurned] ✅ Role admin burned | roleId=${roleEntityId} | adminRole=BURN_ADMIN_ROLE`
+    )
+  })
+)
+
+/**
+ * @notice Handles ModuleInitialized event
+ * Creates or updates AuthorizerContract entity when the authorizer module is initialized
+ */
+Authorizer.ModuleInitialized.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const authorizerId = normalizeAddress(event.srcAddress)
+    const floorAddress = normalizeAddress(event.params.floor)
+    const timestamp = BigInt(event.block.timestamp)
+
+    context.log.info(
+      `[Authorizer.ModuleInitialized] Handler invoked | authorizerId=${authorizerId} | floor=${floorAddress}`
+    )
+
+    // Get or update AuthorizerContract
+    const existing = await context.AuthorizerContract.get(authorizerId)
+
+    context.AuthorizerContract.set({
+      id: authorizerId,
+      floor: floorAddress,
+      lastAssignedRoleId: existing?.lastAssignedRoleId ?? 1n,
+      createdAt: existing?.createdAt ?? timestamp,
+      lastUpdatedAt: timestamp,
+    })
+
+    // Update ModuleRegistry
+    await getOrCreateModuleRegistry(context, floorAddress, 'authorizer', authorizerId, timestamp)
+
+    context.log.info(
+      `[Authorizer.ModuleInitialized] ✅ AuthorizerContract updated | id=${authorizerId} | market=${floorAddress}`
     )
   })
 )

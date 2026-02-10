@@ -116,6 +116,7 @@ contracts:
       - event: RoleGranted
       - event: RoleRevoked
       - event: RoleAdminBurned
+      - event: ModuleInitialized
 
   - name: StakingManager
     abi_file_path: abis/StakingManager_v1.json
