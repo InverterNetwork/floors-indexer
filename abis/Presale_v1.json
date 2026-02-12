@@ -98,7 +98,7 @@
   },
   {
     "type": "function",
-    "name": "buyPresaleWithLeverage",
+    "name": "buyPresaleWithLoops",
     "inputs": [
       {
         "name": "deposit_",
@@ -106,7 +106,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "leverageIndex_",
+        "name": "loopCount_",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -345,7 +345,7 @@
             "internalType": "address"
           },
           {
-            "name": "totalDeposit",
+            "name": "netAllocation",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -355,7 +355,7 @@
             "internalType": "uint256"
           },
           {
-            "name": "leverage",
+            "name": "loopCount",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -981,7 +981,7 @@
         "internalType": "address"
       },
       {
-        "name": "totalDeposit_",
+        "name": "netAllocation_",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1185,6 +1185,22 @@
   },
   {
     "type": "error",
+    "name": "Presale__FeeExceedsDeposit",
+    "inputs": [
+      {
+        "name": "fee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deposit_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "Presale__GlobalCapExceeded",
     "inputs": [
       {
@@ -1222,10 +1238,10 @@
   },
   {
     "type": "error",
-    "name": "Presale__InvalidLeverageIndex",
+    "name": "Presale__InvalidLoopCount",
     "inputs": [
       {
-        "name": "leverageIndex_",
+        "name": "loopCount_",
         "type": "uint256",
         "internalType": "uint256"
       }

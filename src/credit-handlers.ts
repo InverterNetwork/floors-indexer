@@ -317,11 +317,8 @@ CreditFacility.LoanClosed.handler(
       return
     }
 
-    const unlockedAmountRaw = event.params.issuanceTokensUnlocked_
-    const nextLockedCollateralRaw =
-      loan.lockedCollateralRaw > unlockedAmountRaw
-        ? loan.lockedCollateralRaw - unlockedAmountRaw
-        : 0n
+    const unlockedAmountRaw = loan.lockedCollateralRaw
+    const nextLockedCollateralRaw = 0n
     const lockedCollateral = formatAmount(nextLockedCollateralRaw, collateralToken.decimals)
 
     const updatedLoan = {
@@ -554,7 +551,7 @@ CreditFacility.BorrowingFeeRateUpdated.handler(
   })
 )
 
-CreditFacility.MaxLeverageUpdated.handler(
+CreditFacility.MaxLoopsUpdated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const facilityId = normalizeAddress(event.srcAddress)
     const timestamp = BigInt(event.block.timestamp)
@@ -562,20 +559,20 @@ CreditFacility.MaxLeverageUpdated.handler(
 
     if (!facility) {
       context.log.warn(
-        `[MaxLeverageUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+        `[MaxLoopsUpdated] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
       )
       return
     }
 
     const updatedFacility = {
       ...facility,
-      maxLeverage: event.params.newMaxLeverage_,
+      maxLeverage: event.params.newMaxLoops_,
       lastUpdatedAt: timestamp,
     }
     context.CreditFacilityContract.set(updatedFacility)
 
     context.log.info(
-      `[MaxLeverageUpdated] ✅ Facility max leverage updated | facilityId=${facilityId} | newMaxLeverage=${event.params.newMaxLeverage_.toString()}`
+      `[MaxLoopsUpdated] ✅ Facility max loops updated | facilityId=${facilityId} | newMaxLoops=${event.params.newMaxLoops_.toString()}`
     )
   })
 )

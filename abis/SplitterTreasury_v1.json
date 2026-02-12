@@ -469,6 +469,11 @@
   },
   {
     "type": "error",
+    "name": "Module__SplitterTreasury__EmptyRecipients",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "Module__SplitterTreasury__FloorFeeTreasuryIsZeroAddress",
     "inputs": []
   },

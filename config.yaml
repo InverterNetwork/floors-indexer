@@ -61,7 +61,7 @@ contracts:
       - event: LoansConsolidated
       - event: LoanToValueRatioUpdated
       - event: BorrowingFeeRateUpdated
-      - event: MaxLeverageUpdated
+      - event: MaxLoopsUpdated
       - event: DynamicFeeCalculatorUpdated
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked

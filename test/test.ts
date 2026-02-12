@@ -1406,7 +1406,7 @@ describe('Floor Markets Indexer', () => {
       // Close loan
       const loanClosedEvent = CreditFacility.LoanClosed.createMockEvent({
         loanId_: 4n,
-        issuanceTokensUnlocked_: COLLATERAL_AMOUNT,
+        borrower_: Addresses.defaultAddress,
         mockEventData: {
           srcAddress: CREDIT_FACILITY_ADDRESS,
           chainId: 31337,
@@ -2088,7 +2088,7 @@ describe('Floor Markets Indexer', () => {
       const positionCreatedEvent = Presale.PositionCreated.createMockEvent({
         positionId_: 1n,
         owner_: Addresses.defaultAddress,
-        totalDeposit_: PRESALE_DEPOSIT_AMOUNT,
+        netAllocation_: PRESALE_DEPOSIT_AMOUNT,
         totalMinted_: PRESALE_MINTED_AMOUNT,
         loops_: 3n,
         mockEventData: {

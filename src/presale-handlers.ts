@@ -35,7 +35,7 @@ Presale.PositionCreated.handler(
       event,
       {
         userAddress: event.params.owner_,
-        depositRaw: event.params.totalDeposit_,
+        depositRaw: event.params.netAllocation_,
         mintedRaw: event.params.totalMinted_,
         leverage: event.params.loops_,
         positionId: event.params.positionId_,
