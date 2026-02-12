@@ -151,9 +151,7 @@ CreditFacility.LoanRebalanced.handler(
     // LoanRebalanced now provides the released amount (delta), not the new total
     const releasedAmount = event.params.releasedCollateralAmount_
     const newLockedCollateralRaw =
-      loan.lockedCollateralRaw > releasedAmount
-        ? loan.lockedCollateralRaw - releasedAmount
-        : 0n
+      loan.lockedCollateralRaw > releasedAmount ? loan.lockedCollateralRaw - releasedAmount : 0n
     const lockedCollateralDelta = -releasedAmount
     const lockedCollateral = formatAmount(newLockedCollateralRaw, collateralToken.decimals)
 
@@ -573,6 +571,34 @@ CreditFacility.MaxLoopsUpdated.handler(
 
     context.log.info(
       `[MaxLoopsUpdated] ✅ Facility max loops updated | facilityId=${facilityId} | newMaxLoops=${event.params.newMaxLoops_.toString()}`
+    )
+  })
+)
+
+CreditFacility.LoanToValueRatioLowered.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const facility = await context.CreditFacilityContract.get(facilityId)
+
+    if (!facility) {
+      context.log.warn(
+        `[LoanToValueRatioLowered] Facility not indexed | facilityId=${facilityId} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const updatedFacility = {
+      ...facility,
+      loanToValueRatio: event.params.newRatio_,
+      lastUpdatedAt: timestamp,
+    }
+    context.CreditFacilityContract.set(updatedFacility)
+
+    await updateMarketMaxLtv(context, facility.market_id, event.params.newRatio_, timestamp)
+
+    context.log.info(
+      `[LoanToValueRatioLowered] ✅ LTV lowered | facilityId=${facilityId} | previous=${event.params.previousRatio_.toString()} | new=${event.params.newRatio_.toString()}`
     )
   })
 )

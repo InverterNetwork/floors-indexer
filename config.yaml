@@ -62,6 +62,7 @@ contracts:
       - event: LoanToValueRatioUpdated
       - event: BorrowingFeeRateUpdated
       - event: MaxLoopsUpdated
+      - event: LoanToValueRatioLowered
       - event: DynamicFeeCalculatorUpdated
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked
@@ -129,6 +130,7 @@ contracts:
       - event: StrategyAdded
       - event: StrategyRemoved
       - event: PerformanceFeeUpdated
+      - event: LastFloorPriceUpdated
       - event: ModuleInitialized
 
 networks:

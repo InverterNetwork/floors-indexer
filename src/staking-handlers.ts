@@ -634,6 +634,57 @@ StakingManager.Rebalanced.handler(
 )
 
 // ============================================================
+// LastFloorPriceUpdated - Update floor price on StakePosition
+// ============================================================
+
+StakingManager.LastFloorPriceUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const stakingManagerId = normalizeAddress(event.srcAddress)
+    const userAddress = normalizeAddress(event.params.user_)
+    const strategyAddress = normalizeAddress(event.params.strategy_)
+    const timestamp = BigInt(event.block.timestamp)
+
+    context.log.info(
+      `[StakingManager.LastFloorPriceUpdated] Handler invoked | stakingManagerId=${stakingManagerId} | user=${userAddress} | strategy=${strategyAddress}`
+    )
+
+    const stakingContext = await loadStakingContext(context, stakingManagerId)
+    if (!stakingContext) {
+      context.log.warn(
+        `[StakingManager.LastFloorPriceUpdated] StakingManager context not found | id=${stakingManagerId}`
+      )
+      return
+    }
+
+    const { issuanceToken } = stakingContext
+    const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
+    const position = await context.StakePosition.get(positionId)
+
+    if (!position) {
+      context.log.warn(
+        `[StakingManager.LastFloorPriceUpdated] Position not found | id=${positionId}`
+      )
+      return
+    }
+
+    const floorPrice = formatAmount(event.params.newFloorPrice_, issuanceToken.decimals)
+
+    const updatedPosition: StakePosition_t = {
+      ...position,
+      floorPriceAtStakeRaw: event.params.newFloorPrice_,
+      floorPriceAtStakeFormatted: floorPrice.formatted,
+      lastUpdatedAt: timestamp,
+    }
+
+    context.StakePosition.set(updatedPosition)
+
+    context.log.info(
+      `[StakingManager.LastFloorPriceUpdated] ✅ Floor price updated | positionId=${positionId} | newFloorPrice=${floorPrice.formatted}`
+    )
+  })
+)
+
+// ============================================================
 // Helper Functions
 // ============================================================
 
