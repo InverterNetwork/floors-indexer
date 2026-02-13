@@ -28,10 +28,16 @@ enum LoanStatus {
   DEFAULTED
 }
 
-enum StakeStatus {
+enum StakePositionStatus {
   ACTIVE
-  UNSTAKED
-  LOCKED
+  WITHDRAWN
+}
+
+enum StakingActivityType {
+  STAKE
+  HARVEST
+  WITHDRAW
+  REBALANCE
 }
 
 enum CandlePeriod {
@@ -52,7 +58,13 @@ enum PresaleConfigEventType {
   PRESALE_STATE_SET
   END_TIMESTAMP_SET
   TIME_SAFEGUARD_SET
-  WHITELIST_UPDATED
+  MERKLE_ROOT_UPDATED
+  MERKLE_WHITELIST_REGISTERED
+  PRESALE_REOPENED
+  DECAY_DURATION_UPDATED
+  INITIAL_MULTIPLIER_UPDATED
+  FEE_MULTIPLIER_DECAY_STARTED
+  FEE_MULTIPLIER_DECAY_RESET
   LENDING_FACILITY_SET
   MODULE_INITIALIZED
   GENERIC
@@ -77,7 +89,7 @@ type Account {
   marketsCreated: [Market!]! @derivedFrom(field: "creator_id")
   trades: [Trade!]! @derivedFrom(field: "user_id")
   loans: [Loan!]! @derivedFrom(field: "borrower_id")
-  stakes: [Stake!]! @derivedFrom(field: "user_id")
+  stakingPositions: [StakePosition!]! @derivedFrom(field: "user_id")
   presaleParticipations: [PresaleParticipation!]! @derivedFrom(field: "user_id")
   userMarketPositions: [UserMarketPosition!]! @derivedFrom(field: "user_id")
 }
@@ -164,20 +176,42 @@ type CreditFacilityContract {
   loans: [Loan!]! @derivedFrom(field: "facility_id")
 }
 
-type StakingContract {
+type StakingManager {
   id: ID!
 
-  stakingToken_id: ID!
-  rewardToken_id: ID!
+  market_id: ID!
+  performanceFeeBps: BigInt!
 
-  totalStakedRaw: BigInt!
-  totalStakedFormatted: String!
+  totalStakedIssuanceRaw: BigInt!
+  totalStakedIssuanceFormatted: String!
 
-  totalRewardsRaw: BigInt!
-  totalRewardsFormatted: String!
+  totalCollateralDeployedRaw: BigInt!
+  totalCollateralDeployedFormatted: String!
+
+  totalYieldHarvestedRaw: BigInt!
+  totalYieldHarvestedFormatted: String!
+
+  totalFeesCapturedRaw: BigInt!
+  totalFeesCapturedFormatted: String!
 
   createdAt: BigInt!
-  stakes: [Stake!]! @derivedFrom(field: "contract_id")
+  lastUpdatedAt: BigInt!
+
+  strategies: [Strategy!]! @derivedFrom(field: "stakingManager_id")
+  positions: [StakePosition!]! @derivedFrom(field: "stakingManager_id")
+}
+
+type Strategy {
+  id: ID!
+
+  stakingManager_id: ID!
+  isActive: Boolean!
+
+  addedAt: BigInt!
+  removedAt: BigInt
+
+  transactionHash: String!
+  positions: [StakePosition!]! @derivedFrom(field: "strategy_id")
 }
 
 type PreSaleContract {
@@ -206,8 +240,17 @@ type PreSaleContract {
   priceBreakpointOffsets: [Int!]
   lendingFacility: String
 
+  # Merkle whitelist fields
+  merkleRoot: String
+
+  # Fee multiplier decay fields
+  initialMultiplier: BigInt
+  decayDuration: BigInt
+  decayStartTime: BigInt
+
   authorizer: String
   feeTreasury: String
+  # Deprecated: Use merkle whitelist instead
   whitelistedAddresses: [String!]
 
   createdAt: BigInt!
@@ -397,17 +440,57 @@ type LoanStatusHistory {
   transactionHash: String!
 }
 
-type Stake {
+type StakePosition {
   id: ID!
 
   user_id: ID!
-  contract_id: ID!
+  stakingManager_id: ID!
+  strategy_id: ID!
 
-  amountRaw: BigInt!
-  amountFormatted: String!
+  issuanceTokenAmountRaw: BigInt!
+  issuanceTokenAmountFormatted: String!
 
-  lockDuration: BigInt!
-  status: StakeStatus!
+  collateralDeployedRaw: BigInt!
+  collateralDeployedFormatted: String!
+
+  floorPriceAtStakeRaw: BigInt!
+  floorPriceAtStakeFormatted: String!
+
+  totalYieldHarvestedRaw: BigInt!
+  totalYieldHarvestedFormatted: String!
+
+  totalFeePaidRaw: BigInt!
+  totalFeePaidFormatted: String!
+
+  status: StakePositionStatus!
+
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+  transactionHash: String!
+
+  activities: [StakingActivity!]! @derivedFrom(field: "position_id")
+}
+
+type StakingActivity {
+  id: ID!
+
+  position_id: ID!
+  stakingManager_id: ID!
+  user_id: ID!
+
+  activityType: StakingActivityType!
+
+  issuanceTokenAmountRaw: BigInt
+  issuanceTokenAmountFormatted: String
+
+  collateralAmountRaw: BigInt
+  collateralAmountFormatted: String
+
+  yieldAmountRaw: BigInt
+  yieldAmountFormatted: String
+
+  feeAmountRaw: BigInt
+  feeAmountFormatted: String
 
   timestamp: BigInt!
   transactionHash: String!
