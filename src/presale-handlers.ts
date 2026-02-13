@@ -10,7 +10,6 @@ import {
   loadPresaleContextOrWarn,
   normalizeAddress,
   PRESALE_LOG_PREFIX,
-  updateWhitelist,
 } from './helpers'
 
 Presale.PresaleBought.handler(
@@ -36,7 +35,7 @@ Presale.PositionCreated.handler(
       event,
       {
         userAddress: event.params.owner_,
-        depositRaw: event.params.totalDeposit_,
+        depositRaw: event.params.netAllocation_,
         mintedRaw: event.params.totalMinted_,
         leverage: event.params.loops_,
         positionId: event.params.positionId_,
@@ -198,36 +197,152 @@ Presale.CreditFacilitySet.handler(
   })
 )
 
-Presale.WhitelistUpdated.handler(
+Presale.MerkleRootUpdated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'WhitelistUpdated')
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'MerkleRootUpdated')
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
-    const change = BigInt(event.params.addresses_.length)
-    const nextWhitelistSize = event.params.added_
-      ? presale.whitelistSize + change
-      : presale.whitelistSize > change
-        ? presale.whitelistSize - change
-        : 0n
-
-    const currentWhitelist = presale.whitelistedAddresses ?? []
-    const whitelistAddresses = event.params.addresses_.map((address) => String(address))
-    const nextWhitelistedAddresses = updateWhitelist(
-      currentWhitelist,
-      whitelistAddresses,
-      event.params.added_
+    context.PreSaleContract.set(
+      applyPresalePatch(
+        presale,
+        {
+          merkleRoot: event.params.newRoot_,
+        },
+        timestamp
+      )
     )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} MerkleRootUpdated | presale=${presale.id} | newRoot=${event.params.newRoot_}`
+    )
+  })
+)
+
+Presale.MerkleWhitelistRegistered.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'MerkleWhitelistRegistered')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    const nextWhitelistSize = presale.whitelistSize + 1n
 
     context.PreSaleContract.set(
       applyPresalePatch(
         presale,
         {
           whitelistSize: nextWhitelistSize,
-          whitelistedAddresses: nextWhitelistedAddresses,
         },
         timestamp
       )
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} MerkleWhitelistRegistered | presale=${presale.id} | account=${event.params.account_} | totalRegistered=${nextWhitelistSize}`
+    )
+  })
+)
+
+Presale.PresaleReopened.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'PresaleReopened')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    context.PreSaleContract.set(
+      applyPresalePatch(presale, { currentState: Number(event.params.newState_) }, timestamp)
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} PresaleReopened | presale=${presale.id} | from=${event.params.previousState_} | to=${event.params.newState_}`
+    )
+  })
+)
+
+Presale.DecayDurationUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'DecayDurationUpdated')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    context.PreSaleContract.set(
+      applyPresalePatch(
+        presale,
+        {
+          decayDuration: event.params.newDuration_,
+        },
+        timestamp
+      )
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} DecayDurationUpdated | presale=${presale.id} | oldDuration=${event.params.oldDuration_} | newDuration=${event.params.newDuration_}`
+    )
+  })
+)
+
+Presale.InitialMultiplierUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'InitialMultiplierUpdated')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    context.PreSaleContract.set(
+      applyPresalePatch(
+        presale,
+        {
+          initialMultiplier: BigInt(event.params.newMultiplier_),
+        },
+        timestamp
+      )
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} InitialMultiplierUpdated | presale=${presale.id} | oldMultiplier=${event.params.oldMultiplier_} | newMultiplier=${event.params.newMultiplier_}`
+    )
+  })
+)
+
+Presale.FeeMultiplierDecayStarted.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'FeeMultiplierDecayStarted')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    context.PreSaleContract.set(
+      applyPresalePatch(
+        presale,
+        {
+          decayStartTime: event.params.startTime_,
+        },
+        timestamp
+      )
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} FeeMultiplierDecayStarted | presale=${presale.id} | startTime=${event.params.startTime_}`
+    )
+  })
+)
+
+Presale.FeeMultiplierDecayReset.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'FeeMultiplierDecayReset')
+    if (!presaleContext) return
+    const { presale, timestamp } = presaleContext
+
+    context.PreSaleContract.set(
+      applyPresalePatch(
+        presale,
+        {
+          decayStartTime: 0n,
+        },
+        timestamp
+      )
+    )
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} FeeMultiplierDecayReset | presale=${presale.id}`
     )
   })
 )

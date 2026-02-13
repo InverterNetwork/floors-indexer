@@ -25,6 +25,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_COMMISSION_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addToWhitelistWithProof",
     "inputs": [
       {
@@ -57,6 +70,11 @@
         "name": "deposit_",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -80,7 +98,7 @@
   },
   {
     "type": "function",
-    "name": "buyPresaleWithLeverage",
+    "name": "buyPresaleWithLoops",
     "inputs": [
       {
         "name": "deposit_",
@@ -88,7 +106,12 @@
         "internalType": "uint256"
       },
       {
-        "name": "leverageIndex_",
+        "name": "loopCount_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minAmountOut_",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -322,7 +345,7 @@
             "internalType": "address"
           },
           {
-            "name": "totalDeposit",
+            "name": "netAllocation",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -332,7 +355,7 @@
             "internalType": "uint256"
           },
           {
-            "name": "leverage",
+            "name": "loopCount",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -447,6 +470,35 @@
         "name": "startTime_",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserTotalTokens",
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "totalClaimable_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalLocked_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalClaimed_",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -929,7 +981,7 @@
         "internalType": "address"
       },
       {
-        "name": "totalDeposit_",
+        "name": "netAllocation_",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -982,6 +1034,25 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PresaleReopened",
+    "inputs": [
+      {
+        "name": "previousState_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IPresale_v1.PresaleState"
+      },
+      {
+        "name": "newState_",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IPresale_v1.PresaleState"
       }
     ],
     "anonymous": false
@@ -1109,8 +1180,45 @@
   },
   {
     "type": "error",
-    "name": "Presale__GlobalCapExceeded",
+    "name": "Presale__CannotModifyAfterStart",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Presale__FeeExceedsDeposit",
+    "inputs": [
+      {
+        "name": "fee_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deposit_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__GlobalCapExceeded",
+    "inputs": [
+      {
+        "name": "currentIssuance_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "attemptedMint_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -1130,10 +1238,10 @@
   },
   {
     "type": "error",
-    "name": "Presale__InvalidLeverageIndex",
+    "name": "Presale__InvalidLoopCount",
     "inputs": [
       {
-        "name": "leverageIndex_",
+        "name": "loopCount_",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1168,6 +1276,22 @@
   },
   {
     "type": "error",
+    "name": "Presale__InvalidTransition",
+    "inputs": [
+      {
+        "name": "from_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      },
+      {
+        "name": "to_",
+        "type": "uint8",
+        "internalType": "enum IPresale_v1.PresaleState"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "Presale__NotEnded",
     "inputs": []
   },
@@ -1189,7 +1313,44 @@
   {
     "type": "error",
     "name": "Presale__PerAddressCapExceeded",
-    "inputs": []
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "currentIssuance_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "cap_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "attemptedMint_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__SlippageExceeded",
+    "inputs": [
+      {
+        "name": "received_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minRequired_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -1202,6 +1363,17 @@
       },
       {
         "name": "trancheIndex_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Presale__Unsorted",
+    "inputs": [
+      {
+        "name": "idx_",
         "type": "uint256",
         "internalType": "uint256"
       }

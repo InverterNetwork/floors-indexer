@@ -181,23 +181,6 @@ export async function handleParticipation(
   )
 }
 
-export function updateWhitelist(
-  currentWhitelist: readonly string[],
-  addresses: readonly string[],
-  added: boolean
-): string[] {
-  const normalizedAddresses = addresses.map(normalizeAddress)
-  if (added) {
-    const set = new Set(currentWhitelist)
-    normalizedAddresses.forEach((addr) => set.add(addr))
-    return Array.from(set)
-  } else {
-    const set = new Set(currentWhitelist)
-    normalizedAddresses.forEach((addr) => set.delete(addr))
-    return Array.from(set)
-  }
-}
-
 export type FlattenedPriceBreakpoints = {
   flat: bigint[]
   offsets: number[]

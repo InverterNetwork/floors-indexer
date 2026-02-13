@@ -35,6 +35,7 @@ contracts:
       - event: VirtualCollateralAmountSubtracted
       - event: VirtualCollateralSupplySet
       - event: FloorIncreased
+      - event: FloorAdjustedToSupply
       - event: BuyingEnabled
       - event: BuyingDisabled
       - event: SellingEnabled
@@ -60,7 +61,8 @@ contracts:
       - event: LoansConsolidated
       - event: LoanToValueRatioUpdated
       - event: BorrowingFeeRateUpdated
-      - event: MaxLeverageUpdated
+      - event: MaxLoopsUpdated
+      - event: LoanToValueRatioLowered
       - event: DynamicFeeCalculatorUpdated
       - event: IssuanceTokensLocked
       - event: IssuanceTokensUnlocked
@@ -95,7 +97,13 @@ contracts:
       - event: PresaleStateSet
       - event: PriceBreakpointsSet
       - event: TrancheClaimed
-      - event: WhitelistUpdated
+      - event: MerkleRootUpdated
+      - event: MerkleWhitelistRegistered
+      - event: PresaleReopened
+      - event: DecayDurationUpdated
+      - event: InitialMultiplierUpdated
+      - event: FeeMultiplierDecayStarted
+      - event: FeeMultiplierDecayReset
 
   - name: Authorizer
     abi_file_path: abis/AUT_Roles_v2.json
@@ -109,9 +117,24 @@ contracts:
       - event: RoleGranted
       - event: RoleRevoked
       - event: RoleAdminBurned
+      - event: ModuleInitialized
+
+  - name: StakingManager
+    abi_file_path: abis/StakingManager_v1.json
+    handler: src/index.ts
+    events:
+      - event: Staked
+      - event: YieldHarvested
+      - event: FundsWithdrawn
+      - event: Rebalanced
+      - event: StrategyAdded
+      - event: StrategyRemoved
+      - event: PerformanceFeeUpdated
+      - event: LastFloorPriceUpdated
+      - event: ModuleInitialized
 
 networks:
-  - id: 31337 # Local Anvil
+  - id: 31337 # Local Anvil (forked) or Remote Avalanche Fork
     start_block: 77922800
     rpc_config:
       # Allow overriding the RPC endpoint (e.g. local Anvil) via RPC_URL_31337
@@ -131,4 +154,6 @@ networks:
       - name: Presale
         address:
       - name: Authorizer
+        address:
+      - name: StakingManager
         address:
