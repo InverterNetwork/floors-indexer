@@ -516,12 +516,12 @@
     "name": "renounceRole",
     "inputs": [
       {
-        "name": "role",
+        "name": "role_",
         "type": "bytes32",
         "internalType": "bytes32"
       },
       {
-        "name": "callerConfirmation",
+        "name": "callerConfirmation_",
         "type": "address",
         "internalType": "address"
       }
@@ -846,6 +846,11 @@
   {
     "type": "error",
     "name": "Module__Authorizer__CannotModifyAdminRoleAccess",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__Authorizer__CannotRenounceLastAdmin",
     "inputs": []
   },
   {

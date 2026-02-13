@@ -699,6 +699,47 @@ FloorMarket.FloorIncreased.handler(
   })
 )
 
+FloorMarket.FloorAdjustedToSupply.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const moduleAddress = normalizeAddress(event.srcAddress)
+    const marketId = await resolveMarketIdFromModuleAddress(context, moduleAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    const market = await getOrCreateMarket(
+      context,
+      event.chainId,
+      marketId,
+      timestamp,
+      undefined,
+      undefined,
+      event.srcAddress as `0x${string}`
+    )
+
+    if (!market) {
+      context.log.warn(`[FloorAdjustedToSupply] Market not found: ${marketId}`)
+      return
+    }
+
+    const issuanceToken = await context.Token.get(market.issuanceToken_id)
+    if (!issuanceToken) {
+      context.log.warn(`[FloorAdjustedToSupply] Issuance token not found | marketId=${marketId}`)
+      return
+    }
+
+    const supplyAmount = formatAmount(event.params.supply_, issuanceToken.decimals)
+
+    const updatedMarket = {
+      ...market,
+      totalSupplyRaw: event.params.supply_,
+      totalSupplyFormatted: supplyAmount.formatted,
+      lastUpdatedAt: timestamp,
+    }
+    context.Market.set(updatedMarket)
+    context.log.info(
+      `[FloorAdjustedToSupply] ✅ Supply adjusted | marketId=${marketId} | newSupply=${supplyAmount.formatted}`
+    )
+  })
+)
+
 FloorMarket.BuyingEnabled.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const moduleAddress = normalizeAddress(event.srcAddress)
