@@ -4,6 +4,7 @@
 import { FloorFactory, ModuleFactory } from '../generated/src/Handlers.gen'
 import {
   extractModuleType,
+  fetchGovernorAddressEffect,
   fetchTokenAddressesFromBCEffect,
   fetchTrustedForwarderEffect,
   getOrCreateMarket,
@@ -56,11 +57,30 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     )
   }
 
+  // Fetch governor address from ModuleFactory via Effect API
+  const governorResult = await fetchGovernorAddressEffect(context.effect)({
+    chainId: event.chainId,
+    moduleFactoryAddress: moduleFactoryAddress as `0x${string}`,
+  })
+
+  const governorAddress = governorResult?.governor
+
+  if (governorAddress) {
+    context.log.info(
+      `[FloorFactoryInitialized] ✅ Fetched governor | address=${governorAddress}`
+    )
+  } else {
+    context.log.warn(
+      `[FloorFactoryInitialized] ⚠️ Could not fetch governor | moduleFactory=${moduleFactoryAddress}`
+    )
+  }
+
   context.GlobalRegistry.set({
     id: 'global-registry',
     floorFactoryAddress: normalizeAddress(floorFactoryAddress),
     moduleFactoryAddress: normalizeAddress(moduleFactoryAddress),
     trustedForwarderAddress: trustedForwarderAddress || '',
+    governorAddress: governorAddress || '',
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })

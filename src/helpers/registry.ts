@@ -4,6 +4,7 @@ import type { ModuleAddress_t, ModuleRegistry_t } from 'generated/src/db/Entitie
 import type { Abi } from 'viem'
 
 import FLOOR_FACTORY_ABI from '../../abis/FloorFactory_v1.json'
+import MODULE_FACTORY_ABI from '../../abis/ModuleFactory_v1.json'
 import { getPublicClient } from '../rpc-client'
 import { wrapEffect } from './effects'
 import { normalizeAddress } from './misc'
@@ -13,6 +14,7 @@ import { normalizeAddress } from './misc'
 // =============================================================================
 
 const FLOOR_FACTORY_ABI_TYPED = FLOOR_FACTORY_ABI as Abi
+const MODULE_FACTORY_ABI_TYPED = MODULE_FACTORY_ABI as Abi
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -47,6 +49,46 @@ export const fetchTrustedForwarderEffect = wrapEffect(
 
         return {
           trustedForwarder: result.toLowerCase(),
+        }
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
+// Governor Address Effect
+// =============================================================================
+
+export const fetchGovernorAddressEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchGovernorAddress',
+      input: { chainId: S.number, moduleFactoryAddress: S.string },
+      output: S.nullable(S.schema({ governor: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.moduleFactoryAddress as `0x${string}`
+
+        const result = await client.readContract({
+          address: target,
+          abi: MODULE_FACTORY_ABI_TYPED,
+          functionName: 'governor',
+        })
+
+        if (typeof result !== 'string') {
+          context.cache = false
+          return undefined
+        }
+
+        return {
+          governor: result.toLowerCase(),
         }
       } catch {
         context.cache = false
