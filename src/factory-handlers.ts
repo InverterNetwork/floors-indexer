@@ -70,9 +70,43 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     floorFactoryAddress: normalizeAddress(floorFactoryAddress),
     moduleFactoryAddress: normalizeAddress(moduleFactoryAddress),
     trustedForwarderAddress: trustedForwarderAddress || '',
+    governorAddress: '',
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })
+})
+
+/**
+ * @notice Handler for GovernorSet event from ModuleFactory
+ * Updates GlobalRegistry with the governor address when it is set
+ */
+ModuleFactory.GovernorSet.handler(async ({ event, context }) => {
+  const governorAddress = normalizeAddress(event.params.governor_)
+
+  context.log.info(`[GovernorSet] Governor address set | governor=${governorAddress}`)
+
+  const existing = await context.GlobalRegistry.get('global-registry')
+
+  if (existing) {
+    context.GlobalRegistry.set({
+      ...existing,
+      governorAddress,
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    })
+  } else {
+    context.log.warn(
+      `[GovernorSet] GlobalRegistry not found, creating with governor only | governor=${governorAddress}`
+    )
+    context.GlobalRegistry.set({
+      id: 'global-registry',
+      floorFactoryAddress: '',
+      moduleFactoryAddress: normalizeAddress(event.srcAddress),
+      trustedForwarderAddress: '',
+      governorAddress,
+      createdAt: BigInt(event.block.timestamp),
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    })
+  }
 })
 
 /**
