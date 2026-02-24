@@ -39,13 +39,22 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     `[FloorFactoryInitialized] Handler entry | moduleFactoryAddress=${moduleFactoryAddress}`
   )
 
-  // Fetch trusted forwarder address from FloorFactory via Effect API
-  const trustedForwarderResult = await fetchTrustedForwarderEffect(context.effect)({
-    chainId: event.chainId,
-    floorFactoryAddress,
-  })
-
-  const trustedForwarderAddress = trustedForwarderResult?.trustedForwarder
+  // Fetch trusted forwarder address from FloorFactory via Effect API (with retry)
+  let trustedForwarderAddress: string | undefined
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const result = await fetchTrustedForwarderEffect(context.effect)({
+      chainId: event.chainId,
+      floorFactoryAddress,
+    })
+    trustedForwarderAddress = result?.trustedForwarder
+    if (trustedForwarderAddress) break
+    if (attempt < 3) {
+      context.log.warn(
+        `[FloorFactoryInitialized] ⚠️ trustedForwarder fetch attempt ${attempt}/3 failed, retrying...`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+    }
+  }
 
   if (trustedForwarderAddress) {
     context.log.info(
@@ -53,7 +62,7 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     )
   } else {
     context.log.warn(
-      `[FloorFactoryInitialized] ⚠️ Could not fetch trustedForwarder | floorFactory=${floorFactoryAddress}`
+      `[FloorFactoryInitialized] ⚠️ Could not fetch trustedForwarder after 3 attempts | floorFactory=${floorFactoryAddress}`
     )
   }
 
@@ -84,6 +93,39 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })
+})
+
+/**
+ * @notice Handler for GovernorSet event from ModuleFactory
+ * Updates GlobalRegistry with the governor address when it is set
+ */
+ModuleFactory.GovernorSet.handler(async ({ event, context }) => {
+  const governorAddress = normalizeAddress(event.params.governor_)
+
+  context.log.info(`[GovernorSet] Governor address set | governor=${governorAddress}`)
+
+  const existing = await context.GlobalRegistry.get('global-registry')
+
+  if (existing) {
+    context.GlobalRegistry.set({
+      ...existing,
+      governorAddress,
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    })
+  } else {
+    context.log.warn(
+      `[GovernorSet] GlobalRegistry not found, creating with governor only | governor=${governorAddress}`
+    )
+    context.GlobalRegistry.set({
+      id: 'global-registry',
+      floorFactoryAddress: '',
+      moduleFactoryAddress: normalizeAddress(event.srcAddress),
+      trustedForwarderAddress: '',
+      governorAddress,
+      createdAt: BigInt(event.block.timestamp),
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    })
+  }
 })
 
 /**

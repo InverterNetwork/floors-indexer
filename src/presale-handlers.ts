@@ -12,18 +12,17 @@ import {
   PRESALE_LOG_PREFIX,
 } from './helpers'
 
+// NOTE: PresaleBought is intentionally a no-op. Participation tracking is
+// handled exclusively by the PositionCreated handler (which has positionId).
+// Both events fire per purchase — handling both would double-count
+// totalRaisedRaw, totalParticipants, and create duplicate participation records.
 Presale.PresaleBought.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    await handleParticipation(
-      context,
-      event,
-      {
-        userAddress: event.params.buyer_,
-        depositRaw: event.params.deposit_,
-        mintedRaw: event.params.totalMinted_,
-        leverage: event.params.loopCount_,
-      },
-      'PresaleBought'
+    const presaleContext = await loadPresaleContextOrWarn(context, event, 'PresaleBought')
+    if (!presaleContext) return
+
+    context.log.info(
+      `${PRESALE_LOG_PREFIX} PresaleBought | presale=${presaleContext.presale.id} | buyer=${event.params.buyer_} | loopCount=${event.params.loopCount_} | totalMinted=${event.params.totalMinted_} | multiplier=${event.params.multiplier_}`
     )
   })
 )

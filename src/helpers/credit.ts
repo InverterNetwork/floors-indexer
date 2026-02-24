@@ -27,7 +27,6 @@ export const fetchLoanStateEffect = wrapEffect(
           id: S.string,
           borrower: S.string,
           lockedIssuanceTokens: S.string,
-          floorPriceAtBorrow: S.string,
           remainingLoanAmount: S.string,
           timestamp: S.string,
           isActive: S.boolean,
@@ -51,7 +50,6 @@ export const fetchLoanStateEffect = wrapEffect(
           id: bigint
           borrower: string
           lockedIssuanceTokens: bigint
-          floorPriceAtBorrow: bigint
           remainingLoanAmount: bigint
           timestamp: bigint
           isActive: boolean
@@ -66,7 +64,6 @@ export const fetchLoanStateEffect = wrapEffect(
           id: loan.id.toString(),
           borrower: loan.borrower.toLowerCase(),
           lockedIssuanceTokens: loan.lockedIssuanceTokens.toString(),
-          floorPriceAtBorrow: loan.floorPriceAtBorrow.toString(),
           remainingLoanAmount: loan.remainingLoanAmount.toString(),
           timestamp: loan.timestamp.toString(),
           isActive: loan.isActive,
@@ -90,7 +87,6 @@ export type CreditFacilityLoanState = {
   id: bigint
   borrower: string
   lockedIssuanceTokens: bigint
-  floorPriceAtBorrow: bigint
   remainingLoanAmount: bigint
   timestamp: bigint
   isActive: boolean
@@ -105,7 +101,6 @@ export function parseLoanStateResult(
         id: string
         borrower: string
         lockedIssuanceTokens: string
-        floorPriceAtBorrow: string
         remainingLoanAmount: string
         timestamp: string
         isActive: boolean
@@ -119,7 +114,6 @@ export function parseLoanStateResult(
     id: BigInt(effectResult.id),
     borrower: effectResult.borrower,
     lockedIssuanceTokens: BigInt(effectResult.lockedIssuanceTokens),
-    floorPriceAtBorrow: BigInt(effectResult.floorPriceAtBorrow),
     remainingLoanAmount: BigInt(effectResult.remainingLoanAmount),
     timestamp: BigInt(effectResult.timestamp),
     isActive: effectResult.isActive,

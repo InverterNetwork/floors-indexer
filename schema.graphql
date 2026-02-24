@@ -493,6 +493,8 @@ type StakingActivity {
   feeAmountRaw: BigInt
   feeAmountFormatted: String
 
+  receiver: String
+
   timestamp: BigInt!
   transactionHash: String!
 }

@@ -2,7 +2,7 @@ import assert from 'assert'
 // TestHelpers MUST be imported first to initialize the Envio framework
 import { TestHelpers } from 'generated'
 import type { Token_t } from 'generated/src/db/Entities.gen'
-import { getAddress } from 'viem'
+import { encodeAbiParameters, getAddress, parseAbiParameters } from 'viem'
 
 // Set MOCK_RPC before importing handlers that might make RPC calls
 process.env.MOCK_RPC = 'true'
@@ -69,7 +69,7 @@ const STAKE_AMOUNT = 10_000_000_000000000000n // 10 FLOOR with 18 decimals
 const COLLATERAL_DEPLOYED = 5_000_000n // 5 USDC with 6 decimals
 const YIELD_AMOUNT = 500_000n // 0.5 USDC with 6 decimals
 const FEE_AMOUNT = 50_000n // 0.05 USDC with 6 decimals
-const FLOOR_PRICE_AT_STAKE = 1_000_000n // 1 USDC per FLOOR
+const FLOOR_PRICE_AT_STAKE = 1_000_000_000000000000n // 1.0 in 18-decimal fixed-point
 
 const USDC_TOKEN: Token_t = {
   id: USDC_ADDRESS_CHECKSUM,
@@ -93,6 +93,7 @@ const FLOOR_TOKEN: Token_t = {
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 const PUBLIC_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const CUSTOM_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000002'
+const STAKING_CONFIG_PARAMS = parseAbiParameters('uint256')
 
 /**
  * Bootstrap helper that creates a MockDb with FloorFactory and ModuleFactory registered.
@@ -2432,7 +2433,7 @@ describe('Floor Markets Indexer', () => {
         floor: MARKET_ADDRESS,
         authorizer: AUTHORIZER_ADDRESS,
         feeTreasury: TREASURY_ADDRESS,
-        configData: '0x',
+        configData: encodeAbiParameters(STAKING_CONFIG_PARAMS, [1000n]),
         mockEventData: {
           srcAddress: STAKING_MANAGER_ADDRESS,
           chainId: 31337,
@@ -2447,8 +2448,21 @@ describe('Floor Markets Indexer', () => {
       const stakingManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
       assert.ok(stakingManager, 'StakingManager should exist')
       assert.equal(stakingManager?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should match')
-      assert.equal(stakingManager?.totalStakedIssuanceRaw, 0n, 'totalStakedIssuanceRaw should start at 0')
-      assert.equal(stakingManager?.totalCollateralDeployedRaw, 0n, 'totalCollateralDeployedRaw should start at 0')
+      assert.equal(
+        stakingManager?.performanceFeeBps,
+        1000n,
+        'performanceFeeBps should decode from configData'
+      )
+      assert.equal(
+        stakingManager?.totalStakedIssuanceRaw,
+        0n,
+        'totalStakedIssuanceRaw should start at 0'
+      )
+      assert.equal(
+        stakingManager?.totalCollateralDeployedRaw,
+        0n,
+        'totalCollateralDeployedRaw should start at 0'
+      )
     })
 
     it('handles StrategyAdded', async () => {
@@ -2469,7 +2483,11 @@ describe('Floor Markets Indexer', () => {
 
       const strategy = db.entities.Strategy.get(STRATEGY_ADDRESS_CHECKSUM)
       assert.ok(strategy, 'Strategy should exist')
-      assert.equal(strategy?.stakingManager_id, STAKING_MANAGER_ADDRESS_CHECKSUM, 'stakingManager_id should match')
+      assert.equal(
+        strategy?.stakingManager_id,
+        STAKING_MANAGER_ADDRESS_CHECKSUM,
+        'stakingManager_id should match'
+      )
       assert.equal(strategy?.isActive, true, 'isActive should be true')
       assert.equal(strategy?.transactionHash, '0xstrategy1', 'transactionHash should match')
     })
@@ -2606,19 +2624,68 @@ describe('Floor Markets Indexer', () => {
       const position = db.entities.StakePosition.get(positionId)
       assert.ok(position, 'StakePosition should exist')
       assert.equal(position?.user_id, normalizedUser, 'user_id should match')
-      assert.equal(position?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
-      assert.equal(position?.collateralDeployedRaw, COLLATERAL_DEPLOYED, 'collateralDeployedRaw should match')
-      assert.equal(position?.floorPriceAtStakeRaw, FLOOR_PRICE_AT_STAKE, 'floorPriceAtStakeRaw should match')
+      assert.equal(
+        position?.issuanceTokenAmountRaw,
+        STAKE_AMOUNT,
+        'issuanceTokenAmountRaw should match'
+      )
+      assert.equal(
+        position?.collateralDeployedRaw,
+        COLLATERAL_DEPLOYED,
+        'collateralDeployedRaw should match'
+      )
+      assert.equal(
+        position?.floorPriceAtStakeRaw,
+        FLOOR_PRICE_AT_STAKE,
+        'floorPriceAtStakeRaw should match'
+      )
+      assert.equal(
+        position?.issuanceTokenAmountFormatted,
+        '10',
+        'issuance amount formatting should use issuance token decimals'
+      )
+      assert.equal(
+        position?.collateralDeployedFormatted,
+        '5',
+        'collateral formatting should use reserve token decimals'
+      )
+      assert.equal(
+        position?.floorPriceAtStakeFormatted,
+        '1',
+        'floor price formatting should use fixed 18 decimals'
+      )
       assert.equal(position?.status, 'ACTIVE', 'status should be ACTIVE')
 
       const activity = db.entities.StakingActivity.get('0xstake1-0')
       assert.ok(activity, 'StakingActivity should exist')
       assert.equal(activity?.activityType, 'STAKE', 'activityType should be STAKE')
-      assert.equal(activity?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
+      assert.equal(
+        activity?.issuanceTokenAmountRaw,
+        STAKE_AMOUNT,
+        'issuanceTokenAmountRaw should match'
+      )
 
       const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
-      assert.equal(updatedManager?.totalStakedIssuanceRaw, STAKE_AMOUNT, 'totalStakedIssuanceRaw should be updated')
-      assert.equal(updatedManager?.totalCollateralDeployedRaw, COLLATERAL_DEPLOYED, 'totalCollateralDeployedRaw should be updated')
+      assert.equal(
+        updatedManager?.totalStakedIssuanceRaw,
+        STAKE_AMOUNT,
+        'totalStakedIssuanceRaw should be updated'
+      )
+      assert.equal(
+        updatedManager?.totalCollateralDeployedRaw,
+        COLLATERAL_DEPLOYED,
+        'totalCollateralDeployedRaw should be updated'
+      )
+      assert.equal(
+        updatedManager?.totalStakedIssuanceFormatted,
+        '10',
+        'manager issuance formatting should use issuance token decimals'
+      )
+      assert.equal(
+        updatedManager?.totalCollateralDeployedFormatted,
+        '5',
+        'manager collateral formatting should use reserve token decimals'
+      )
     })
 
     it('handles YieldHarvested event', async () => {
@@ -2694,8 +2761,26 @@ describe('Floor Markets Indexer', () => {
 
       const updatedPosition = db.entities.StakePosition.get(positionId)
       assert.ok(updatedPosition, 'StakePosition should exist')
-      assert.equal(updatedPosition?.totalYieldHarvestedRaw, YIELD_AMOUNT, 'totalYieldHarvestedRaw should be updated')
-      assert.equal(updatedPosition?.totalFeePaidRaw, FEE_AMOUNT, 'totalFeePaidRaw should be updated')
+      assert.equal(
+        updatedPosition?.totalYieldHarvestedRaw,
+        YIELD_AMOUNT,
+        'totalYieldHarvestedRaw should be updated'
+      )
+      assert.equal(
+        updatedPosition?.totalFeePaidRaw,
+        FEE_AMOUNT,
+        'totalFeePaidRaw should be updated'
+      )
+      assert.equal(
+        updatedPosition?.totalYieldHarvestedFormatted,
+        '0.5',
+        'yield formatting should use reserve token decimals'
+      )
+      assert.equal(
+        updatedPosition?.totalFeePaidFormatted,
+        '0.05',
+        'fee formatting should use reserve token decimals'
+      )
 
       const activity = db.entities.StakingActivity.get('0xharvest1-0')
       assert.ok(activity, 'StakingActivity should exist')
@@ -2704,8 +2789,26 @@ describe('Floor Markets Indexer', () => {
       assert.equal(activity?.feeAmountRaw, FEE_AMOUNT, 'feeAmountRaw should match')
 
       const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
-      assert.equal(updatedManager?.totalYieldHarvestedRaw, YIELD_AMOUNT, 'totalYieldHarvestedRaw should be updated')
-      assert.equal(updatedManager?.totalFeesCapturedRaw, FEE_AMOUNT, 'totalFeesCapturedRaw should be updated')
+      assert.equal(
+        updatedManager?.totalYieldHarvestedRaw,
+        YIELD_AMOUNT,
+        'totalYieldHarvestedRaw should be updated'
+      )
+      assert.equal(
+        updatedManager?.totalFeesCapturedRaw,
+        FEE_AMOUNT,
+        'totalFeesCapturedRaw should be updated'
+      )
+      assert.equal(
+        updatedManager?.totalYieldHarvestedFormatted,
+        '0.5',
+        'manager yield formatting should use reserve token decimals'
+      )
+      assert.equal(
+        updatedManager?.totalFeesCapturedFormatted,
+        '0.05',
+        'manager fee formatting should use reserve token decimals'
+      )
     })
 
     it('handles FundsWithdrawn event', async () => {
@@ -2781,19 +2884,35 @@ describe('Floor Markets Indexer', () => {
 
       const updatedPosition = db.entities.StakePosition.get(positionId)
       assert.ok(updatedPosition, 'StakePosition should exist')
-      assert.equal(updatedPosition?.issuanceTokenAmountRaw, 0n, 'issuanceTokenAmountRaw should be 0')
+      assert.equal(
+        updatedPosition?.issuanceTokenAmountRaw,
+        0n,
+        'issuanceTokenAmountRaw should be 0'
+      )
       assert.equal(updatedPosition?.collateralDeployedRaw, 0n, 'collateralDeployedRaw should be 0')
       assert.equal(updatedPosition?.status, 'WITHDRAWN', 'status should be WITHDRAWN')
 
       const activity = db.entities.StakingActivity.get('0xwithdraw1-0')
       assert.ok(activity, 'StakingActivity should exist')
       assert.equal(activity?.activityType, 'WITHDRAW', 'activityType should be WITHDRAW')
-      assert.equal(activity?.issuanceTokenAmountRaw, STAKE_AMOUNT, 'issuanceTokenAmountRaw should match')
-      assert.equal(activity?.collateralAmountRaw, COLLATERAL_DEPLOYED, 'collateralAmountRaw should match')
+      assert.equal(
+        activity?.issuanceTokenAmountRaw,
+        STAKE_AMOUNT,
+        'issuanceTokenAmountRaw should match'
+      )
+      assert.equal(
+        activity?.collateralAmountRaw,
+        COLLATERAL_DEPLOYED,
+        'collateralAmountRaw should match'
+      )
 
       const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
       assert.equal(updatedManager?.totalStakedIssuanceRaw, 0n, 'totalStakedIssuanceRaw should be 0')
-      assert.equal(updatedManager?.totalCollateralDeployedRaw, 0n, 'totalCollateralDeployedRaw should be 0')
+      assert.equal(
+        updatedManager?.totalCollateralDeployedRaw,
+        0n,
+        'totalCollateralDeployedRaw should be 0'
+      )
     })
 
     it('handles Rebalanced event', async () => {
@@ -2878,7 +2997,11 @@ describe('Floor Markets Indexer', () => {
       const activity = db.entities.StakingActivity.get('0xrebalance1-0')
       assert.ok(activity, 'StakingActivity should exist')
       assert.equal(activity?.activityType, 'REBALANCE', 'activityType should be REBALANCE')
-      assert.equal(activity?.collateralAmountRaw, additionalCollateral, 'collateralAmountRaw should match')
+      assert.equal(
+        activity?.collateralAmountRaw,
+        additionalCollateral,
+        'collateralAmountRaw should match'
+      )
 
       const updatedManager = db.entities.StakingManager.get(STAKING_MANAGER_ADDRESS_CHECKSUM)
       assert.equal(
