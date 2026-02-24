@@ -49,12 +49,10 @@ CreditFacility.LoanCreated.handler(
     const onChainLoan = parseLoanStateResult(loanStateResult)
     const lockedCollateralRaw = onChainLoan?.lockedIssuanceTokens ?? 0n
     const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? event.params.loanAmount_
-    const floorPriceRaw = onChainLoan?.floorPriceAtBorrow ?? 0n
 
     const borrowAmount = formatAmount(event.params.loanAmount_, borrowToken.decimals)
     const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
     const remainingDebt = formatAmount(remainingDebtRaw, borrowToken.decimals)
-    const floorPriceAtBorrow = formatAmount(floorPriceRaw, borrowToken.decimals)
 
     const loan = {
       id: loanId,
@@ -69,8 +67,8 @@ CreditFacility.LoanCreated.handler(
       originationFeeFormatted: '0',
       remainingDebtRaw,
       remainingDebtFormatted: remainingDebt.formatted,
-      floorPriceAtBorrowRaw: floorPriceRaw,
-      floorPriceAtBorrowFormatted: floorPriceAtBorrow.formatted,
+      floorPriceAtBorrowRaw: 0n,
+      floorPriceAtBorrowFormatted: '0',
       status: 'ACTIVE' as LoanStatus_t,
       openedAt: timestamp,
       closedAt: undefined,
