@@ -40,7 +40,7 @@ StakingManager.ModuleInitialized.handler(
     const existingManager = await context.StakingManager.get(stakingManagerId)
     const performanceFeeBps =
       existingManager?.performanceFeeBps ??
-      decodeStakingPerformanceFee(event.params.configData, context.log)
+      decodeStakingPerformanceFee(event.params.configData as `0x${string}`, context.log)
 
     const stakingManager: StakingManager_t = {
       id: stakingManagerId,
