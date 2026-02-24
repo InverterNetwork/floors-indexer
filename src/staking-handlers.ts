@@ -1,6 +1,7 @@
 // Staking event handlers for Floor Markets DeFi Platform
 
 import type { handlerContext } from 'generated'
+import { decodeAbiParameters, parseAbiParameters } from 'viem'
 
 import type {
   StakePosition_t,
@@ -19,6 +20,9 @@ import {
   normalizeAddress,
 } from './helpers'
 
+const FLOOR_PRICE_DECIMALS = 18
+const STAKING_CONFIG_PARAMS = parseAbiParameters('uint256')
+
 // ============================================================
 // ModuleInitialized - Create/update StakingManager
 // ============================================================
@@ -34,11 +38,14 @@ StakingManager.ModuleInitialized.handler(
     )
 
     const existingManager = await context.StakingManager.get(stakingManagerId)
+    const performanceFeeBps =
+      existingManager?.performanceFeeBps ??
+      decodeStakingPerformanceFee(event.params.configData, context.log)
 
     const stakingManager: StakingManager_t = {
       id: stakingManagerId,
       market_id: floorAddress,
-      performanceFeeBps: existingManager?.performanceFeeBps ?? 0n,
+      performanceFeeBps,
       totalStakedIssuanceRaw: existingManager?.totalStakedIssuanceRaw ?? 0n,
       totalStakedIssuanceFormatted: existingManager?.totalStakedIssuanceFormatted ?? '0',
       totalCollateralDeployedRaw: existingManager?.totalCollateralDeployedRaw ?? 0n,
@@ -189,7 +196,7 @@ StakingManager.Staked.handler(
       return
     }
 
-    const { manager, issuanceToken } = stakingContext
+    const { manager, issuanceToken, reserveToken } = stakingContext
     const user = await getOrCreateAccount(context, event.params.user_)
 
     // Create or update position
@@ -197,8 +204,8 @@ StakingManager.Staked.handler(
     const existingPosition = await context.StakePosition.get(positionId)
 
     const issuanceAmount = formatAmount(event.params.issuanceTokenAmount_, issuanceToken.decimals)
-    const collateralAmount = formatAmount(event.params.collateralDeployed_, issuanceToken.decimals)
-    const floorPrice = formatAmount(event.params.floorPrice_, issuanceToken.decimals)
+    const collateralAmount = formatAmount(event.params.collateralDeployed_, reserveToken.decimals)
+    const floorPrice = formatAmount(event.params.floorPrice_, FLOOR_PRICE_DECIMALS)
 
     const position: StakePosition_t = {
       id: positionId,
@@ -220,7 +227,7 @@ StakingManager.Staked.handler(
       collateralDeployedFormatted: existingPosition
         ? formatAmount(
             existingPosition.collateralDeployedRaw + event.params.collateralDeployed_,
-            issuanceToken.decimals
+            reserveToken.decimals
           ).formatted
         : collateralAmount.formatted,
       floorPriceAtStakeRaw: event.params.floorPrice_,
@@ -253,6 +260,7 @@ StakingManager.Staked.handler(
       yieldAmountFormatted: undefined,
       feeAmountRaw: undefined,
       feeAmountFormatted: undefined,
+      receiver: undefined,
       timestamp,
       transactionHash: event.transaction.hash,
     }
@@ -271,7 +279,7 @@ StakingManager.Staked.handler(
         manager.totalCollateralDeployedRaw + event.params.collateralDeployed_,
       totalCollateralDeployedFormatted: formatAmount(
         manager.totalCollateralDeployedRaw + event.params.collateralDeployed_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -325,7 +333,7 @@ StakingManager.YieldHarvested.handler(
       return
     }
 
-    const { manager, issuanceToken } = stakingContext
+    const { manager, issuanceToken, reserveToken } = stakingContext
     const user = await getOrCreateAccount(context, event.params.user_)
 
     const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
@@ -338,8 +346,8 @@ StakingManager.YieldHarvested.handler(
       return
     }
 
-    const yieldAmount = formatAmount(event.params.netYield_, issuanceToken.decimals)
-    const feeAmount = formatAmount(event.params.fee_, issuanceToken.decimals)
+    const yieldAmount = formatAmount(event.params.netYield_, reserveToken.decimals)
+    const feeAmount = formatAmount(event.params.fee_, reserveToken.decimals)
 
     // Update position totals
     const updatedPosition: StakePosition_t = {
@@ -347,12 +355,12 @@ StakingManager.YieldHarvested.handler(
       totalYieldHarvestedRaw: position.totalYieldHarvestedRaw + event.params.netYield_,
       totalYieldHarvestedFormatted: formatAmount(
         position.totalYieldHarvestedRaw + event.params.netYield_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       totalFeePaidRaw: position.totalFeePaidRaw + event.params.fee_,
       totalFeePaidFormatted: formatAmount(
         position.totalFeePaidRaw + event.params.fee_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -375,6 +383,7 @@ StakingManager.YieldHarvested.handler(
       yieldAmountFormatted: yieldAmount.formatted,
       feeAmountRaw: event.params.fee_,
       feeAmountFormatted: feeAmount.formatted,
+      receiver: normalizeAddress(event.params.receiver_),
       timestamp,
       transactionHash: event.transaction.hash,
     }
@@ -387,12 +396,12 @@ StakingManager.YieldHarvested.handler(
       totalYieldHarvestedRaw: manager.totalYieldHarvestedRaw + event.params.netYield_,
       totalYieldHarvestedFormatted: formatAmount(
         manager.totalYieldHarvestedRaw + event.params.netYield_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       totalFeesCapturedRaw: manager.totalFeesCapturedRaw + event.params.fee_,
       totalFeesCapturedFormatted: formatAmount(
         manager.totalFeesCapturedRaw + event.params.fee_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -428,7 +437,7 @@ StakingManager.FundsWithdrawn.handler(
       return
     }
 
-    const { manager, issuanceToken } = stakingContext
+    const { manager, issuanceToken, reserveToken } = stakingContext
     const user = await getOrCreateAccount(context, event.params.user_)
 
     const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
@@ -443,7 +452,7 @@ StakingManager.FundsWithdrawn.handler(
 
     const collateralWithdrawn = formatAmount(
       event.params.collateralWithdrawn_,
-      issuanceToken.decimals
+      reserveToken.decimals
     )
     const issuanceReturned = formatAmount(
       event.params.issuanceTokensReturned_,
@@ -462,7 +471,7 @@ StakingManager.FundsWithdrawn.handler(
       collateralDeployedRaw: position.collateralDeployedRaw - event.params.collateralWithdrawn_,
       collateralDeployedFormatted: formatAmount(
         position.collateralDeployedRaw - event.params.collateralWithdrawn_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       status:
         position.issuanceTokenAmountRaw - event.params.issuanceTokensReturned_ === 0n
@@ -489,6 +498,7 @@ StakingManager.FundsWithdrawn.handler(
       yieldAmountFormatted: undefined,
       feeAmountRaw: undefined,
       feeAmountFormatted: undefined,
+      receiver: normalizeAddress(event.params.receiver_),
       timestamp,
       transactionHash: event.transaction.hash,
     }
@@ -507,7 +517,7 @@ StakingManager.FundsWithdrawn.handler(
         manager.totalCollateralDeployedRaw - event.params.collateralWithdrawn_,
       totalCollateralDeployedFormatted: formatAmount(
         manager.totalCollateralDeployedRaw - event.params.collateralWithdrawn_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -561,7 +571,7 @@ StakingManager.Rebalanced.handler(
       return
     }
 
-    const { manager, issuanceToken } = stakingContext
+    const { manager, issuanceToken, reserveToken } = stakingContext
     const user = await getOrCreateAccount(context, event.params.user_)
 
     const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
@@ -574,7 +584,7 @@ StakingManager.Rebalanced.handler(
 
     const additionalCollateral = formatAmount(
       event.params.additionalCollateralDeployed_,
-      issuanceToken.decimals
+      reserveToken.decimals
     )
 
     // Update position collateral
@@ -584,7 +594,7 @@ StakingManager.Rebalanced.handler(
         position.collateralDeployedRaw + event.params.additionalCollateralDeployed_,
       collateralDeployedFormatted: formatAmount(
         position.collateralDeployedRaw + event.params.additionalCollateralDeployed_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -607,6 +617,7 @@ StakingManager.Rebalanced.handler(
       yieldAmountFormatted: undefined,
       feeAmountRaw: undefined,
       feeAmountFormatted: undefined,
+      receiver: undefined,
       timestamp,
       transactionHash: event.transaction.hash,
     }
@@ -620,7 +631,7 @@ StakingManager.Rebalanced.handler(
         manager.totalCollateralDeployedRaw + event.params.additionalCollateralDeployed_,
       totalCollateralDeployedFormatted: formatAmount(
         manager.totalCollateralDeployedRaw + event.params.additionalCollateralDeployed_,
-        issuanceToken.decimals
+        reserveToken.decimals
       ).formatted,
       lastUpdatedAt: timestamp,
     }
@@ -656,7 +667,6 @@ StakingManager.LastFloorPriceUpdated.handler(
       return
     }
 
-    const { issuanceToken } = stakingContext
     const positionId = `${userAddress}-${stakingManagerId}-${strategyAddress}`
     const position = await context.StakePosition.get(positionId)
 
@@ -667,7 +677,7 @@ StakingManager.LastFloorPriceUpdated.handler(
       return
     }
 
-    const floorPrice = formatAmount(event.params.newFloorPrice_, issuanceToken.decimals)
+    const floorPrice = formatAmount(event.params.newFloorPrice_, FLOOR_PRICE_DECIMALS)
 
     const updatedPosition: StakePosition_t = {
       ...position,
@@ -691,6 +701,7 @@ StakingManager.LastFloorPriceUpdated.handler(
 type StakingContext = {
   manager: StakingManager_t
   issuanceToken: Token_t
+  reserveToken: Token_t
 }
 
 async function loadStakingContext(
@@ -713,5 +724,25 @@ async function loadStakingContext(
     return null
   }
 
-  return { manager, issuanceToken }
+  const reserveToken = await context.Token.get(market.reserveToken_id)
+  if (!reserveToken) {
+    return null
+  }
+
+  return { manager, issuanceToken, reserveToken }
+}
+
+function decodeStakingPerformanceFee(
+  configData: `0x${string}`,
+  logger: { warn: (message: string) => void }
+): bigint {
+  try {
+    const [performanceFeeBps] = decodeAbiParameters(STAKING_CONFIG_PARAMS, configData)
+    return performanceFeeBps
+  } catch {
+    logger.warn(
+      `[StakingManager.ModuleInitialized] Unable to decode performance fee from configData; defaulting to 0`
+    )
+    return 0n
+  }
 }
