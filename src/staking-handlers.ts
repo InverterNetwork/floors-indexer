@@ -16,6 +16,7 @@ import {
   getOrCreateAccount,
   getOrCreateModuleRegistry,
   getOrCreateUserMarketPosition,
+  getStrategyMetadata,
   handlerErrorWrapper,
   normalizeAddress,
 } from './helpers'
@@ -83,16 +84,42 @@ StakingManager.StrategyAdded.handler(
       `[StakingManager.StrategyAdded] Handler invoked | stakingManagerId=${stakingManagerId} | strategy=${strategyAddress}`
     )
 
+    // Fetch strategy metadata (name, symbol) via RPC
+    const metadata = await getStrategyMetadata(context, event.chainId, strategyAddress)
+
     const strategy: Strategy_t = {
       id: strategyAddress,
       stakingManager_id: stakingManagerId,
       isActive: true,
+      name: metadata?.name,
+      symbol: metadata?.symbol,
       addedAt: timestamp,
       removedAt: undefined,
       transactionHash: event.transaction.hash,
     }
 
     context.Strategy.set(strategy)
+
+    // Track strategy in GlobalRegistry for UI discovery (skip duplicate addresses)
+    const globalRegistry = await context.GlobalRegistry.get('global-registry')
+    if (globalRegistry) {
+      const isDuplicate = globalRegistry.registeredStrategies.includes(strategyAddress)
+      if (!isDuplicate) {
+        const updatedRegistry = {
+          ...globalRegistry,
+          registeredStrategies: [...globalRegistry.registeredStrategies, strategyAddress],
+          lastUpdatedAt: timestamp,
+        }
+        context.GlobalRegistry.set(updatedRegistry)
+        context.log.info(
+          `[StakingManager.StrategyAdded] ✅ Strategy registered in GlobalRegistry | strategy=${strategyAddress}`
+        )
+      }
+    } else {
+      context.log.warn(
+        `[StakingManager.StrategyAdded] ⚠️ GlobalRegistry not found, cannot track strategy | strategy=${strategyAddress}`
+      )
+    }
 
     context.log.info(
       `[StakingManager.StrategyAdded] ✅ Strategy added | id=${strategyAddress} | stakingManager=${stakingManagerId}`

@@ -90,6 +90,7 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     moduleFactoryAddress: normalizeAddress(moduleFactoryAddress),
     trustedForwarderAddress: trustedForwarderAddress || '',
     governorAddress: governorAddress || '',
+    registeredStrategies: [],
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })
@@ -122,6 +123,7 @@ ModuleFactory.GovernorSet.handler(async ({ event, context }) => {
       moduleFactoryAddress: normalizeAddress(event.srcAddress),
       trustedForwarderAddress: '',
       governorAddress,
+      registeredStrategies: [],
       createdAt: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     })

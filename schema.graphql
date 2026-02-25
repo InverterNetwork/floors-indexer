@@ -78,6 +78,7 @@ type GlobalRegistry {
   moduleFactoryAddress: String!
   trustedForwarderAddress: String!
   governorAddress: String!
+  registeredStrategies: [String!]!
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
 }
@@ -207,6 +208,9 @@ type Strategy {
 
   stakingManager_id: ID!
   isActive: Boolean!
+
+  name: String
+  symbol: String
 
   addedAt: BigInt!
   removedAt: BigInt

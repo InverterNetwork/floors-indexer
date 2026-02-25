@@ -314,3 +314,102 @@ export async function getOrCreateToken(
 
   return token
 }
+
+/**
+ * Fetch strategy metadata (name, symbol) via RPC
+ * Uses Effect API for caching
+ */
+export const fetchStrategyMetadataEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchStrategyMetadata',
+      input: { chainId: S.number, address: S.string },
+      output: S.nullable(
+        S.schema({
+          name: S.string,
+          symbol: S.string,
+        })
+      ),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.address as `0x${string}`
+
+        let name: string | undefined
+        let symbol: string | undefined
+
+        try {
+          const [nameResult, symbolResult] = await client.multicall({
+            allowFailure: true,
+            contracts: [
+              { address: target, abi: erc20Abi, functionName: 'name' },
+              { address: target, abi: erc20Abi, functionName: 'symbol' },
+            ],
+          })
+
+          if (nameResult.status === 'success' && typeof nameResult.result === 'string') {
+            name = nameResult.result
+          }
+          if (symbolResult.status === 'success' && typeof symbolResult.result === 'string') {
+            symbol = symbolResult.result
+          }
+        } catch {
+          // Fallback to individual calls if multicall fails
+          try {
+            const nameResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'name',
+            })
+            if (typeof nameResult === 'string') name = nameResult
+          } catch {
+            // Keep undefined
+          }
+
+          try {
+            const symbolResult = await client.readContract({
+              address: target,
+              abi: erc20Abi,
+              functionName: 'symbol',
+            })
+            if (typeof symbolResult === 'string') symbol = symbolResult
+          } catch {
+            // Keep undefined
+          }
+        }
+
+        if (!name && !symbol) {
+          context.cache = false
+          return undefined
+        }
+
+        return {
+          name: name ?? 'Unknown Strategy',
+          symbol: symbol ?? 'STRAT',
+        }
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+/**
+ * Get strategy metadata (name, symbol)
+ * Uses Effect API for RPC calls with caching
+ */
+export async function getStrategyMetadata(
+  context: handlerContext,
+  chainId: number,
+  address: string
+): Promise<{ name: string; symbol: string } | undefined> {
+  const normalizedAddress = normalizeAddress(address)
+  return await fetchStrategyMetadataEffect(context.effect)({
+    chainId,
+    address: normalizedAddress,
+  })
+}
