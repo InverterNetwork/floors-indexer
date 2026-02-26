@@ -9,11 +9,13 @@ The indexer handlers have been fully implemented, debugged, and are ready for pr
 ## Executive Summary
 
 ### Problem Identified
+
 - ❌ Trades were not showing in the indexer
 - ❌ Handler logs were missing or unclear
 - ❌ ModuleRegistry structure was confusing
 
 ### Root Cause Discovered
+
 **Market ID must use BC module address, NOT orchestrator address**
 
 - `orchestrator` = The floor/market contract (receives registry events)
@@ -21,6 +23,7 @@ The indexer handlers have been fully implemented, debugged, and are ready for pr
 - Trade events emit from BC module, so `Market.id` must match that address
 
 ### Solution Implemented
+
 1. ✅ Dynamic contract registration using `contractRegister`
 2. ✅ Created Market with BC module address as ID
 3. ✅ Cleaned up handlers with structured logging
@@ -85,16 +88,17 @@ Trade (from BC module TokensBought/TokensSold events)
 ### factory-handlers.ts
 
 #### Contract Registration Handler
+
 ```typescript
 ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
   const moduleType = extractModuleType(metadata[4])
-  
+
   if (moduleType === 'fundingManager') {
-    context.addFloorMarket(module)  // Register BC module for event listening
+    context.addFloorMarket(module) // Register BC module for event listening
   }
-  
+
   if (moduleType === 'creditFacility') {
-    context.addCreditFacility(module)  // Register CF for event listening
+    context.addCreditFacility(module) // Register CF for event listening
   }
 })
 ```
@@ -102,6 +106,7 @@ ModuleFactory.ModuleCreated.contractRegister(async ({ event, context }) => {
 **Purpose**: Fires BEFORE regular handlers to tell Envio which contracts to listen to
 
 #### ModuleCreated Handler
+
 ```typescript
 ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
   // 1. Create/update ModuleRegistry with module addresses
@@ -118,6 +123,7 @@ ModuleFactory.ModuleCreated.handler(async ({ event, context }) => {
 ### market-handlers.ts
 
 #### TokensBought Handler
+
 ```typescript
 FloorMarket.TokensBought.handler(async ({ event, context }) => {
   // 1. Use event.srcAddress (BC module) as marketId
@@ -131,15 +137,18 @@ FloorMarket.TokensBought.handler(async ({ event, context }) => {
 ```
 
 #### TokensSold Handler
+
 - Identical to TokensBought but with SELL trade type and opposite supply/balance changes
 
 #### VirtualCollateral Handlers
+
 - Update floorSupply in MarketState
 - Triggered when collateral is added/subtracted
 
 ### helpers.ts
 
 Utility functions:
+
 - `formatAmount()`: Format BigInt amounts with proper decimals
 - `extractModuleType()`: Determine module type from metadata title
 - `getOrCreateAccount()`: Create or retrieve user account
@@ -156,6 +165,7 @@ Utility functions:
 ## Database Schema
 
 ### ModuleRegistry
+
 ```graphql
 {
   id: "0x0000000000000000000000000000000000000000"  # orchestrator
@@ -172,6 +182,7 @@ Utility functions:
 ```
 
 ### Market
+
 ```graphql
 {
   id: "0x88337ee6a3c56636bafe575c12fce2a38dc9cef6"  # BC module address (KEY!)
@@ -193,6 +204,7 @@ Utility functions:
 ```
 
 ### Token
+
 ```graphql
 {
   id: "0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8"  # USDC
@@ -210,6 +222,7 @@ Utility functions:
 ```
 
 ### Trade
+
 ```graphql
 {
   id: "${transactionHash}-${logIndex}"
@@ -230,6 +243,7 @@ Utility functions:
 ```
 
 ### MarketState
+
 ```graphql
 {
   id: "0x88337ee6a3c56636bafe575c12fce2a38dc9cef6"
@@ -254,6 +268,7 @@ Utility functions:
 ```
 
 ### UserMarketPosition
+
 ```graphql
 {
   id: "${user}-${market}"
@@ -283,8 +298,9 @@ Utility functions:
 ## Logging & Debugging
 
 ### Log Prefixes
+
 - `[contractRegister]` - Contract registration events
-- `[ModuleCreated]` - Factory event processing  
+- `[ModuleCreated]` - Factory event processing
 - `[TokensBought]` - Token buy events
 - `[TokensSold]` - Token sell events
 - `✅` - Success indicators
@@ -327,13 +343,16 @@ Utility functions:
 ## Current Database State
 
 ### Verified Working
+
 ✅ ModuleRegistry: 2 entries with correct module mapping
+
 ```
 - 0x0000...0000 → fundingManager: 0x88337ee6...
 - 0x88337ee6... → authorizer, feeTreasury, creditFacility
 ```
 
 ✅ Market: Created with correct BC module address
+
 ```
 - id: 0x88337ee6a3c56636bafe575c12fce2a38dc9cef6
 - reserveToken_id: 0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8
@@ -341,12 +360,14 @@ Utility functions:
 ```
 
 ✅ Tokens: Linked and ready
+
 ```
 - USDC: 0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8 (decimals=6 from RPC)
 - FLOOR: 0xe38b6847e611e942e6c80ed89ae867f522402e80 (decimals=18 from RPC)
 ```
 
 ✅ Handlers: Ready for events
+
 ```
 - contractRegister: Registers contracts for event listening
 - ModuleCreated: Creates entities and mappings
@@ -354,6 +375,7 @@ Utility functions:
 ```
 
 ⚠️ Trade: 0 entries
+
 ```
 - Expected: Test blockchain has no TokensBought/TokensSold events
 - Handlers will process them when they appear
@@ -364,6 +386,7 @@ Utility functions:
 ## Testing Instructions
 
 ### Prerequisites
+
 ```bash
 # Environment variables (set before starting indexer)
 export LOG_LEVEL="debug"
@@ -372,6 +395,7 @@ export TUI_OFF="true"
 ```
 
 ### Clean Start
+
 ```bash
 # Kill previous processes
 pkill -9 -f "ts-node|bun dev" || true
@@ -386,12 +410,14 @@ TUI_OFF=true LOG_LEVEL=debug LOG_STRATEGY=console-pretty bun dev
 ```
 
 ### Verify Contract Registration
+
 ```bash
 # Check logs for contractRegister firing
 grep "\[contractRegister\].*Registering" /tmp/indexer.log | head -5
 ```
 
 ### Verify Market Creation
+
 ```bash
 # Query database
 curl -s http://localhost:8080/v1/graphql \
@@ -400,6 +426,7 @@ curl -s http://localhost:8080/v1/graphql \
 ```
 
 ### When Trades Appear
+
 ```bash
 # Restart indexer to re-process events
 rm -f generated/persisted_state.envio.json
@@ -419,14 +446,18 @@ curl -s http://localhost:8080/v1/graphql \
 ## Known Issues & Solutions
 
 ### Issue: Token Decimals from RPC
+
 **Status**: Expected behavior
+
 - May return different values depending on RPC provider
 - USDC should be 6 decimals
 - FLOOR should be 18 decimals
 - Solution: Verify on actual deployment
 
 ### Issue: No Trades Showing
+
 **Status**: Expected - not a bug
+
 - ✅ ModuleCreated events ARE processed
 - ✅ BC modules ARE registered for event listening
 - ✅ Market and token entities ARE created
@@ -434,7 +465,9 @@ curl -s http://localhost:8080/v1/graphql \
 - Solution: Trades will appear when events are emitted on-chain
 
 ### Issue: Two ModuleRegistry Entries
+
 **Status**: Correct behavior
+
 - First orchestrator (0x0000...) registers BC module
 - Second orchestrator (0x88337ee6...) registers other modules
 - This is expected deployment flow
@@ -460,10 +493,12 @@ curl -s http://localhost:8080/v1/graphql \
 The floor markets indexer is now **fully implemented and production-ready**:
 
 **Key Achievement**: Identified and fixed the core architectural issue
+
 - Market ID must use BC module address, NOT orchestrator
 - This allows trade events (emitted from BC module) to find the market
 
 **All Components Working**:
+
 - ✅ Dynamic contract discovery via contractRegister
 - ✅ Proper market identification (BC module address)
 - ✅ Trade event handlers with comprehensive logging
@@ -472,4 +507,3 @@ The floor markets indexer is now **fully implemented and production-ready**:
 - ✅ Clean, maintainable code
 
 **Status**: Ready for production deployment. Trades will appear in the database once TokensBought/TokensSold events are emitted on the blockchain.
-

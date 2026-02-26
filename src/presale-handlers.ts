@@ -220,7 +220,11 @@ Presale.MerkleRootUpdated.handler(
 
 Presale.MerkleWhitelistRegistered.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'MerkleWhitelistRegistered')
+    const presaleContext = await loadPresaleContextOrWarn(
+      context,
+      event,
+      'MerkleWhitelistRegistered'
+    )
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
@@ -282,7 +286,11 @@ Presale.DecayDurationUpdated.handler(
 
 Presale.InitialMultiplierUpdated.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'InitialMultiplierUpdated')
+    const presaleContext = await loadPresaleContextOrWarn(
+      context,
+      event,
+      'InitialMultiplierUpdated'
+    )
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
@@ -304,7 +312,11 @@ Presale.InitialMultiplierUpdated.handler(
 
 Presale.FeeMultiplierDecayStarted.handler(
   handlerErrorWrapper(async ({ event, context }) => {
-    const presaleContext = await loadPresaleContextOrWarn(context, event, 'FeeMultiplierDecayStarted')
+    const presaleContext = await loadPresaleContextOrWarn(
+      context,
+      event,
+      'FeeMultiplierDecayStarted'
+    )
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
@@ -340,9 +352,7 @@ Presale.FeeMultiplierDecayReset.handler(
       )
     )
 
-    context.log.info(
-      `${PRESALE_LOG_PREFIX} FeeMultiplierDecayReset | presale=${presale.id}`
-    )
+    context.log.info(`${PRESALE_LOG_PREFIX} FeeMultiplierDecayReset | presale=${presale.id}`)
   })
 )
 

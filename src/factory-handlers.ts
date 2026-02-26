@@ -75,9 +75,7 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
   const governorAddress = governorResult?.governor
 
   if (governorAddress) {
-    context.log.info(
-      `[FloorFactoryInitialized] ✅ Fetched governor | address=${governorAddress}`
-    )
+    context.log.info(`[FloorFactoryInitialized] ✅ Fetched governor | address=${governorAddress}`)
   } else {
     context.log.warn(
       `[FloorFactoryInitialized] ⚠️ Could not fetch governor | moduleFactory=${moduleFactoryAddress}`

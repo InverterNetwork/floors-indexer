@@ -5,6 +5,7 @@ This document provides specific code changes to add comprehensive logging throug
 ## Overview
 
 Based on the log analysis, we need to add logging at critical points to:
+
 1. Track entity creation vs retrieval
 2. Understand event processing order
 3. Diagnose race conditions
@@ -20,6 +21,7 @@ Based on the log analysis, we need to add logging at critical points to:
 **Location**: After line 60, in `getOrCreateModuleRegistry` call
 
 **Current Code**:
+
 ```typescript
 const registry = await getOrCreateModuleRegistry(
   context,
@@ -31,6 +33,7 @@ const registry = await getOrCreateModuleRegistry(
 ```
 
 **Add After**:
+
 ```typescript
 context.log.debug(
   `[ModuleCreated] ModuleRegistry processed | marketId=${marketId} | moduleType=${moduleType} | module=${module} | creditFacility=${registry.creditFacility || 'none'} | floor=${registry.fundingManager || 'none'}`
@@ -44,6 +47,7 @@ context.log.debug(
 **Location**: Lines 70-79
 
 **Current Code**:
+
 ```typescript
 if (moduleType === 'floor') {
   // Try to fetch token addresses from the BC contract via RPC
@@ -59,6 +63,7 @@ if (moduleType === 'floor') {
 ```
 
 **Change To**:
+
 ```typescript
 if (moduleType === 'floor') {
   // Try to fetch token addresses from the BC contract via RPC
@@ -88,6 +93,7 @@ if (moduleType === 'floor') {
 **Location**: Lines 83-91
 
 **Current Code**:
+
 ```typescript
 const result = await getOrCreateMarket(
   context,
@@ -101,6 +107,7 @@ const result = await getOrCreateMarket(
 ```
 
 **Change To**:
+
 ```typescript
 context.log.debug(
   `[ModuleCreated] Creating/retrieving Market | marketId=${marketId} | reserveToken=${reserveTokenId || 'fetching'} | issuanceToken=${issuanceTokenId || 'fetching'}`
@@ -129,6 +136,7 @@ if (result) {
 **Location**: Lines 94-118
 
 **Current Code**:
+
 ```typescript
 if (moduleType === 'creditFacility') {
   // Get the Market entity to get token addresses
@@ -149,24 +157,23 @@ if (moduleType === 'creditFacility') {
       `[ModuleCreated] CreditFacility created | id=${facilityId} | collateralToken=${market.issuanceToken_id} | borrowToken=${market.reserveToken_id}`
     )
   } else {
-    context.log.warn(
-      `[ModuleCreated] Market not found for creditFacility | marketId=${marketId}`
-    )
+    context.log.warn(`[ModuleCreated] Market not found for creditFacility | marketId=${marketId}`)
   }
 }
 ```
 
 **Change To**:
+
 ```typescript
 if (moduleType === 'creditFacility') {
   const facilityId = module.toLowerCase()
   context.log.debug(
     `[ModuleCreated] Creating CreditFacility | facilityId=${facilityId} | marketId=${marketId} | block=${event.block.number}`
   )
-  
+
   // Get the Market entity to get token addresses
   let market = await context.Market.get(marketId)
-  
+
   // Try alternative lookup if market not found by orchestrator ID
   if (!market) {
     context.log.debug(
@@ -175,7 +182,7 @@ if (moduleType === 'creditFacility') {
     // Try using module address as marketId (in case orchestrator = BC module)
     market = await context.Market.get(module.toLowerCase())
   }
-  
+
   // Try to find market via ModuleRegistry
   if (!market) {
     const registry = await context.ModuleRegistry.get(marketId)
@@ -189,7 +196,7 @@ if (moduleType === 'creditFacility') {
       )
     }
   }
-  
+
   if (market) {
     const facility = {
       id: facilityId,
@@ -233,6 +240,7 @@ if (moduleType === 'creditFacility') {
 **Location**: Lines 25-44
 
 **Current Code**:
+
 ```typescript
 const existingRegistry = await context.ModuleRegistry.get(normalizedMarketId)
 
@@ -249,6 +257,7 @@ return registry
 ```
 
 **Change To**:
+
 ```typescript
 const existingRegistry = await context.ModuleRegistry.get(normalizedMarketId)
 
@@ -279,11 +288,13 @@ const registry: ModuleRegistry_t = {
 context.ModuleRegistry.set(registry)
 
 context.log.debug(
-  `[getOrCreateModuleRegistry] ✅ Registry ${existingRegistry ? 'updated' : 'created'} | marketId=${normalizedMarketId} | modules=${JSON.stringify({
-    authorizer: registry.authorizer || 'none',
-    feeTreasury: registry.feeTreasury || 'none',
-    creditFacility: registry.creditFacility || 'none',
-  })}`
+  `[getOrCreateModuleRegistry] ✅ Registry ${existingRegistry ? 'updated' : 'created'} | marketId=${normalizedMarketId} | modules=${JSON.stringify(
+    {
+      authorizer: registry.authorizer || 'none',
+      feeTreasury: registry.feeTreasury || 'none',
+      creditFacility: registry.creditFacility || 'none',
+    }
+  )}`
 )
 
 return registry
@@ -294,6 +305,7 @@ return registry
 **Location**: Lines 27-110
 
 **Current Code**:
+
 ```typescript
 let market = await context.Market.get(normalizedMarketId)
 
@@ -305,6 +317,7 @@ const creator = await getOrCreateAccount(context, normalizedMarketId)
 ```
 
 **Change To**:
+
 ```typescript
 let market = await context.Market.get(normalizedMarketId)
 
@@ -325,6 +338,7 @@ const creator = await getOrCreateAccount(context, normalizedMarketId)
 ```
 
 **Also Add After Line 45**:
+
 ```typescript
 if ((!finalReserveTokenId || !finalIssuanceTokenId) && bcAddress) {
   context.log.debug(
@@ -346,6 +360,7 @@ if ((!finalReserveTokenId || !finalIssuanceTokenId) && bcAddress) {
 ```
 
 **Add Before Return (Line 109)**:
+
 ```typescript
 context.Market.set(market)
 
@@ -361,6 +376,7 @@ return market
 **Location**: Lines 87-125
 
 **Current Code**:
+
 ```typescript
 export async function fetchTokenAddressesFromBC(
   chainId: number,
@@ -404,6 +420,7 @@ export async function fetchTokenAddressesFromBC(
 ```
 
 **Change To**:
+
 ```typescript
 export async function fetchTokenAddressesFromBC(
   chainId: number,
@@ -462,19 +479,19 @@ export async function fetchTokenAddressesFromBC(
 **Location**: Lines 11-73
 
 **Current Code**:
+
 ```typescript
 const facilityId = event.srcAddress
 const facility = await context.CreditFacilityContract.get(facilityId)
 
 if (!facility) {
-  context.log.warn(
-    `[LoanCreated] Facility not found | facilityId=${facilityId} - skipping event`
-  )
+  context.log.warn(`[LoanCreated] Facility not found | facilityId=${facilityId} - skipping event`)
   return
 }
 ```
 
 **Change To**:
+
 ```typescript
 const facilityId = event.srcAddress.toLowerCase()
 context.log.debug(
@@ -501,6 +518,7 @@ context.log.debug(
 **Location**: Lines 79-123
 
 **Current Code**:
+
 ```typescript
 const facilityId = event.srcAddress
 const facility = await context.CreditFacilityContract.get(facilityId)
@@ -511,6 +529,7 @@ if (!facility) {
 ```
 
 **Change To**:
+
 ```typescript
 const facilityId = event.srcAddress.toLowerCase()
 context.log.debug(
@@ -535,6 +554,7 @@ context.log.debug(
 **Location**: Lines 162-171
 
 **Current Code**:
+
 ```typescript
 CreditFacility.IssuanceTokensLocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -549,6 +569,7 @@ CreditFacility.IssuanceTokensLocked.handler(
 ```
 
 **Change To** (requires finding market by collateral token):
+
 ```typescript
 CreditFacility.IssuanceTokensLocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -558,7 +579,7 @@ CreditFacility.IssuanceTokensLocked.handler(
 
     const facilityId = event.srcAddress.toLowerCase()
     const facility = await context.CreditFacilityContract.get(facilityId)
-    
+
     if (!facility) {
       context.log.warn(
         `[IssuanceTokensLocked] Facility not found | facilityId=${facilityId} | skipping`
@@ -577,11 +598,11 @@ CreditFacility.IssuanceTokensLocked.handler(
     // Find market by issuanceToken_id matching collateralToken_id
     // Note: This requires a query - for now, we'll need to iterate or use a helper
     // TODO: Implement findMarketByIssuanceToken helper or use GraphQL query
-    
+
     context.log.debug(
       `[IssuanceTokensLocked] Facility and token verified | facilityId=${facilityId} | collateralToken=${facility.collateralToken_id} | decimals=${collateralToken.decimals}`
     )
-    
+
     // For now, log that we need to implement market lookup
     context.log.warn(
       `[IssuanceTokensLocked] ⚠️ Market lookup not implemented | collateralToken=${facility.collateralToken_id} | Position update skipped`
@@ -589,7 +610,7 @@ CreditFacility.IssuanceTokensLocked.handler(
 
     const user = await getOrCreateAccount(context, event.params.user_)
     context.log.debug(`[IssuanceTokensLocked] User account | userId=${user.id}`)
-    
+
     // TODO: Once market lookup is implemented:
     // const market = await findMarketByIssuanceToken(context, facility.collateralToken_id)
     // const position = await getOrCreateUserMarketPosition(...)
@@ -607,6 +628,7 @@ CreditFacility.IssuanceTokensLocked.handler(
 **Location**: Lines 19-170
 
 **Add After Line 26**:
+
 ```typescript
 context.log.debug(
   `[TokensBought] Processing trade | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash}`
@@ -614,6 +636,7 @@ context.log.debug(
 ```
 
 **Add After Line 37** (after getOrCreateMarket):
+
 ```typescript
 if (!market) {
   context.log.error(
@@ -628,6 +651,7 @@ context.log.debug(
 ```
 
 **Add After Line 50** (after token verification):
+
 ```typescript
 context.log.debug(
   `[TokensBought] Tokens verified | reserveToken=${reserveToken.id} (${reserveToken.decimals} decimals) | issuanceToken=${issuanceToken.id} (${issuanceToken.decimals} decimals)`
@@ -647,6 +671,7 @@ context.log.debug(
 **Location**: At the start of each handler function
 
 **Pattern to Add**:
+
 ```typescript
 context.log.debug(
   `[HandlerName] Handler entry | block=${event.block.number} | logIndex=${event.logIndex} | tx=${event.transaction.hash} | timestamp=${event.block.timestamp}`
@@ -654,6 +679,7 @@ context.log.debug(
 ```
 
 **Apply To**:
+
 - `ModuleCreated.handler` (factory-handlers.ts)
 - `TokensBought.handler` (market-handlers.ts)
 - `TokensSold.handler` (market-handlers.ts)
@@ -705,4 +731,3 @@ After implementing logging improvements:
 - [ ] Test CreditFacility creation with missing Market
 - [ ] Test LoanCreated with missing Facility
 - [ ] Verify logs contain enough context to debug issues
-

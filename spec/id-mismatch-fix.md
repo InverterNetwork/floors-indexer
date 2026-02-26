@@ -31,6 +31,7 @@ They don't match! ❌
 ### Why This Caused Issues
 
 When `TokensBought` events arrived:
+
 1. Handler extracted `marketId = event.srcAddress` (BC module)
 2. Looked up `Market[bcModule]` ✅ Found it
 3. Looked up `ModuleRegistry[bcModule]` ❌ Not found (it was at orchestrator)
@@ -111,6 +112,7 @@ AFTER:  ModuleRegistry[bcModule] = Market[bcModule] = MarketState[bcModule] ✅
 ## Visual Before/After
 
 ### Before Fix
+
 ```
 ModuleCreated Event
     ↓
@@ -132,6 +134,7 @@ ModuleCreated Event
 ```
 
 ### After Fix
+
 ```
 ModuleCreated Event
     ↓
@@ -156,6 +159,7 @@ ModuleCreated Event
 ## Event Processing Flow
 
 ### Before Fix (Broken)
+
 ```
 TokensBought Event (from BC module 0x88337ee...)
     ↓
@@ -167,6 +171,7 @@ TokensBought Event (from BC module 0x88337ee...)
 ```
 
 ### After Fix (Working)
+
 ```
 TokensBought Event (from BC module 0x88337ee...)
     ↓
@@ -212,12 +217,12 @@ FloorMarket.TokensBought Event fires
 
 After this fix:
 
-| Module Type | ModuleRegistry ID | Market ID | MarketState ID | Trade.market_id |
-|---|---|---|---|---|
-| `fundingManager` (BC) | `bcModule` ✅ | `bcModule` ✅ | `bcModule` ✅ | `bcModule` ✅ |
-| `authorizer` | `orchestrator` | N/A | N/A | N/A |
-| `feeTreasury` | `orchestrator` | N/A | N/A | N/A |
-| `creditFacility` | `orchestrator` | N/A | N/A | N/A |
+| Module Type           | ModuleRegistry ID | Market ID     | MarketState ID | Trade.market_id |
+| --------------------- | ----------------- | ------------- | -------------- | --------------- |
+| `fundingManager` (BC) | `bcModule` ✅     | `bcModule` ✅ | `bcModule` ✅  | `bcModule` ✅   |
+| `authorizer`          | `orchestrator`    | N/A           | N/A            | N/A             |
+| `feeTreasury`         | `orchestrator`    | N/A           | N/A            | N/A             |
+| `creditFacility`      | `orchestrator`    | N/A           | N/A            | N/A             |
 
 ---
 
@@ -303,6 +308,7 @@ grep "Using registryId" /tmp/indexer.log | head -5
 ```
 
 **Expected:**
+
 ```
 [ModuleCreated] Using registryId=0x88337ee... | type=fundingManager
 ```
@@ -334,29 +340,31 @@ curl -s http://localhost:8080/v1/graphql \
 ## Why This Matters
 
 ### Before Fix:
+
 ```javascript
 // Query would find some entities but miss others
-const market = await context.Market.get(bcModule)  // ✅
-const registry = await context.ModuleRegistry.get(bcModule)  // ❌
+const market = await context.Market.get(bcModule) // ✅
+const registry = await context.ModuleRegistry.get(bcModule) // ❌
 ```
 
 ### After Fix:
+
 ```javascript
 // All entities are in the same namespace
-const market = await context.Market.get(bcModule)  // ✅
-const registry = await context.ModuleRegistry.get(bcModule)  // ✅
-const marketState = await context.MarketState.get(bcModule)  // ✅
+const market = await context.Market.get(bcModule) // ✅
+const registry = await context.ModuleRegistry.get(bcModule) // ✅
+const marketState = await context.MarketState.get(bcModule) // ✅
 
 // Trade queries now work consistently
-const trades = await context.Trade.filter(t => t.market_id === bcModule)  // ✅
+const trades = await context.Trade.filter((t) => t.market_id === bcModule) // ✅
 ```
 
 ---
 
 ## Files Modified
 
-| File | Change | Lines |
-|------|--------|-------|
+| File                      | Change                                                       | Lines  |
+| ------------------------- | ------------------------------------------------------------ | ------ |
 | `src/factory-handlers.ts` | Use BC module address as registry ID for fundingManager type | 71-103 |
 
 ---
@@ -364,31 +372,37 @@ const trades = await context.Trade.filter(t => t.market_id === bcModule)  // ✅
 ## Testing Procedure
 
 ### Step 1: Start Fresh
+
 ```bash
 cd /Users/anon/Desktop/inverter/floormarkets/indexer
-pkill -9 -f "bun|node" 2>/dev/null || true
+pkill -9 -f "bun|node" 2> /dev/null || true
 rm -f generated/persisted_state.envio.json
 sleep 3
 ```
 
 ### Step 2: Start Indexer
+
 ```bash
 TUI_OFF=true LOG_LEVEL=debug LOG_STRATEGY=console-pretty bun dev > /tmp/indexer.log 2>&1 &
 sleep 60
 ```
 
 ### Step 3: Verify Fix is Active
+
 ```bash
 grep "Using registryId" /tmp/indexer.log | head -1
 ```
 
 Should output:
+
 ```
 [ModuleCreated] Using registryId=0x88337ee... | type=fundingManager
 ```
 
 ### Step 4: Query Database
+
 Use the verification queries above to confirm:
+
 1. Entity IDs are consistent
 2. Trades are being indexed
 
@@ -397,9 +411,11 @@ Use the verification queries above to confirm:
 ## Common Issues & Solutions
 
 ### Issue: Entity IDs Still Don't Match
+
 **Cause:** Code change not applied or old state not cleared.
 
 **Solution:**
+
 ```bash
 # Verify fix is in code
 grep -A5 "if (moduleType === 'fundingManager')" src/factory-handlers.ts
@@ -412,17 +428,21 @@ TUI_OFF=true bun dev &
 ```
 
 ### Issue: No Trades in Database
+
 **Cause:** Either trades weren't emitted or indexer hasn't synced yet.
 
 **Solution:**
+
 1. Verify trades were emitted: Run deployment script
 2. Wait 60+ seconds for indexing
 3. Query database again
 
 ### Issue: Database Not Responding
+
 **Cause:** Docker containers not running.
 
 **Solution:**
+
 ```bash
 cd generated
 docker-compose up -d
@@ -433,13 +453,13 @@ sleep 10
 
 ## Impact Summary
 
-| Component | Before | After |
-|-----------|--------|-------|
-| ModuleRegistry ID | Orchestrator | BC Module ✅ |
-| Market ID | BC Module | BC Module ✅ |
-| Entity Consistency | ❌ No | ✅ Yes |
-| Trade Indexing | ❌ Failed | ✅ Works |
-| Query Reliability | ❌ Unreliable | ✅ Reliable |
+| Component          | Before        | After        |
+| ------------------ | ------------- | ------------ |
+| ModuleRegistry ID  | Orchestrator  | BC Module ✅ |
+| Market ID          | BC Module     | BC Module ✅ |
+| Entity Consistency | ❌ No         | ✅ Yes       |
+| Trade Indexing     | ❌ Failed     | ✅ Works     |
+| Query Reliability  | ❌ Unreliable | ✅ Reliable  |
 
 ---
 
@@ -453,4 +473,3 @@ The ID mismatch fix ensures that all trade-related entities (`ModuleRegistry`, `
 4. ✅ Accurate data state
 
 **The system is now ready to properly index trades when events are emitted.** 🎉
-

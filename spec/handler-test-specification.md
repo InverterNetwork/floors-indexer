@@ -5,29 +5,32 @@ This document specifies the test cases for validating the Floor Markets indexer 
 ## Test Data from Deployment
 
 ### Token Addresses
+
 - **USDC (Reserve Token)**: `0xe8f7d98be6722d42f29b50500b0e318ef2be4fc8`
   - Decimals: 6
   - Name: "Test USDC"
   - Symbol: "TUSDC"
-  
 - **FLOOR (Issuance Token)**: `0xe38b6847e611e942e6c80ed89ae867f522402e80`
   - Decimals: 18
   - Name: "Floor Token"
   - Symbol: "FLOOR"
 
 ### Market Address
+
 - **Orchestrator/Market**: `0x8265551ebb0f42521a591590ef1fefc3d34f851d`
 - **BC Module (Funding Manager)**: `0x8265551ebb0f42521a591590ef1fefc3d34f851d` (same as orchestrator)
 
 ### Test Transaction Values
 
 #### Buy Operation
+
 - **Input**: 10,000,000 USDC (10 USDC with 6 decimals)
 - **Output**: 9,900,000 FLOOR tokens (9.9 FLOOR with 18 decimals)
 - **Fee**: 100,000 USDC (0.1 USDC, 1% fee)
 - **Expected**: Trade entity created with correct amounts, MarketState updated
 
 #### Sell Operation
+
 - **Input**: 4,950,000 FLOOR tokens (4.95 FLOOR with 18 decimals)
 - **Output**: 4,900,500 USDC (4.900500 USDC with 6 decimals)
 - **Fee**: ~49,500 FLOOR tokens (0.0495 FLOOR, 1% fee)
@@ -70,9 +73,9 @@ When a `TokensBought` event is emitted:
    - `market_id`: market address
    - `user_id`: receiver/buyer address
    - `tradeType`: BUY
-   - `tokenAmountRaw`: receivedAmount_ (9,900,000 for test case)
+   - `tokenAmountRaw`: receivedAmount\_ (9,900,000 for test case)
    - `tokenAmountFormatted`: "9.9" (formatted with 18 decimals)
-   - `reserveAmountRaw`: depositAmount_ (10,000,000 for test case)
+   - `reserveAmountRaw`: depositAmount\_ (10,000,000 for test case)
    - `reserveAmountFormatted`: "10" (formatted with 6 decimals)
    - `feeRaw`: calculated fee amount
    - `feeFormatted`: formatted fee string
@@ -82,15 +85,15 @@ When a `TokensBought` event is emitted:
    - `transactionHash`: transaction hash
 
 2. **MarketState** should be updated:
-   - `totalSupplyRaw`: increased by receivedAmount_
-   - `marketSupplyRaw`: increased by receivedAmount_
+   - `totalSupplyRaw`: increased by receivedAmount\_
+   - `marketSupplyRaw`: increased by receivedAmount\_
    - `currentPriceRaw`: updated to new price
    - `lastTradeTimestamp`: event block timestamp
    - `lastUpdatedAt`: event block timestamp
 
 3. **UserMarketPosition** should be updated:
-   - `fTokenBalanceRaw`: increased by receivedAmount_
-   - `reserveBalanceRaw`: decreased by depositAmount_
+   - `fTokenBalanceRaw`: increased by receivedAmount\_
+   - `reserveBalanceRaw`: decreased by depositAmount\_
    - `lastUpdatedAt`: event block timestamp
 
 ### TokensSold Event Handler
@@ -102,9 +105,9 @@ When a `TokensSold` event is emitted:
    - `market_id`: market address
    - `user_id`: receiver/seller address
    - `tradeType`: SELL
-   - `tokenAmountRaw`: depositAmount_ (4,950,000 for test case)
+   - `tokenAmountRaw`: depositAmount\_ (4,950,000 for test case)
    - `tokenAmountFormatted`: "4.95" (formatted with 18 decimals)
-   - `reserveAmountRaw`: receivedAmount_ (4,900,500 for test case)
+   - `reserveAmountRaw`: receivedAmount\_ (4,900,500 for test case)
    - `reserveAmountFormatted`: "4.900500" (formatted with 6 decimals)
    - `feeRaw`: calculated fee amount
    - `feeFormatted`: formatted fee string
@@ -114,15 +117,15 @@ When a `TokensSold` event is emitted:
    - `transactionHash`: transaction hash
 
 2. **MarketState** should be updated:
-   - `totalSupplyRaw`: decreased by depositAmount_
-   - `marketSupplyRaw`: decreased by depositAmount_
+   - `totalSupplyRaw`: decreased by depositAmount\_
+   - `marketSupplyRaw`: decreased by depositAmount\_
    - `currentPriceRaw`: updated to new price
    - `lastTradeTimestamp`: event block timestamp
    - `lastUpdatedAt`: event block timestamp
 
 3. **UserMarketPosition** should be updated:
-   - `fTokenBalanceRaw`: decreased by depositAmount_
-   - `reserveBalanceRaw`: increased by receivedAmount_
+   - `fTokenBalanceRaw`: decreased by depositAmount\_
+   - `reserveBalanceRaw`: increased by receivedAmount\_
    - `lastUpdatedAt`: event block timestamp
 
 ## Test Cases
@@ -134,6 +137,7 @@ When a `TokensSold` event is emitted:
 **Action**: Process ModuleCreated event for BC module
 
 **Assertions**:
+
 - ModuleRegistry exists with correct fundingManager address
 - Market entity exists with correct token addresses
 - MarketState entity exists with initial zero values
@@ -146,6 +150,7 @@ When a `TokensSold` event is emitted:
 **Action**: Process TokensBought event with test values
 
 **Assertions**:
+
 - Trade entity created with correct amounts
 - MarketState.totalSupplyRaw increased by 9,900,000
 - MarketState.marketSupplyRaw increased by 9,900,000
@@ -160,6 +165,7 @@ When a `TokensSold` event is emitted:
 **Action**: Process TokensSold event with test values
 
 **Assertions**:
+
 - Trade entity created with correct amounts
 - MarketState.totalSupplyRaw decreased by 4,950,000
 - MarketState.marketSupplyRaw decreased by 4,950,000
@@ -174,6 +180,7 @@ When a `TokensSold` event is emitted:
 **Action**: Process TokensBought event before ModuleCreated event
 
 **Assertions**:
+
 - Handler should gracefully handle missing Market/MarketState
 - Either create entities defensively or skip processing
 - No errors thrown
@@ -181,6 +188,7 @@ When a `TokensSold` event is emitted:
 ### Test Case 5: Token Decimals Used Correctly
 
 **Assertions**:
+
 - USDC amounts formatted with 6 decimals
 - FLOOR amounts formatted with 18 decimals
 - formatAmount helper correctly handles different decimal places
@@ -200,4 +208,3 @@ When a `TokensSold` event is emitted:
 - [ ] Token decimals correctly applied (6 for USDC, 18 for FLOOR)
 - [ ] UserMarketPosition tracks balances accurately
 - [ ] No silent failures or early returns that drop events
-

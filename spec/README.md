@@ -3,9 +3,11 @@
 ## Files
 
 ### id-mismatch-fix.md
+
 **Complete documentation of the ID mismatch fix applied to the indexer.**
 
 Contains:
+
 - Executive summary of the problem and fix
 - Detailed before/after code comparison
 - Visual diagrams of the issue and solution
@@ -26,19 +28,22 @@ Contains:
 ## Quick Reference
 
 ### The Problem
+
 Events were being emitted but not indexed because ModuleRegistry used orchestrator ID while Market used BC module ID.
 
 ### The Solution
+
 Use BC module address as the registry ID for fundingManager modules:
 
 ```typescript
 let registryId = orchestrator.toLowerCase()
 if (moduleType === 'fundingManager') {
-  registryId = module.toLowerCase()  // ← Use BC module address
+  registryId = module.toLowerCase() // ← Use BC module address
 }
 ```
 
 ### Verification
+
 ```bash
 # Check entity ID consistency
 curl -s http://localhost:8080/v1/graphql \
@@ -56,4 +61,3 @@ curl -s http://localhost:8080/v1/graphql \
 - `src/market-handlers.ts` - Trade event handlers
 - `spec/handler-test-specification.md` - Handler test specification
 - `spec/handler-implementation-specification.md` - Implementation specification
-
