@@ -2,8 +2,12 @@ import type { handlerContext } from 'generated'
 import type { Market_t } from 'generated/src/db/Entities.gen'
 import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
-import { normalizeAddress } from './misc'
-import { fetchTokenAddressesFromBCEffect, getOrCreateToken } from './token'
+import { formatAmount, normalizeAddress } from './misc'
+import {
+  fetchInitialPriceFromBCEffect,
+  fetchTokenAddressesFromBCEffect,
+  getOrCreateToken,
+} from './token'
 import { getOrCreateAccount } from './user'
 
 /**
@@ -107,6 +111,27 @@ export async function getOrCreateMarket(
     )
   }
 
+  // Fetch initial price from bonding curve contract
+  let initialPriceRaw = 0n
+  let initialPriceFormatted = '0'
+  if (bcAddress) {
+    const priceResult = await fetchInitialPriceFromBCEffect(context.effect)({
+      chainId,
+      bcAddress,
+    })
+    if (priceResult) {
+      initialPriceRaw = BigInt(priceResult.buyPriceRaw)
+      initialPriceFormatted = formatAmount(initialPriceRaw, reserveToken.decimals).formatted
+      context.log.info(
+        `[getOrCreateMarket] ✅ Initial price fetched | price=${initialPriceFormatted} | raw=${initialPriceRaw}`
+      )
+    } else {
+      context.log.warn(
+        `[getOrCreateMarket] ⚠️ Initial price fetch failed | bcAddress=${bcAddress} | defaulting to 0`
+      )
+    }
+  }
+
   market = {
     id: normalizedMarketId,
     creator_id: creator.id,
@@ -121,8 +146,8 @@ export async function getOrCreateMarket(
     sellFeeBps: 0n,
     maxLTV: 0n,
     // Dynamic state fields
-    currentPriceRaw: 0n,
-    currentPriceFormatted: '0',
+    currentPriceRaw: initialPriceRaw,
+    currentPriceFormatted: initialPriceFormatted,
     floorPriceRaw: 0n,
     floorPriceFormatted: '0',
     totalSupplyRaw: 0n,

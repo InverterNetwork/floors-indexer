@@ -276,6 +276,43 @@ export const fetchTokenAddressesFromBCEffect = wrapEffect(
 )
 
 // =============================================================================
+// Initial Price from BC Effect
+// =============================================================================
+
+export const fetchInitialPriceFromBCEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchInitialPriceFromBC',
+      input: { chainId: S.number, bcAddress: S.string },
+      output: S.nullable(S.schema({ buyPriceRaw: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.bcAddress as `0x${string}`
+
+        const result = await client.readContract({
+          address: target,
+          abi: FLOOR_ABI_TYPED,
+          functionName: 'getStaticPriceForBuying',
+        })
+
+        if (typeof result === 'bigint') {
+          return { buyPriceRaw: result.toString() }
+        }
+
+        return undefined
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
 // Token Helper Functions
 // =============================================================================
 
