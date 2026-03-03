@@ -133,6 +133,12 @@ contracts:
       - event: LastFloorPriceUpdated
       - event: ModuleInitialized
 
+  - name: ERC20IssuanceToken
+    abi_file_path: abis/ERC20Issuance_v1.json
+    handler: src/index.ts
+    events:
+      - event: Transfer
+
 networks:
   - id: 31337 # Local Anvil (forked) or Remote Avalanche Fork
     start_block: 73900000
@@ -156,4 +162,6 @@ networks:
       - name: Authorizer
         address:
       - name: StakingManager
+        address:
+      - name: ERC20IssuanceToken
         address:

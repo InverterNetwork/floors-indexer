@@ -42,6 +42,9 @@ const marketsSeen = new Set<string>()
 const activeMarkets = new Set<string>()
 const BPS_DENOMINATOR = 10_000n
 
+import { issuanceTokenToMarketId } from './issuance-token-registry'
+export { issuanceTokenToMarketId }
+
 type PriceHistoryEntry = {
   currentPriceRaw: bigint
   previousPriceRaw: bigint
@@ -996,6 +999,11 @@ FloorMarket.CollateralTokenSet.handler(
   })
 )
 
+FloorMarket.IssuanceTokenSet.contractRegister(({ event, context }) => {
+  const issuanceTokenAddress = event.params.issuanceToken_ as `0x${string}`
+  context.addERC20IssuanceToken(issuanceTokenAddress)
+})
+
 FloorMarket.IssuanceTokenSet.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const moduleAddress = normalizeAddress(event.srcAddress)
@@ -1025,6 +1033,10 @@ FloorMarket.IssuanceTokenSet.handler(
       lastUpdatedAt: timestamp,
     }
     context.Market.set(updatedMarket)
+
+    // Keep in-memory reverse map so Transfer handlers can find the market
+    issuanceTokenToMarketId.set(issuanceTokenAddress, market.id)
+
     context.log.info(
       `[IssuanceTokenSet] ✅ Updated issuance token | marketId=${marketId} | token=${issuanceToken.id}`
     )
@@ -1340,4 +1352,5 @@ export function __resetMarketHandlerTestState() {
   marketsSeen.clear()
   activeMarkets.clear()
   priceHistoryCache.clear()
+  issuanceTokenToMarketId.clear()
 }

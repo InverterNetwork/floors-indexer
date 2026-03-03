@@ -15,3 +15,5 @@ import './staking-handlers'
 import './presale-handlers'
 // Authorizer handlers
 import './authorizer-handlers'
+// Issuance token transfer handlers (price refresh on transfer)
+import './issuance-token-handlers'

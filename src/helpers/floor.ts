@@ -5,6 +5,9 @@ import FLOOR_ABI from '../../abis/Floor_v1.json'
 import { getPublicClient } from '../rpc-client'
 import { wrapEffect } from './effects'
 
+export type { FloorPricingResult } from './misc'
+export { parseFloorPricingResult } from './misc'
+
 // =============================================================================
 // ABI Type Casts
 // =============================================================================
@@ -73,39 +76,3 @@ export const fetchFloorPricingEffect = wrapEffect(
 // Floor Helper Types & Functions
 // =============================================================================
 
-/**
- * Helper type for floor pricing result (parsed from effect output)
- */
-export type FloorPricingResult = {
-  buyPrice?: bigint
-  sellPrice?: bigint
-  buyFeeBps?: bigint
-  sellFeeBps?: bigint
-  floorPrice?: bigint
-}
-
-/**
- * Parse the string-based effect output to bigint values
- */
-export function parseFloorPricingResult(
-  effectResult:
-    | {
-        buyPrice?: string | null
-        sellPrice?: string | null
-        buyFeeBps?: string | null
-        sellFeeBps?: string | null
-        floorPrice?: string | null
-      }
-    | null
-    | undefined
-): FloorPricingResult {
-  if (!effectResult) return {}
-
-  return {
-    buyPrice: effectResult.buyPrice ? BigInt(effectResult.buyPrice) : undefined,
-    sellPrice: effectResult.sellPrice ? BigInt(effectResult.sellPrice) : undefined,
-    buyFeeBps: effectResult.buyFeeBps ? BigInt(effectResult.buyFeeBps) : undefined,
-    sellFeeBps: effectResult.sellFeeBps ? BigInt(effectResult.sellFeeBps) : undefined,
-    floorPrice: effectResult.floorPrice ? BigInt(effectResult.floorPrice) : undefined,
-  }
-}

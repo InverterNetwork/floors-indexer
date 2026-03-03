@@ -13,6 +13,7 @@ import {
   normalizeAddress,
   resolveMarketId,
 } from './helpers'
+import { issuanceTokenToMarketId } from './issuance-token-registry'
 
 /**
  * @notice Contract registration handler for FloorFactoryInitialized event
@@ -258,6 +259,11 @@ ModuleFactory.ModuleCreated.handler(
         context.log.info(
           `[ModuleCreated] Market ready | id=${market.id} | reserveToken=${market.reserveToken_id} | issuanceToken=${market.issuanceToken_id}`
         )
+
+        // Keep in-memory reverse map so Transfer handlers can find the market
+        if (market.issuanceToken_id && market.issuanceToken_id !== 'unknown-issuance') {
+          issuanceTokenToMarketId.set(market.issuanceToken_id, market.id)
+        }
       }
     }
 

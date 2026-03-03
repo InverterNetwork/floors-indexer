@@ -1,5 +1,38 @@
 import { getAddress } from 'viem'
 
+// ── Floor pricing types & parser ───────────────────────────────────────────
+// Kept here (no Envio runtime deps) so tests can import without side-effects.
+
+export type FloorPricingResult = {
+  buyPrice?: bigint
+  sellPrice?: bigint
+  buyFeeBps?: bigint
+  sellFeeBps?: bigint
+  floorPrice?: bigint
+}
+
+export function parseFloorPricingResult(
+  effectResult:
+    | {
+        buyPrice?: string | null
+        sellPrice?: string | null
+        buyFeeBps?: string | null
+        sellFeeBps?: string | null
+        floorPrice?: string | null
+      }
+    | null
+    | undefined
+): FloorPricingResult {
+  if (!effectResult) return {}
+  return {
+    buyPrice: effectResult.buyPrice ? BigInt(effectResult.buyPrice) : undefined,
+    sellPrice: effectResult.sellPrice ? BigInt(effectResult.sellPrice) : undefined,
+    buyFeeBps: effectResult.buyFeeBps ? BigInt(effectResult.buyFeeBps) : undefined,
+    sellFeeBps: effectResult.sellFeeBps ? BigInt(effectResult.sellFeeBps) : undefined,
+    floorPrice: effectResult.floorPrice ? BigInt(effectResult.floorPrice) : undefined,
+  }
+}
+
 /**
  * Format a raw BigInt amount with decimals into Amount type
  * Example: formatAmount(9900000n, 18) -> { raw: 9900000n, formatted: "9.9" }
