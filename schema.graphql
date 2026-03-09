@@ -591,6 +591,9 @@ type GlobalStats {
   totalOutstandingDebtFormatted: String!
   totalLockedCollateralRaw: BigInt!
   totalLockedCollateralFormatted: String!
+  # Note: lastUpdatedAt also serves as the canonical "current block timestamp"
+  # for frontend time calculations (e.g., Dutch auction timer).
+  # This ensures consistency when chain time warps are used (e.g., anvil_setTime).
   lastUpdatedAt: BigInt!
 }
 

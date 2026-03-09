@@ -63,10 +63,12 @@ const SELECTOR_MAP: Record<string, string> = loadAllAbis()
 
 /**
  * Get human-readable name for a function selector
- * @param selector - The 4-byte function selector (e.g., "0xd6febde8")
+ * @param selector - The function selector (4-byte like "0xd6febde8" or 32-byte padded)
  * @returns Human-readable function name or the selector if unknown
  */
 export function getSelectorName(selector: string): string {
   const normalizedSelector = selector.toLowerCase()
-  return SELECTOR_MAP[normalizedSelector] || selector
+  // Extract 4-byte selector if 32-byte padded value is provided
+  const selector4Byte = normalizedSelector.length > 10 ? normalizedSelector.slice(0, 10) : normalizedSelector
+  return SELECTOR_MAP[selector4Byte] || selector
 }

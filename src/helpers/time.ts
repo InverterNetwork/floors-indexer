@@ -14,8 +14,45 @@ const SNAPSHOT_PERIOD_SECONDS: Record<SnapshotPeriod_t, bigint> = {
 }
 
 /**
+ * Update the GlobalStats entity with the latest block timestamp.
+ * This ensures the frontend can always get the current chain time,
+ * even when time warps are used (e.g., anvil_setTime).
+ */
+export async function updateLatestBlockTimestamp(
+  context: handlerContext,
+  timestamp: bigint
+): Promise<void> {
+  const globalStats = await context.GlobalStats.get('global-stats')
+
+  if (globalStats) {
+    // Only update if this timestamp is newer
+    if (timestamp > globalStats.lastUpdatedAt) {
+      context.GlobalStats.set({
+        ...globalStats,
+        lastUpdatedAt: timestamp,
+      })
+    }
+  } else {
+    // Create initial GlobalStats entity
+    context.GlobalStats.set({
+      id: 'global-stats',
+      totalMarkets: 0n,
+      activeMarkets: 0n,
+      totalVolumeRaw: 0n,
+      totalVolumeFormatted: '0',
+      totalOutstandingDebtRaw: 0n,
+      totalOutstandingDebtFormatted: '0',
+      totalLockedCollateralRaw: 0n,
+      totalLockedCollateralFormatted: '0',
+      lastUpdatedAt: timestamp,
+    })
+  }
+}
+
+/**
  * Update GlobalStatsSnapshots for all periods (1h, 4h, 1d)
  * Creates time-bucketed snapshots of TVL, Market Cap, and volume
+ * Also updates the GlobalStats entity with the latest block timestamp
  */
 export async function updateGlobalStatsSnapshots(
   context: handlerContext,
@@ -29,6 +66,10 @@ export async function updateGlobalStatsSnapshots(
   }
 ): Promise<void> {
   const periods: SnapshotPeriod_t[] = ['ONE_HOUR', 'FOUR_HOURS', 'ONE_DAY']
+
+  // Update GlobalStats with latest block timestamp
+  // This ensures frontend can get current chain time even after time warps
+  await updateLatestBlockTimestamp(context, timestamp)
 
   for (const period of periods) {
     const periodSeconds = SNAPSHOT_PERIOD_SECONDS[period]
