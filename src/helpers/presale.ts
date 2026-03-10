@@ -164,7 +164,8 @@ export async function handleParticipation(
     context,
     account.id,
     marketId,
-    saleToken?.decimals
+    saleToken?.decimals,
+    timestamp
   )
 
   const updatedPosition = buildUpdatedUserMarketPosition(userPosition, {

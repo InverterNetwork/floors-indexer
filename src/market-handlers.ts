@@ -198,7 +198,8 @@ FloorMarket.TokensBought.handler(
       context,
       buyer.id,
       market.id,
-      issuanceToken.decimals
+      issuanceToken.decimals,
+      BigInt(event.block.timestamp)
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       netFTokenChangeDelta: event.params.receivedAmount_,
@@ -375,7 +376,8 @@ FloorMarket.TokensSold.handler(
       context,
       seller.id,
       market.id,
-      issuanceToken.decimals
+      issuanceToken.decimals,
+      BigInt(event.block.timestamp)
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       netFTokenChangeDelta: -event.params.depositAmount_,

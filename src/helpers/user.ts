@@ -28,7 +28,8 @@ export async function getOrCreateUserMarketPosition(
   context: handlerContext,
   userId: string,
   marketId: string,
-  tokenDecimals: number = 18
+  tokenDecimals: number = 18,
+  blockTimestamp?: bigint
 ): Promise<UserMarketPosition_t> {
   const normalizedUserId = normalizeAddress(userId)
   const normalizedMarketId = normalizeAddress(marketId)
@@ -54,7 +55,7 @@ export async function getOrCreateUserMarketPosition(
       presaleDepositRaw: zeroAmount.raw,
       presaleDepositFormatted: zeroAmount.formatted,
       presaleLeverage: 0n,
-      lastUpdatedAt: BigInt(Math.floor(Date.now() / 1000)),
+      lastUpdatedAt: blockTimestamp ?? BigInt(Math.floor(Date.now() / 1000)),
     }
     context.UserMarketPosition.set(position)
   }

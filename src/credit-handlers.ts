@@ -93,7 +93,8 @@ CreditFacility.LoanCreated.handler(
       context,
       borrower.id,
       facility.market_id,
-      collateralToken.decimals
+      collateralToken.decimals,
+      timestamp
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       totalDebtDelta: event.params.loanAmount_,
@@ -174,7 +175,8 @@ CreditFacility.LoanRebalanced.handler(
       context,
       loan.borrower_id,
       facility.market_id,
-      collateralToken.decimals
+      collateralToken.decimals,
+      timestamp
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       lockedCollateralDelta,
@@ -261,7 +263,8 @@ CreditFacility.LoanRepaid.handler(
       context,
       loan.borrower_id,
       facility.market_id,
-      collateralToken.decimals
+      collateralToken.decimals,
+      timestamp
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       totalDebtDelta: -repaymentAmountRaw,
@@ -342,7 +345,8 @@ CreditFacility.LoanClosed.handler(
       context,
       loan.borrower_id,
       facility.market_id,
-      collateralToken.decimals
+      collateralToken.decimals,
+      timestamp
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       lockedCollateralDelta: -unlockedAmountRaw,

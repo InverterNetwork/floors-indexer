@@ -318,7 +318,8 @@ StakingManager.Staked.handler(
       context,
       user.id,
       manager.market_id,
-      issuanceToken.decimals
+      issuanceToken.decimals,
+      timestamp
     )
     const updatedUserPosition = {
       ...userPosition,
@@ -556,7 +557,8 @@ StakingManager.FundsWithdrawn.handler(
       context,
       user.id,
       manager.market_id,
-      issuanceToken.decimals
+      issuanceToken.decimals,
+      timestamp
     )
     const updatedUserPosition = {
       ...userPosition,
