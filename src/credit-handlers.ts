@@ -492,23 +492,35 @@ CreditFacility.LoansConsolidated.handler(
       }
     }
 
+    // Fetch on-chain state for the new consolidated loan
+    const loanStateResult = await fetchLoanStateEffect(context.effect)({
+      chainId: event.chainId,
+      facilityAddress: event.srcAddress,
+      loanId: newLoanId,
+    })
+    const onChainLoan = parseLoanStateResult(loanStateResult)
+
+    const lockedCollateralRaw =
+      onChainLoan?.lockedIssuanceTokens ?? event.params.totalLockedIssuanceTokens_
+    const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? 0n
+
+    const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
+    const remainingDebt = formatAmount(remainingDebtRaw, borrowToken.decimals)
+
     // Create new consolidated loan
     const consolidatedLoan = {
       id: newLoanId,
       borrower_id: borrower.id,
       facility_id: facility.id,
       market_id: facility.market_id,
-      lockedCollateralRaw: event.params.totalLockedIssuanceTokens_,
-      lockedCollateralFormatted: formatAmount(
-        event.params.totalLockedIssuanceTokens_,
-        collateralToken.decimals
-      ).formatted,
-      borrowAmountRaw: 0n, // Will be calculated from old loans
-      borrowAmountFormatted: '0',
+      lockedCollateralRaw,
+      lockedCollateralFormatted: lockedCollateral.formatted,
+      borrowAmountRaw: remainingDebtRaw,
+      borrowAmountFormatted: remainingDebt.formatted,
       originationFeeRaw: 0n,
       originationFeeFormatted: '0',
-      remainingDebtRaw: 0n, // Will be calculated from old loans
-      remainingDebtFormatted: '0',
+      remainingDebtRaw,
+      remainingDebtFormatted: remainingDebt.formatted,
       floorPriceAtBorrowRaw: 0n,
       floorPriceAtBorrowFormatted: '0',
       status: 'ACTIVE' as LoanStatus_t,
@@ -520,7 +532,7 @@ CreditFacility.LoansConsolidated.handler(
     context.Loan.set(consolidatedLoan)
 
     context.log.info(
-      `[LoansConsolidated] ✅ Loans consolidated | oldLoans=${event.params.oldLoanIds_.length} | newLoanId=${newLoanId} | borrower=${borrower.id}`
+      `[LoansConsolidated] ✅ Loans consolidated | oldLoans=${event.params.oldLoanIds_.length} | newLoanId=${newLoanId} | borrower=${borrower.id} | debt=${remainingDebt.formatted} | collateral=${lockedCollateral.formatted}`
     )
   })
 )

@@ -212,6 +212,8 @@ type Strategy {
   name: String
   symbol: String
 
+  collateralToken: Token
+
   addedAt: BigInt!
   removedAt: BigInt
 

@@ -87,12 +87,24 @@ StakingManager.StrategyAdded.handler(
     // Fetch strategy metadata (name, symbol) via RPC
     const metadata = await getStrategyMetadata(context, event.chainId, strategyAddress)
 
+    // Resolve collateral token from StakingManager → Market → reserveToken
+    let collateralToken_id: string | undefined
+
+    const manager = await context.StakingManager.get(stakingManagerId)
+    if (manager) {
+      const market = await context.Market.get(manager.market_id)
+      if (market) {
+        collateralToken_id = market.reserveToken_id
+      }
+    }
+
     const strategy: Strategy_t = {
       id: strategyAddress,
       stakingManager_id: stakingManagerId,
       isActive: true,
       name: metadata?.name,
       symbol: metadata?.symbol,
+      collateralToken_id,
       addedAt: timestamp,
       removedAt: undefined,
       transactionHash: event.transaction.hash,
