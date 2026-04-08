@@ -8,6 +8,7 @@ import {
   buildUpdatedUserMarketPosition,
   createMarketSnapshot,
   formatAmount,
+  FLOOR_PRICE_DECIMALS,
   getMarketIdForModule,
   getOrCreateAccount,
   getOrCreateMarket,
@@ -118,8 +119,8 @@ FloorMarket.TokensBought.handler(
     const buyFeeBps = market.buyFeeBps ?? 0n
     const sellFeeBps = market.sellFeeBps ?? 0n
     const floorPriceRaw = priceHistory.floorPriceRaw
-    const priceAmount = formatAmount(buyPriceRaw, reserveToken.decimals)
-    const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
+    const priceAmount = formatAmount(buyPriceRaw, FLOOR_PRICE_DECIMALS)
+    const floorPriceAmount = formatAmount(floorPriceRaw, FLOOR_PRICE_DECIMALS)
     const feeAmountRaw =
       buyFeeBps > 0n ? (event.params.depositAmount_ * buyFeeBps) / BPS_DENOMINATOR : 0n
     const feeAmount = formatAmount(feeAmountRaw, reserveToken.decimals)
@@ -296,8 +297,8 @@ FloorMarket.TokensSold.handler(
     const buyFeeBps = market.buyFeeBps ?? 0n
     const sellFeeBps = market.sellFeeBps ?? 0n
     const floorPriceRaw = priceHistory.floorPriceRaw
-    const priceAmount = formatAmount(sellPriceRaw, reserveToken.decimals)
-    const floorPriceAmount = formatAmount(floorPriceRaw, reserveToken.decimals)
+    const priceAmount = formatAmount(sellPriceRaw, FLOOR_PRICE_DECIMALS)
+    const floorPriceAmount = formatAmount(floorPriceRaw, FLOOR_PRICE_DECIMALS)
     const feeAmountRaw =
       sellFeeBps > 0n ? (event.params.receivedAmount_ * sellFeeBps) / BPS_DENOMINATOR : 0n
     const feeAmount = formatAmount(feeAmountRaw, reserveToken.decimals)
@@ -611,7 +612,7 @@ FloorMarket.FloorPriceUpdated.handler(
 
     const nextFloorPriceRaw = event.params.floorPrice_
     const updatedHistory = updateFloorPriceCache(market, nextFloorPriceRaw)
-    const floorPriceAmount = formatAmount(updatedHistory.floorPriceRaw, reserveToken.decimals)
+    const floorPriceAmount = formatAmount(updatedHistory.floorPriceRaw, FLOOR_PRICE_DECIMALS)
     const nextInitialFloorPriceRaw =
       market.initialFloorPriceRaw > 0n
         ? market.initialFloorPriceRaw
@@ -665,8 +666,8 @@ FloorMarket.FloorIncreased.handler(
       return
     }
 
-    const oldFloorPrice = formatAmount(event.params.oldFloorPrice_, reserveToken.decimals)
-    const newFloorPrice = formatAmount(event.params.newFloorPrice_, reserveToken.decimals)
+    const oldFloorPrice = formatAmount(event.params.oldFloorPrice_, FLOOR_PRICE_DECIMALS)
+    const newFloorPrice = formatAmount(event.params.newFloorPrice_, FLOOR_PRICE_DECIMALS)
     const collateralConsumed = formatAmount(event.params.collateralConsumed_, reserveToken.decimals)
     const supplyIncrease = formatAmount(event.params.supplyIncrease_, issuanceToken.decimals)
 
@@ -1135,7 +1136,7 @@ async function updateDerivedMetricsAfterTrade(params: {
       market.id,
       {
         newPriceRaw: priceRaw,
-        newPriceFormatted: formatAmount(priceRaw, reserveToken.decimals).formatted,
+        newPriceFormatted: formatAmount(priceRaw, FLOOR_PRICE_DECIMALS).formatted,
         reserveAmountRaw: reserveVolumeRaw,
         reserveAmountFormatted: formatAmount(reserveVolumeRaw, reserveToken.decimals).formatted,
         timestamp: tradeTimestamp,
@@ -1239,7 +1240,7 @@ async function persistMarketRollingStatsEntity(
 ): Promise<{ volume24hRaw: bigint; trades24h: bigint }> {
   const tradeCount = state.tradeCount < 0n ? 0n : state.tradeCount
   const averagePriceRaw = tradeCount > 0n ? state.priceSumRaw / tradeCount : 0n
-  const averagePrice = formatAmount(averagePriceRaw, reserveTokenDecimals)
+  const averagePrice = formatAmount(averagePriceRaw, FLOOR_PRICE_DECIMALS)
   const volumeAmount = formatAmount(state.totalVolumeRaw, reserveTokenDecimals)
 
   context.MarketRollingStats.set({

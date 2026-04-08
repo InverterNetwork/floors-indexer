@@ -10,6 +10,7 @@ import {
   buildUpdatedUserMarketPosition,
   fetchLoanStateEffect,
   formatAmount,
+  FLOOR_PRICE_DECIMALS,
   getOrCreateAccount,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
@@ -849,7 +850,7 @@ async function updateMarketFloorPriceViaFacility(
     return
   }
 
-  const floorPriceAmount = formatAmount(nextFloorPriceRaw, reserveTokenDecimals)
+  const floorPriceAmount = formatAmount(nextFloorPriceRaw, FLOOR_PRICE_DECIMALS)
   const nextInitialFloorPriceRaw =
     market.initialFloorPriceRaw > 0n ? market.initialFloorPriceRaw : nextFloorPriceRaw
   const nextInitialFloorPriceFormatted =

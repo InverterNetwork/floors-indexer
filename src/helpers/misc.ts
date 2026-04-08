@@ -11,6 +11,12 @@ export type FloorPricingResult = {
   floorPrice?: bigint
 }
 
+/**
+ * ERC20 reserve amounts use the token's `decimals()`.
+ * Bonding-curve floor / buy / sell prices from the protocol are 1e18 fixed-point (WAD).
+ */
+export const FLOOR_PRICE_DECIMALS = 18
+
 export function parseFloorPricingResult(
   effectResult:
     | {

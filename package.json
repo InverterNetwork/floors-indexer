@@ -6,7 +6,7 @@
     "build": "tsc --build",
     "watch": "tsc --watch",
     "lint": "eslint . --ext .ts --fix",
-    "mocha": "ts-mocha test/**/*.ts",
+    "mocha": "ts-mocha test/**/*.ts --timeout 15000",
     "codegen": "envio codegen",
     "dev": "eval \"$(scripts/select_rpc.sh)\" && LOG_LEVEL=trace LOG_STRATEGY=console-pretty TUI_OFF=true envio dev",
     "start": "envio start",

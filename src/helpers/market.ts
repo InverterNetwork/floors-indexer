@@ -2,7 +2,7 @@ import type { handlerContext } from 'generated'
 import type { Market_t } from 'generated/src/db/Entities.gen'
 import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
-import { formatAmount, normalizeAddress } from './misc'
+import { formatAmount, FLOOR_PRICE_DECIMALS, normalizeAddress } from './misc'
 import {
   fetchInitialPriceFromBCEffect,
   fetchTokenAddressesFromBCEffect,
@@ -121,7 +121,7 @@ export async function getOrCreateMarket(
     })
     if (priceResult) {
       initialPriceRaw = BigInt(priceResult.buyPriceRaw)
-      initialPriceFormatted = formatAmount(initialPriceRaw, reserveToken.decimals).formatted
+      initialPriceFormatted = formatAmount(initialPriceRaw, FLOOR_PRICE_DECIMALS).formatted
       context.log.info(
         `[getOrCreateMarket] ✅ Initial price fetched | price=${initialPriceFormatted} | raw=${initialPriceRaw}`
       )

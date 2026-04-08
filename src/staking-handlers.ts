@@ -14,6 +14,7 @@ import { StakingManager } from '../generated/src/Handlers.gen'
 import {
   buildUpdatedUserMarketPosition,
   formatAmount,
+  FLOOR_PRICE_DECIMALS,
   getOrCreateAccount,
   getOrCreateModuleRegistry,
   getOrCreateUserMarketPosition,
@@ -22,7 +23,6 @@ import {
   normalizeAddress,
 } from './helpers'
 
-const FLOOR_PRICE_DECIMALS = 18
 const STAKING_CONFIG_PARAMS = parseAbiParameters('uint256')
 
 // ============================================================

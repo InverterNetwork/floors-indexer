@@ -722,7 +722,7 @@ describe('Floor Markets Indexer', () => {
             ...market,
             reserveToken_id: USDC_ADDRESS_CHECKSUM,
             issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
-            floorPriceRaw: 1_000_000n,
+            floorPriceRaw: 1_000_000_000_000_000_000n,
             floorPriceFormatted: '1',
             totalSupplyRaw: 100_000_000_000000000000n,
             totalSupplyFormatted: '100',
@@ -736,7 +736,7 @@ describe('Floor Markets Indexer', () => {
         let db = await bootstrapMarketDb()
 
         const priceUpdateEvent = FloorMarket.FloorPriceUpdated.createMockEvent({
-          floorPrice_: 1_500_000n,
+          floorPrice_: 1_500_000_000_000_000_000n,
           mockEventData: {
             srcAddress: BC_MODULE_ADDRESS,
             chainId: 31337,
@@ -750,15 +750,19 @@ describe('Floor Markets Indexer', () => {
 
         const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
         assert.ok(market, 'Market should exist')
-        assert.equal(market?.floorPriceRaw, 1_500_000n, 'floorPriceRaw should be updated')
+        assert.equal(
+          market?.floorPriceRaw,
+          1_500_000_000_000_000_000n,
+          'floorPriceRaw should be updated'
+        )
       })
 
       it('handles FloorIncreased and creates FloorElevation', async () => {
         let db = await bootstrapMarketDb()
 
         const floorIncreaseEvent = FloorMarket.FloorIncreased.createMockEvent({
-          oldFloorPrice_: 1_000_000n,
-          newFloorPrice_: 1_200_000n,
+          oldFloorPrice_: 1_000_000_000_000_000_000n,
+          newFloorPrice_: 1_200_000_000_000_000_000n,
           collateralConsumed_: 20_000_000n,
           supplyIncrease_: 10_000_000_000000000000n,
           mockEventData: {
@@ -774,7 +778,11 @@ describe('Floor Markets Indexer', () => {
 
         const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
         assert.ok(market, 'Market should exist')
-        assert.equal(market?.floorPriceRaw, 1_200_000n, 'floorPriceRaw should be updated')
+        assert.equal(
+          market?.floorPriceRaw,
+          1_200_000_000_000_000_000n,
+          'floorPriceRaw should be updated'
+        )
         assert.equal(
           market?.totalSupplyRaw,
           110_000_000_000000000000n,
@@ -783,8 +791,16 @@ describe('Floor Markets Indexer', () => {
 
         const elevation = db.entities.FloorElevation.get('0xfloorup-0')
         assert.ok(elevation, 'FloorElevation should exist')
-        assert.equal(elevation?.oldFloorPriceRaw, 1_000_000n, 'oldFloorPriceRaw should match')
-        assert.equal(elevation?.newFloorPriceRaw, 1_200_000n, 'newFloorPriceRaw should match')
+        assert.equal(
+          elevation?.oldFloorPriceRaw,
+          1_000_000_000_000_000_000n,
+          'oldFloorPriceRaw should match'
+        )
+        assert.equal(
+          elevation?.newFloorPriceRaw,
+          1_200_000_000_000_000_000n,
+          'newFloorPriceRaw should match'
+        )
         assert.equal(
           elevation?.deployedAmountRaw,
           20_000_000n,
@@ -2037,14 +2053,16 @@ describe('Floor Markets Indexer', () => {
       )
     })
 
-    it('records PresaleBought participations and updates aggregates', async () => {
+    it('records presale participation and aggregates (via PositionCreated)', async () => {
       let db = await bootstrapPresaleDb()
 
-      const presaleBoughtEvent = Presale.PresaleBought.createMockEvent({
-        buyer_: Addresses.defaultAddress,
-        deposit_: PRESALE_DEPOSIT_AMOUNT,
-        loopCount_: 2n,
+      // PresaleBought is a no-op in the indexer; handleParticipation runs on PositionCreated only.
+      const positionCreatedEvent = Presale.PositionCreated.createMockEvent({
+        positionId_: 1n,
+        owner_: Addresses.defaultAddress,
+        netAllocation_: PRESALE_DEPOSIT_AMOUNT,
         totalMinted_: PRESALE_MINTED_AMOUNT,
+        loops_: 2n,
         mockEventData: {
           srcAddress: PRESALE_MODULE_ADDRESS,
           chainId: 31337,
@@ -2054,7 +2072,7 @@ describe('Floor Markets Indexer', () => {
         },
       })
 
-      db = await db.processEvents([presaleBoughtEvent])
+      db = await db.processEvents([positionCreatedEvent])
 
       const presaleContract = db.entities.PreSaleContract.get(PRESALE_MODULE_ADDRESS_CHECKSUM)
       assert.equal(

@@ -11,7 +11,12 @@ import assert from 'assert'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-import { normalizeAddress, formatAmount, parseFloorPricingResult } from '../src/helpers/misc'
+import {
+  normalizeAddress,
+  formatAmount,
+  FLOOR_PRICE_DECIMALS,
+  parseFloorPricingResult,
+} from '../src/helpers/misc'
 import { issuanceTokenToMarketId } from '../src/issuance-token-registry'
 
 // Addresses (checksummed)
@@ -25,6 +30,7 @@ const RECEIVER = normalizeAddress('0x6666666666666666666666666666666666666666')
 // ── fixture data ───────────────────────────────────────────────────────────
 
 const RESERVE_DECIMALS = 6 // e.g. USDC
+const WAD = 1_000_000_000_000_000_000n
 
 const baseMarket = {
   id: MARKET_ID,
@@ -38,9 +44,9 @@ const baseMarket = {
   buyFeeBps: 100n,
   sellFeeBps: 50n,
   maxLTV: 0n,
-  currentPriceRaw: 1_000_000n, // $1.00 (6 decimals)
+  currentPriceRaw: WAD,
   currentPriceFormatted: '1',
-  floorPriceRaw: 900_000n,
+  floorPriceRaw: (WAD * 9n) / 10n,
   floorPriceFormatted: '0.9',
   totalSupplyRaw: 1_000_000n,
   totalSupplyFormatted: '1',
@@ -188,9 +194,9 @@ async function runTransferHandler(
   const updatedMarket = {
     ...market,
     currentPriceRaw: buyPriceRaw,
-    currentPriceFormatted: formatAmount(buyPriceRaw, reserveToken.decimals).formatted,
+    currentPriceFormatted: formatAmount(buyPriceRaw, FLOOR_PRICE_DECIMALS).formatted,
     floorPriceRaw,
-    floorPriceFormatted: formatAmount(floorPriceRaw, reserveToken.decimals).formatted,
+    floorPriceFormatted: formatAmount(floorPriceRaw, FLOOR_PRICE_DECIMALS).formatted,
     buyFeeBps: parsed.buyFeeBps ?? market.buyFeeBps,
     sellFeeBps: parsed.sellFeeBps ?? market.sellFeeBps,
     lastUpdatedAt: timestamp,
@@ -226,17 +232,17 @@ describe('issuance token Transfer → price refresh', () => {
   describe('parseFloorPricingResult', () => {
     it('parses all fields from string representation', () => {
       const result = parseFloorPricingResult({
-        buyPrice: '2000000',
-        sellPrice: '1950000',
+        buyPrice: '2000000000000000000',
+        sellPrice: '1950000000000000000',
         buyFeeBps: '100',
         sellFeeBps: '50',
-        floorPrice: '1800000',
+        floorPrice: '1800000000000000000',
       })
-      assert.strictEqual(result.buyPrice, 2_000_000n)
-      assert.strictEqual(result.sellPrice, 1_950_000n)
+      assert.strictEqual(result.buyPrice, 2_000_000_000_000_000_000n)
+      assert.strictEqual(result.sellPrice, 1_950_000_000_000_000_000n)
       assert.strictEqual(result.buyFeeBps, 100n)
       assert.strictEqual(result.sellFeeBps, 50n)
-      assert.strictEqual(result.floorPrice, 1_800_000n)
+      assert.strictEqual(result.floorPrice, 1_800_000_000_000_000_000n)
     })
 
     it('returns empty object for null input', () => {
@@ -245,9 +251,15 @@ describe('issuance token Transfer → price refresh', () => {
     })
 
     it('skips null field values gracefully', () => {
-      const result = parseFloorPricingResult({ buyPrice: null, sellPrice: '1950000', buyFeeBps: null, sellFeeBps: null, floorPrice: null })
+      const result = parseFloorPricingResult({
+        buyPrice: null,
+        sellPrice: '1950000000000000000',
+        buyFeeBps: null,
+        sellFeeBps: null,
+        floorPrice: null,
+      })
       assert.strictEqual(result.buyPrice, undefined)
-      assert.strictEqual(result.sellPrice, 1_950_000n)
+      assert.strictEqual(result.sellPrice, 1_950_000_000_000_000_000n)
     })
   })
 
@@ -255,15 +267,15 @@ describe('issuance token Transfer → price refresh', () => {
     it('updates market price after a transfer when all data is present', async () => {
       issuanceTokenToMarketId.set(ISSUANCE_TOKEN, MARKET_ID)
 
-      const newBuyPrice = 1_200_000n  // $1.20
-      const newFloorPrice = 1_000_000n // $1.00
+      const newBuyPrice = (WAD * 12n) / 10n // 1.2 WAD
+      const newFloorPrice = WAD
 
       const context = buildContext({
         market: { ...baseMarket },
         registry: moduleRegistry,
         effectImpl: async () => ({
           buyPrice: newBuyPrice.toString(),
-          sellPrice: '1150000',
+          sellPrice: '1150000000000000000',
           buyFeeBps: '100',
           sellFeeBps: '50',
           floorPrice: newFloorPrice.toString(),
@@ -338,7 +350,13 @@ describe('issuance token Transfer → price refresh', () => {
       const context = buildContext({
         // no market provided
         registry: moduleRegistry,
-        effectImpl: async () => ({ buyPrice: '2000000', sellPrice: null, buyFeeBps: null, sellFeeBps: null, floorPrice: '1000000' }),
+        effectImpl: async () => ({
+          buyPrice: '2000000000000000000',
+          sellPrice: null,
+          buyFeeBps: null,
+          sellFeeBps: null,
+          floorPrice: '1000000000000000000',
+        }),
       })
 
       // Should not throw
@@ -384,11 +402,11 @@ describe('issuance token Transfer → price refresh', () => {
         market: { ...baseMarket, buyFeeBps: 100n, sellFeeBps: 50n },
         registry: moduleRegistry,
         effectImpl: async () => ({
-          buyPrice: '1100000',
-          sellPrice: '1080000',
+          buyPrice: '1100000000000000000',
+          sellPrice: '1080000000000000000',
           buyFeeBps: '200', // fee doubled
           sellFeeBps: '100',
-          floorPrice: '900000',
+          floorPrice: '900000000000000000',
         }),
       })
 
@@ -448,11 +466,11 @@ describe('issuance token Transfer → price refresh', () => {
         effectImpl: async (_effectObj, input) => {
           capturedInputs.push(input)
           return {
-            buyPrice: '1000000',
-            sellPrice: '990000',
+            buyPrice: '1000000000000000000',
+            sellPrice: '990000000000000000',
             buyFeeBps: '100',
             sellFeeBps: '50',
-            floorPrice: '900000',
+            floorPrice: '900000000000000000',
           }
         },
       })
@@ -472,7 +490,7 @@ describe('issuance token Transfer → price refresh', () => {
     })
   })
 
-  describe('formatAmount (used for price formatting)', () => {
+  describe('formatAmount (reserve / token amounts)', () => {
     it('formats 6-decimal values correctly', () => {
       assert.strictEqual(formatAmount(1_200_000n, 6).formatted, '1.2')
       assert.strictEqual(formatAmount(1_000_000n, 6).formatted, '1')

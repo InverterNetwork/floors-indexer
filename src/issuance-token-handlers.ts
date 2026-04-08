@@ -6,6 +6,7 @@ import { ERC20IssuanceToken } from '../generated/src/Handlers.gen'
 import {
   fetchFloorPricingEffect,
   formatAmount,
+  FLOOR_PRICE_DECIMALS,
   handlerErrorWrapper,
   normalizeAddress,
   parseFloorPricingResult,
@@ -65,9 +66,9 @@ ERC20IssuanceToken.Transfer.handler(
     const updatedMarket = {
       ...market,
       currentPriceRaw: buyPriceRaw,
-      currentPriceFormatted: formatAmount(buyPriceRaw, reserveToken.decimals).formatted,
+      currentPriceFormatted: formatAmount(buyPriceRaw, FLOOR_PRICE_DECIMALS).formatted,
       floorPriceRaw,
-      floorPriceFormatted: formatAmount(floorPriceRaw, reserveToken.decimals).formatted,
+      floorPriceFormatted: formatAmount(floorPriceRaw, FLOOR_PRICE_DECIMALS).formatted,
       buyFeeBps: parsed.buyFeeBps ?? market.buyFeeBps,
       sellFeeBps: parsed.sellFeeBps ?? market.sellFeeBps,
       lastUpdatedAt: BigInt(event.block.timestamp),
