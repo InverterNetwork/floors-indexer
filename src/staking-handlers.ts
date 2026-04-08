@@ -12,6 +12,7 @@ import type {
 import type { StakePositionStatus_t, StakingActivityType_t } from '../generated/src/db/Enums.gen'
 import { StakingManager } from '../generated/src/Handlers.gen'
 import {
+  buildUpdatedUserMarketPosition,
   formatAmount,
   getOrCreateAccount,
   getOrCreateModuleRegistry,
@@ -447,6 +448,22 @@ StakingManager.YieldHarvested.handler(
     }
 
     context.StakingManager.set(updatedManager)
+
+    // Update UserMarketPosition with cumulative harvested yield
+    const userPosition = await getOrCreateUserMarketPosition(
+      context,
+      user.id,
+      manager.market_id,
+      issuanceToken.decimals,
+      timestamp
+    )
+    const updatedUserPosition = buildUpdatedUserMarketPosition(userPosition, {
+      claimableRewardsDelta: event.params.netYield_,
+      issuanceTokenDecimals: issuanceToken.decimals,
+      reserveTokenDecimals: reserveToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedUserPosition)
 
     context.log.info(
       `[StakingManager.YieldHarvested] ✅ Yield harvested | positionId=${positionId} | yield=${yieldAmount.formatted} | fee=${feeAmount.formatted}`

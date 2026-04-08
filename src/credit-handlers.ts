@@ -410,24 +410,80 @@ CreditFacility.LoanToValueRatioUpdated.handler(
 
 CreditFacility.IssuanceTokensLocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+
     context.log.debug(
       `[IssuanceTokensLocked] Handler entry | block=${event.block.number} | tx=${event.transaction.hash}`
     )
+
+    const facilityContext = await loadFacilityContext(context, facilityId)
+    if (!facilityContext) {
+      context.log.warn(`[IssuanceTokensLocked] Facility context missing | facilityId=${facilityId}`)
+      return
+    }
+
+    const { facility, borrowToken, collateralToken } = facilityContext
     const user = await getOrCreateAccount(context, event.params.user_)
+
+    const position = await getOrCreateUserMarketPosition(
+      context,
+      user.id,
+      facility.market_id,
+      collateralToken.decimals,
+      timestamp
+    )
+    const updatedPosition = buildUpdatedUserMarketPosition(position, {
+      lockedCollateralDelta: event.params.amount_,
+      issuanceTokenDecimals: collateralToken.decimals,
+      reserveTokenDecimals: borrowToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedPosition)
+
     context.log.info(
-      `[IssuanceTokensLocked] Event observed | facility=${event.srcAddress} | user=${user.id} | amount=${event.params.amount_}`
+      `[IssuanceTokensLocked] ✅ Collateral locked | facility=${facilityId} | user=${user.id} | amount=${event.params.amount_}`
     )
   })
 )
 
 CreditFacility.IssuanceTokensUnlocked.handler(
   handlerErrorWrapper(async ({ event, context }) => {
+    const facilityId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+
     context.log.debug(
       `[IssuanceTokensUnlocked] Handler entry | block=${event.block.number} | tx=${event.transaction.hash}`
     )
+
+    const facilityContext = await loadFacilityContext(context, facilityId)
+    if (!facilityContext) {
+      context.log.warn(
+        `[IssuanceTokensUnlocked] Facility context missing | facilityId=${facilityId}`
+      )
+      return
+    }
+
+    const { facility, borrowToken, collateralToken } = facilityContext
     const user = await getOrCreateAccount(context, event.params.user_)
+
+    const position = await getOrCreateUserMarketPosition(
+      context,
+      user.id,
+      facility.market_id,
+      collateralToken.decimals,
+      timestamp
+    )
+    const updatedPosition = buildUpdatedUserMarketPosition(position, {
+      lockedCollateralDelta: -event.params.amount_,
+      issuanceTokenDecimals: collateralToken.decimals,
+      reserveTokenDecimals: borrowToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedPosition)
+
     context.log.info(
-      `[IssuanceTokensUnlocked] Event observed | facility=${event.srcAddress} | user=${user.id} | amount=${event.params.amount_}`
+      `[IssuanceTokensUnlocked] ✅ Collateral unlocked | facility=${facilityId} | user=${user.id} | amount=${event.params.amount_}`
     )
   })
 )
@@ -446,8 +502,51 @@ CreditFacility.LoanTransferred.handler(
       return
     }
 
+    const facilityContext = await loadFacilityContext(context, facilityId)
+    if (!facilityContext) {
+      context.log.warn(`[LoanTransferred] Facility context missing | facilityId=${facilityId}`)
+      return
+    }
+
+    const { facility, borrowToken, collateralToken } = facilityContext
+    const oldBorrower = await getOrCreateAccount(context, event.params.previousBorrower_)
     const newBorrower = await getOrCreateAccount(context, event.params.newBorrower_)
 
+    // Decrement old borrower's position
+    const oldPosition = await getOrCreateUserMarketPosition(
+      context,
+      oldBorrower.id,
+      facility.market_id,
+      collateralToken.decimals,
+      timestamp
+    )
+    const updatedOldPosition = buildUpdatedUserMarketPosition(oldPosition, {
+      totalDebtDelta: -loan.remainingDebtRaw,
+      lockedCollateralDelta: -loan.lockedCollateralRaw,
+      issuanceTokenDecimals: collateralToken.decimals,
+      reserveTokenDecimals: borrowToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedOldPosition)
+
+    // Increment new borrower's position
+    const newPosition = await getOrCreateUserMarketPosition(
+      context,
+      newBorrower.id,
+      facility.market_id,
+      collateralToken.decimals,
+      timestamp
+    )
+    const updatedNewPosition = buildUpdatedUserMarketPosition(newPosition, {
+      totalDebtDelta: loan.remainingDebtRaw,
+      lockedCollateralDelta: loan.lockedCollateralRaw,
+      issuanceTokenDecimals: collateralToken.decimals,
+      reserveTokenDecimals: borrowToken.decimals,
+      timestamp,
+    })
+    context.UserMarketPosition.set(updatedNewPosition)
+
+    // Update loan ownership
     const updatedLoan = {
       ...loan,
       borrower_id: newBorrower.id,
@@ -456,7 +555,7 @@ CreditFacility.LoanTransferred.handler(
     context.Loan.set(updatedLoan)
 
     context.log.info(
-      `[LoanTransferred] ✅ Loan transferred | loanId=${loanId} | from=${event.params.previousBorrower_} | to=${newBorrower.id}`
+      `[LoanTransferred] ✅ Loan transferred | loanId=${loanId} | from=${oldBorrower.id} | to=${newBorrower.id} | debt=${loan.remainingDebtRaw} | collateral=${loan.lockedCollateralRaw}`
     )
   })
 )
