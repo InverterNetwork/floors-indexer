@@ -439,6 +439,7 @@ FloorMarket.VirtualCollateralAmountAdded.handler(
       return
     }
 
+    // floorSupply = virtual collateral (reserve-denominated) → reserveToken.decimals is correct
     const updatedMarket = {
       ...market,
       floorSupplyRaw: market.floorSupplyRaw + event.params.amountAdded_,
@@ -1272,16 +1273,30 @@ async function updateGlobalStatsEntity(
 
   // Calculate TVL and Market Cap across all seen markets
   // TVL = sum(totalSupply * currentPrice), MarketCap = sum(marketSupply * currentPrice)
+  // currentPriceRaw is WAD (1e18). The division by 1e18 yields a result in
+  // issuance-token decimals, so we normalise each market's contribution to 18
+  // decimals before summing — otherwise non-18 issuance tokens (rare but valid)
+  // would produce wrong aggregates.
   let totalValueLockedRaw = 0n
   let totalMarketCapRaw = 0n
 
   for (const marketId of marketsSeen) {
     const market = await context.Market.get(marketId)
     if (market && market.currentPriceRaw > 0n) {
-      // TVL = totalSupply * currentPrice / 1e18 (assuming 18 decimals for price)
-      // We store the raw multiplication result, formatting handles decimals
-      const marketTVL = (market.totalSupplyRaw * market.currentPriceRaw) / BigInt(1e18)
-      const marketCap = (market.marketSupplyRaw * market.currentPriceRaw) / BigInt(1e18)
+      const issuanceToken = await context.Token.get(market.issuanceToken_id)
+      const iDec = issuanceToken?.decimals ?? 18
+
+      // Result is in issuance-token decimals; normalise to 18 for aggregation
+      const marketTVL = normalizeAmount(
+        (market.totalSupplyRaw * market.currentPriceRaw) / BigInt(1e18),
+        iDec,
+        18
+      )
+      const marketCap = normalizeAmount(
+        (market.marketSupplyRaw * market.currentPriceRaw) / BigInt(1e18),
+        iDec,
+        18
+      )
 
       totalValueLockedRaw += marketTVL
       totalMarketCapRaw += marketCap

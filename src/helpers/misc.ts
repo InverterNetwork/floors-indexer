@@ -12,8 +12,11 @@ export type FloorPricingResult = {
 }
 
 /**
- * ERC20 reserve amounts use the token's `decimals()`.
- * Bonding-curve floor / buy / sell prices from the protocol are 1e18 fixed-point (WAD).
+ * All bonding-curve prices (floor, buy, sell, candle OHLC) are WAD — 1e18
+ * fixed-point — regardless of the reserve token's actual decimals.
+ *
+ * Use this constant when formatting *prices*. For token *amounts* (supply,
+ * volume, fees) use the relevant token's `decimals` instead.
  */
 export const FLOOR_PRICE_DECIMALS = 18
 
