@@ -193,6 +193,10 @@ export type FlattenedPriceBreakpoints = {
  * `flat[start:end]`, where start is the previous offset (or 0) and end is
  * offsets[i].
  */
+/**
+ * Price breakpoints are WAD-encoded (1e18) — same convention as all bonding-
+ * curve prices. Consumers must use `FLOOR_PRICE_DECIMALS` (18) when formatting.
+ */
 export function flattenPriceBreakpoints(
   breakpoints: readonly (readonly bigint[])[] | undefined
 ): FlattenedPriceBreakpoints | undefined {

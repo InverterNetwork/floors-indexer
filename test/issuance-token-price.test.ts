@@ -503,4 +503,76 @@ describe('issuance token Transfer → price refresh', () => {
       assert.strictEqual(formatAmount(1_500_000_000_000_000_000n, 18).formatted, '1.5')
     })
   })
+
+  describe('non-18 decimal scenarios (USDC 6-dec reserve)', () => {
+    it('trade prices always use FLOOR_PRICE_DECIMALS regardless of reserve decimals', () => {
+      // A WAD price of 2.5 (2.5e18) must format as '2.5' using FLOOR_PRICE_DECIMALS
+      const priceRaw = (WAD * 25n) / 10n // 2.5e18
+      const formatted = formatAmount(priceRaw, FLOOR_PRICE_DECIMALS)
+      assert.strictEqual(formatted.formatted, '2.5')
+      assert.strictEqual(formatted.raw, priceRaw)
+    })
+
+    it('trade prices format correctly for sub-1 prices with FLOOR_PRICE_DECIMALS', () => {
+      const priceRaw = WAD / 100n // 0.01e18
+      const formatted = formatAmount(priceRaw, FLOOR_PRICE_DECIMALS)
+      assert.strictEqual(formatted.formatted, '0.01')
+    })
+
+    it('candle OHLC prices pass through trade prices and remain WAD', () => {
+      // Candles store trade.newPriceRaw / trade.newPriceFormatted directly
+      // So prices in candles should be formatted with FLOOR_PRICE_DECIMALS
+      const ohlcPriceRaw = (WAD * 3n) / 2n // 1.5 WAD
+      const ohlcFormatted = formatAmount(ohlcPriceRaw, FLOOR_PRICE_DECIMALS)
+      assert.strictEqual(ohlcFormatted.formatted, '1.5')
+
+      // Volume in candles uses reserve token decimals (6 for USDC)
+      const volumeRaw = 1_500_000n // 1.5 USDC
+      const volumeFormatted = formatAmount(volumeRaw, RESERVE_DECIMALS)
+      assert.strictEqual(volumeFormatted.formatted, '1.5')
+    })
+
+    it('TVL calculation normalises non-18 issuance decimals correctly', () => {
+      // Simulate: 1000 issuance tokens (8-dec) at price 2.0 WAD = TVL 2000 reserve
+      const issuanceDecimals = 8
+      const totalSupplyRaw = 1000n * 10n ** BigInt(issuanceDecimals) // 1000 tokens
+      const currentPriceRaw = WAD * 2n // 2.0 in WAD
+
+      // Raw TVL in issuance decimals: (supply * price) / 1e18
+      const rawTVL = (totalSupplyRaw * currentPriceRaw) / BigInt(1e18)
+      // rawTVL = 1000 * 10^8 * 2 = 2000 * 10^8 → 8-decimal value
+
+      // Normalize to 18 decimals (what the indexer does now)
+      const diff = 18 - issuanceDecimals
+      const normalizedTVL = rawTVL * 10n ** BigInt(diff)
+
+      // Should represent 2000 at 18 decimals
+      const formatted = formatAmount(normalizedTVL, 18)
+      assert.strictEqual(formatted.formatted, '2000')
+    })
+
+    it('TVL calculation is correct when issuance is already 18 decimals', () => {
+      const totalSupplyRaw = 500n * WAD // 500 tokens at 18 dec
+      const currentPriceRaw = (WAD * 3n) / 2n // 1.5 WAD
+
+      const rawTVL = (totalSupplyRaw * currentPriceRaw) / BigInt(1e18)
+      // Already 18 decimals, no normalization needed
+      const formatted = formatAmount(rawTVL, 18)
+      assert.strictEqual(formatted.formatted, '750')
+    })
+
+    it('TVL calculation handles 6-decimal issuance token (USDC-like)', () => {
+      const issuanceDecimals = 6
+      const totalSupplyRaw = 100n * 10n ** BigInt(issuanceDecimals) // 100 tokens
+      const currentPriceRaw = WAD * 10n // 10.0 WAD
+
+      const rawTVL = (totalSupplyRaw * currentPriceRaw) / BigInt(1e18)
+      // rawTVL = 100 * 10^6 * 10 = 1000 * 10^6 → 6-decimal value
+
+      const diff = 18 - issuanceDecimals
+      const normalizedTVL = rawTVL * 10n ** BigInt(diff)
+      const formatted = formatAmount(normalizedTVL, 18)
+      assert.strictEqual(formatted.formatted, '1000')
+    })
+  })
 })
