@@ -14,7 +14,6 @@ import { StakingManager } from '../generated/src/Handlers.gen'
 import {
   buildUpdatedUserMarketPosition,
   formatAmount,
-  FLOOR_PRICE_DECIMALS,
   getOrCreateAccount,
   getOrCreateModuleRegistry,
   getOrCreateUserMarketPosition,
@@ -245,7 +244,7 @@ StakingManager.Staked.handler(
 
     const issuanceAmount = formatAmount(event.params.issuanceTokenAmount_, issuanceToken.decimals)
     const collateralAmount = formatAmount(event.params.collateralDeployed_, reserveToken.decimals)
-    const floorPrice = formatAmount(event.params.floorPrice_, FLOOR_PRICE_DECIMALS)
+    const floorPrice = formatAmount(event.params.floorPrice_, reserveToken.decimals)
 
     const position: StakePosition_t = {
       id: positionId,
@@ -735,7 +734,8 @@ StakingManager.LastFloorPriceUpdated.handler(
       return
     }
 
-    const floorPrice = formatAmount(event.params.newFloorPrice_, FLOOR_PRICE_DECIMALS)
+    const { reserveToken } = stakingContext
+    const floorPrice = formatAmount(event.params.newFloorPrice_, reserveToken.decimals)
 
     const updatedPosition: StakePosition_t = {
       ...position,
