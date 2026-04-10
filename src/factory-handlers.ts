@@ -359,6 +359,8 @@ ModuleFactory.ModuleCreated.handler(
         totalParticipants: 0n,
         totalRaisedRaw: 0n,
         totalRaisedFormatted: '0',
+        totalMintedRaw: 0n,
+        totalMintedFormatted: '0',
         globalDepositCapRaw: 0n,
         globalDepositCapFormatted: '0',
         perAddressDepositCapRaw: 0n,

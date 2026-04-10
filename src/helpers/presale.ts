@@ -149,11 +149,15 @@ export async function handleParticipation(
 
   const nextTotalRaisedRaw = presale.totalRaisedRaw + args.depositRaw
   const nextTotalRaisedFormatted = formatAmount(nextTotalRaisedRaw, depositDecimals).formatted
+  const nextTotalMintedRaw = presale.totalMintedRaw + args.mintedRaw
+  const nextTotalMintedFormatted = formatAmount(nextTotalMintedRaw, mintedDecimals).formatted
 
   const updatedPresale: PreSaleContract_t = {
     ...presale,
     totalRaisedRaw: nextTotalRaisedRaw,
     totalRaisedFormatted: nextTotalRaisedFormatted,
+    totalMintedRaw: nextTotalMintedRaw,
+    totalMintedFormatted: nextTotalMintedFormatted,
     totalParticipants: presale.totalParticipants + 1n,
     maxLeverage: args.leverage > presale.maxLeverage ? args.leverage : presale.maxLeverage,
     lastUpdatedAt: timestamp,

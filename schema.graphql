@@ -237,6 +237,8 @@ type PreSaleContract {
   totalParticipants: BigInt!
   totalRaisedRaw: BigInt!
   totalRaisedFormatted: String!
+  totalMintedRaw: BigInt!
+  totalMintedFormatted: String!
   globalDepositCapRaw: BigInt!
   globalDepositCapFormatted: String!
   perAddressDepositCapRaw: BigInt!
