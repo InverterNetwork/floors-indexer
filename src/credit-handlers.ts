@@ -7,6 +7,7 @@ import type { LoanStatus_t } from '../generated/src/db/Enums.gen'
 import { CreditFacility } from '../generated/src/Handlers.gen'
 import {
   applyFacilityDeltas,
+  applyGlobalDebtDelta,
   buildUpdatedUserMarketPosition,
   fetchLoanStateEffect,
   formatAmount,
@@ -89,6 +90,14 @@ CreditFacility.LoanCreated.handler(
     })
     context.CreditFacilityContract.set(updatedFacility)
 
+    await applyGlobalDebtDelta(context, {
+      debtDeltaRaw: event.params.loanAmount_,
+      collateralDeltaRaw: lockedCollateralRaw,
+      debtTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+    })
+
     const position = await getOrCreateUserMarketPosition(
       context,
       borrower.id,
@@ -170,6 +179,14 @@ CreditFacility.LoanRebalanced.handler(
       lockedCollateralDeltaRaw: lockedCollateralDelta,
     })
     context.CreditFacilityContract.set(updatedFacility)
+
+    await applyGlobalDebtDelta(context, {
+      debtDeltaRaw: 0n,
+      collateralDeltaRaw: lockedCollateralDelta,
+      debtTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+    })
 
     const position = await getOrCreateUserMarketPosition(
       context,
@@ -259,6 +276,14 @@ CreditFacility.LoanRepaid.handler(
     })
     context.CreditFacilityContract.set(updatedFacility)
 
+    await applyGlobalDebtDelta(context, {
+      debtDeltaRaw: -repaymentAmountRaw,
+      collateralDeltaRaw: 0n,
+      debtTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+    })
+
     const position = await getOrCreateUserMarketPosition(
       context,
       loan.borrower_id,
@@ -340,6 +365,14 @@ CreditFacility.LoanClosed.handler(
       lockedCollateralDeltaRaw: -unlockedAmountRaw,
     })
     context.CreditFacilityContract.set(updatedFacility)
+
+    await applyGlobalDebtDelta(context, {
+      debtDeltaRaw: -loan.remainingDebtRaw,
+      collateralDeltaRaw: -unlockedAmountRaw,
+      debtTokenDecimals: borrowToken.decimals,
+      collateralTokenDecimals: collateralToken.decimals,
+      timestamp,
+    })
 
     const position = await getOrCreateUserMarketPosition(
       context,

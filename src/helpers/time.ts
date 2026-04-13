@@ -2,7 +2,9 @@ import type { handlerContext } from 'generated'
 import type { GlobalStatsSnapshot_t, MarketSnapshot_t } from 'generated/src/db/Entities.gen'
 import type { CandlePeriod_t, SnapshotPeriod_t } from 'generated/src/db/Enums.gen'
 
-import { formatAmount } from './misc'
+import { formatAmount, normalizeAmount } from './misc'
+
+const GLOBAL_STATS_ID = 'global'
 
 /**
  * Snapshot period configurations for GlobalStatsSnapshot
@@ -22,7 +24,7 @@ export async function updateLatestBlockTimestamp(
   context: handlerContext,
   timestamp: bigint
 ): Promise<void> {
-  const globalStats = await context.GlobalStats.get('global-stats')
+  const globalStats = await context.GlobalStats.get(GLOBAL_STATS_ID)
 
   if (globalStats) {
     // Only update if this timestamp is newer
@@ -35,7 +37,7 @@ export async function updateLatestBlockTimestamp(
   } else {
     // Create initial GlobalStats entity
     context.GlobalStats.set({
-      id: 'global-stats',
+      id: GLOBAL_STATS_ID,
       totalMarkets: 0n,
       activeMarkets: 0n,
       totalVolumeRaw: 0n,
@@ -236,3 +238,58 @@ export async function createMarketSnapshot(
 
   context.MarketSnapshot.set(snapshot)
 }
+
+/**
+ * Apply debt and collateral deltas to the GlobalStats entity.
+ * Called from credit handlers when loans are created, repaid, rebalanced, or closed.
+ * Values are normalized to 18 decimals before accumulation.
+ */
+export async function applyGlobalDebtDelta(
+  context: handlerContext,
+  params: {
+    debtDeltaRaw: bigint
+    collateralDeltaRaw: bigint
+    debtTokenDecimals: number
+    collateralTokenDecimals: number
+    timestamp: bigint
+  }
+): Promise<void> {
+  const existing = await context.GlobalStats.get(GLOBAL_STATS_ID)
+  const globalStats = existing ?? {
+    id: GLOBAL_STATS_ID,
+    totalMarkets: 0n,
+    activeMarkets: 0n,
+    totalVolumeRaw: 0n,
+    totalVolumeFormatted: '0',
+    totalOutstandingDebtRaw: 0n,
+    totalOutstandingDebtFormatted: '0',
+    totalLockedCollateralRaw: 0n,
+    totalLockedCollateralFormatted: '0',
+    lastUpdatedAt: params.timestamp,
+  }
+
+  const normalizedDebt = normalizeAmount(params.debtDeltaRaw, params.debtTokenDecimals, 18)
+  const normalizedCollateral = normalizeAmount(
+    params.collateralDeltaRaw,
+    params.collateralTokenDecimals,
+    18
+  )
+
+  const newDebtRaw = globalStats.totalOutstandingDebtRaw + normalizedDebt
+  const newCollateralRaw = globalStats.totalLockedCollateralRaw + normalizedCollateral
+
+  // Clamp to 0 — rounding or re-processing can push values slightly negative
+  const clampedDebt = newDebtRaw < 0n ? 0n : newDebtRaw
+  const clampedCollateral = newCollateralRaw < 0n ? 0n : newCollateralRaw
+
+  context.GlobalStats.set({
+    ...globalStats,
+    totalOutstandingDebtRaw: clampedDebt,
+    totalOutstandingDebtFormatted: formatAmount(clampedDebt, 18).formatted,
+    totalLockedCollateralRaw: clampedCollateral,
+    totalLockedCollateralFormatted: formatAmount(clampedCollateral, 18).formatted,
+    lastUpdatedAt: params.timestamp,
+  })
+}
+
+export { GLOBAL_STATS_ID }

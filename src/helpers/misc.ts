@@ -100,6 +100,18 @@ export function resolveMarketId(orchestrator: string, module: string): string {
   return normalizedOrchestrator
 }
 
+/**
+ * Normalize a raw amount from one decimal precision to another.
+ * Example: normalizeAmount(1000000n, 6, 18) -> 1000000000000000000n
+ */
+export function normalizeAmount(value: bigint, fromDecimals: number, toDecimals: number): bigint {
+  if (fromDecimals === toDecimals) return value
+  if (fromDecimals > toDecimals) {
+    return value / 10n ** BigInt(fromDecimals - toDecimals)
+  }
+  return value * 10n ** BigInt(toDecimals - fromDecimals)
+}
+
 export function normalizeAddress(address: string): string {
   if (!address || !address.startsWith('0x')) {
     return address

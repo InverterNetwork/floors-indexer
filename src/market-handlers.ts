@@ -13,8 +13,10 @@ import {
   getOrCreateMarket,
   getOrCreateToken,
   getOrCreateUserMarketPosition,
+  GLOBAL_STATS_ID,
   handlerErrorWrapper,
   normalizeAddress,
+  normalizeAmount,
   updateGlobalStatsSnapshots,
   updatePriceCandles,
 } from './helpers'
@@ -1289,9 +1291,9 @@ async function updateGlobalStatsEntity(
 
   const volumeFormatted = formatAmount(totalVolumeRaw18, 18)
   const existingGlobal =
-    (await context.GlobalStats.get('global')) ??
+    (await context.GlobalStats.get(GLOBAL_STATS_ID)) ??
     ({
-      id: 'global',
+      id: GLOBAL_STATS_ID,
       totalMarkets: 0n,
       activeMarkets: 0n,
       totalVolumeRaw: 0n,
@@ -1323,22 +1325,6 @@ async function updateGlobalStatsEntity(
     totalMarkets: BigInt(marketsSeen.size),
     activeMarkets: BigInt(activeMarkets.size),
   })
-}
-
-function normalizeAmount(value: bigint, fromDecimals: number, toDecimals: number): bigint {
-  if (fromDecimals === toDecimals) {
-    return value
-  }
-
-  if (fromDecimals > toDecimals) {
-    const diff = fromDecimals - toDecimals
-    const factor = 10n ** BigInt(diff)
-    return value / factor
-  }
-
-  const diff = toDecimals - fromDecimals
-  const factor = 10n ** BigInt(diff)
-  return value * factor
 }
 
 async function resolveMarketIdFromModuleAddress(
