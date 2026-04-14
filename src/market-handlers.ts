@@ -1183,8 +1183,7 @@ async function updateDerivedMetricsAfterTrade(params: {
     reserveToken.decimals
   )
 
-  // Pass trade volume for snapshot accumulation
-  await updateGlobalStatsEntity(context, tradeTimestamp, reserveVolumeRaw, reserveToken.decimals)
+  await updateGlobalStatsEntity(context, tradeTimestamp)
 }
 
 function updateRollingWindowState(
@@ -1261,9 +1260,7 @@ async function persistMarketRollingStatsEntity(
 
 async function updateGlobalStatsEntity(
   context: Parameters<typeof updatePriceCandles>[0],
-  timestamp: bigint,
-  tradeVolumeRaw: bigint = 0n,
-  tradeVolumeDecimals: number = 18
+  timestamp: bigint
 ): Promise<void> {
   // Calculate total 24h volume across all markets (normalized to 18 decimals)
   let totalVolumeRaw18 = 0n
@@ -1315,13 +1312,12 @@ async function updateGlobalStatsEntity(
   })
 
   // Create GlobalStatsSnapshots for 1h, 4h, 1d periods
-  // Normalize trade volume to 18 decimals for snapshot
-  const normalizedTradeVolume = normalizeAmount(tradeVolumeRaw, tradeVolumeDecimals, 18)
-
+  // Pass the rolling 24h total (not just this trade's volume) so that snapshot
+  // writes are idempotent on indexer restart/event replay.
   await updateGlobalStatsSnapshots(context, timestamp, {
     totalValueLockedRaw,
     totalMarketCapRaw,
-    periodVolumeRaw: normalizedTradeVolume,
+    periodVolumeRaw: totalVolumeRaw18,
     totalMarkets: BigInt(marketsSeen.size),
     activeMarkets: BigInt(activeMarkets.size),
   })

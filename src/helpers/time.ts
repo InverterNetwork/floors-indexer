@@ -81,9 +81,10 @@ export async function updateGlobalStatsSnapshots(
     const existing = await context.GlobalStatsSnapshot.get(snapshotId)
 
     if (existing) {
-      // Update with latest TVL/MarketCap (point-in-time), accumulate volume
-      const newVolume = existing.periodVolumeRaw + metrics.periodVolumeRaw
-      const volumeFormatted = formatAmount(newVolume, 18)
+      // Replace with latest point-in-time values — periodVolumeRaw is the rolling
+      // 24h total from the in-memory cache, so it is idempotent on indexer restart/replay.
+      // (Accumulating would double-count replayed events into already-persisted snapshots.)
+      const volumeFormatted = formatAmount(metrics.periodVolumeRaw, 18)
       const tvlFormatted = formatAmount(metrics.totalValueLockedRaw, 18)
       const mcFormatted = formatAmount(metrics.totalMarketCapRaw, 18)
 
@@ -93,7 +94,7 @@ export async function updateGlobalStatsSnapshots(
         totalValueLockedFormatted: tvlFormatted.formatted,
         totalMarketCapRaw: metrics.totalMarketCapRaw,
         totalMarketCapFormatted: mcFormatted.formatted,
-        periodVolumeRaw: newVolume,
+        periodVolumeRaw: metrics.periodVolumeRaw,
         periodVolumeFormatted: volumeFormatted.formatted,
         totalMarkets: metrics.totalMarkets,
         activeMarkets: metrics.activeMarkets,
