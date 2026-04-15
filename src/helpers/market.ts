@@ -181,6 +181,8 @@ export async function getOrCreateMarket(
     floorSupplyFormatted: '0',
     floorSegmentSupplyRaw,
     floorSegmentSupplyFormatted,
+    reserveBalanceRaw: 0n,
+    reserveBalanceFormatted: '0',
     status: 'ACTIVE' as MarketStatus_t,
     isBuyOpen: false,
     isSellOpen: false,

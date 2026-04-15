@@ -19,6 +19,7 @@ import {
   normalizeAmount,
   updateGlobalStatsSnapshots,
   updatePriceCandles,
+  fetchReserveBalanceEffect,
 } from './helpers'
 
 const CANDLE_PERIODS: CandlePeriod_t[] = ['ONE_HOUR', 'FOUR_HOURS', 'ONE_DAY']
@@ -167,7 +168,7 @@ FloorMarket.TokensBought.handler(
     )
 
     // Update Market (dynamic state fields)
-    const updatedMarket = {
+    let updatedMarket = {
       ...market,
       currentPriceRaw: buyPriceRaw,
       currentPriceFormatted: priceAmount.formatted,
@@ -194,6 +195,9 @@ FloorMarket.TokensBought.handler(
       `[TokensBought] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
     updateCurrentPriceCache(updatedMarket, buyPriceRaw)
+
+    // Fetch actual reserve balance from contract
+    updatedMarket = await updateReserveBalance(context, updatedMarket, reserveToken, event.chainId)
 
     // Update UserMarketPosition
     const position = await getOrCreateUserMarketPosition(
@@ -345,7 +349,7 @@ FloorMarket.TokensSold.handler(
     )
 
     // Update Market (dynamic state fields)
-    const updatedMarket = {
+    let updatedMarket = {
       ...market,
       currentPriceRaw: sellPriceRaw,
       currentPriceFormatted: priceAmount.formatted,
@@ -372,6 +376,9 @@ FloorMarket.TokensSold.handler(
       `[TokensSold] Market updated | totalSupply=${updatedMarket.totalSupplyFormatted}`
     )
     updateCurrentPriceCache(updatedMarket, sellPriceRaw)
+
+    // Fetch actual reserve balance from contract
+    updatedMarket = await updateReserveBalance(context, updatedMarket, reserveToken, event.chainId)
 
     // Update UserMarketPosition
     const position = await getOrCreateUserMarketPosition(
@@ -526,7 +533,7 @@ FloorMarket.CollateralDeposited.handler(
       return
     }
 
-    const updatedMarket = {
+    let updatedMarket = {
       ...market,
       floorSupplyRaw: event.params.newVirtualSupply_,
       floorSupplyFormatted: formatAmount(event.params.newVirtualSupply_, reserveToken.decimals)
@@ -535,6 +542,10 @@ FloorMarket.CollateralDeposited.handler(
     }
     context.Market.set(updatedMarket)
     ensurePriceHistoryEntry(updatedMarket)
+
+    // Fetch actual reserve balance from contract
+    updatedMarket = await updateReserveBalance(context, updatedMarket, reserveToken, event.chainId)
+
     context.log.info(
       `[CollateralDeposited] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
     )
@@ -567,7 +578,7 @@ FloorMarket.CollateralWithdrawn.handler(
       return
     }
 
-    const updatedMarket = {
+    let updatedMarket = {
       ...market,
       floorSupplyRaw: event.params.newVirtualSupply_,
       floorSupplyFormatted: formatAmount(event.params.newVirtualSupply_, reserveToken.decimals)
@@ -576,6 +587,10 @@ FloorMarket.CollateralWithdrawn.handler(
     }
     context.Market.set(updatedMarket)
     ensurePriceHistoryEntry(updatedMarket)
+
+    // Fetch actual reserve balance from contract
+    updatedMarket = await updateReserveBalance(context, updatedMarket, reserveToken, event.chainId)
+
     context.log.info(
       `[CollateralWithdrawn] ✅ Updated floorSupply | marketId=${marketId} | newVirtualSupply=${updatedMarket.floorSupplyFormatted}`
     )
@@ -1119,6 +1134,40 @@ function updateFloorPriceCache(market: Market_t, nextFloorPriceRaw: bigint): Pri
   }
   priceHistoryCache.set(market.id, next)
   return next
+}
+
+/**
+ * Fetch the actual reserve token balance of the floor contract and update the market entity.
+ * Returns the updated market so callers can continue using it.
+ */
+async function updateReserveBalance(
+  context: Parameters<typeof updatePriceCandles>[0],
+  market: Market_t,
+  reserveToken: Token_t,
+  chainId: number
+): Promise<Market_t> {
+  const result = await fetchReserveBalanceEffect(context.effect)({
+    chainId,
+    tokenAddress: market.reserveToken_id,
+    holderAddress: market.id,
+  })
+
+  if (result) {
+    const balanceRaw = BigInt(result.balanceRaw)
+    const updated = {
+      ...market,
+      reserveBalanceRaw: balanceRaw,
+      reserveBalanceFormatted: formatAmount(balanceRaw, reserveToken.decimals).formatted,
+    }
+    context.Market.set(updated)
+    context.log.info(
+      `[updateReserveBalance] ✅ Reserve balance updated | market=${market.id} | balance=${updated.reserveBalanceFormatted}`
+    )
+    return updated
+  }
+
+  context.log.warn(`[updateReserveBalance] ⚠️ Failed to fetch reserve balance | market=${market.id}`)
+  return market
 }
 
 async function updateDerivedMetricsAfterTrade(params: {

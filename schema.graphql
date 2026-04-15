@@ -352,6 +352,9 @@ type Market {
   floorSegmentSupplyRaw: BigInt!
   floorSegmentSupplyFormatted: String!
 
+  reserveBalanceRaw: BigInt!
+  reserveBalanceFormatted: String!
+
   status: MarketStatus!
   isBuyOpen: Boolean!
   isSellOpen: Boolean!

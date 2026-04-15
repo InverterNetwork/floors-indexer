@@ -361,6 +361,42 @@ export function decodeFloorSegmentSupply(packedHex: string): bigint {
 }
 
 // =============================================================================
+// Reserve Balance Effect (balanceOf)
+// =============================================================================
+
+export const fetchReserveBalanceEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchReserveBalance',
+      input: { chainId: S.number, tokenAddress: S.string, holderAddress: S.string },
+      output: S.nullable(S.schema({ balanceRaw: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: false, // Balance changes on every trade
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const result = await client.readContract({
+          address: input.tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [input.holderAddress as `0x${string}`],
+        })
+
+        if (typeof result === 'bigint') {
+          return { balanceRaw: result.toString() }
+        }
+
+        return undefined
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
 // Token Helper Functions
 // =============================================================================
 
