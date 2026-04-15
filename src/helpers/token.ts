@@ -313,6 +313,54 @@ export const fetchInitialPriceFromBCEffect = wrapEffect(
 )
 
 // =============================================================================
+// Floor Section from BC Effect
+// =============================================================================
+
+export const fetchFloorSectionFromBCEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchFloorSectionFromBC',
+      input: { chainId: S.number, bcAddress: S.string },
+      output: S.nullable(S.schema({ floorSectionHex: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: true,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const target = input.bcAddress as `0x${string}`
+
+        const result = await client.readContract({
+          address: target,
+          abi: FLOOR_ABI_TYPED,
+          functionName: 'getFloorSection',
+        })
+
+        if (typeof result === 'string') {
+          return { floorSectionHex: result }
+        }
+
+        return undefined
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+/**
+ * Decode a bytes32 packed segment to extract the total supply (supplyPerStep * numberOfSteps).
+ * Bit layout (LSB → MSB): initialPrice(72) | priceIncrease(72) | supplyPerStep(96) | numberOfSteps(16)
+ */
+export function decodeFloorSegmentSupply(packedHex: string): bigint {
+  const value = BigInt(packedHex)
+  const supplyPerStep = (value >> BigInt(144)) & ((BigInt(1) << BigInt(96)) - BigInt(1))
+  const numberOfSteps = Number((value >> BigInt(240)) & ((BigInt(1) << BigInt(16)) - BigInt(1)))
+  return supplyPerStep * BigInt(numberOfSteps)
+}
+
+// =============================================================================
 // Token Helper Functions
 // =============================================================================
 

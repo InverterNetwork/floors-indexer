@@ -4,6 +4,8 @@ import type { MarketStatus_t } from 'generated/src/db/Enums.gen'
 
 import { formatAmount, normalizeAddress } from './misc'
 import {
+  decodeFloorSegmentSupply,
+  fetchFloorSectionFromBCEffect,
   fetchInitialPriceFromBCEffect,
   fetchTokenAddressesFromBCEffect,
   getOrCreateToken,
@@ -132,6 +134,27 @@ export async function getOrCreateMarket(
     }
   }
 
+  // Fetch floor segment supply cap from bonding curve (static config)
+  let floorSegmentSupplyRaw = 0n
+  let floorSegmentSupplyFormatted = '0'
+  if (bcAddress) {
+    const floorSection = await fetchFloorSectionFromBCEffect(context.effect)({
+      chainId,
+      bcAddress,
+    })
+    if (floorSection) {
+      floorSegmentSupplyRaw = decodeFloorSegmentSupply(floorSection.floorSectionHex)
+      floorSegmentSupplyFormatted = formatAmount(floorSegmentSupplyRaw, issuanceToken.decimals).formatted
+      context.log.info(
+        `[getOrCreateMarket] ✅ Floor segment supply fetched | supply=${floorSegmentSupplyFormatted} | raw=${floorSegmentSupplyRaw}`
+      )
+    } else {
+      context.log.warn(
+        `[getOrCreateMarket] ⚠️ Floor section fetch failed | bcAddress=${bcAddress} | defaulting to 0`
+      )
+    }
+  }
+
   market = {
     id: normalizedMarketId,
     creator_id: creator.id,
@@ -156,6 +179,8 @@ export async function getOrCreateMarket(
     marketSupplyFormatted: '0',
     floorSupplyRaw: 0n,
     floorSupplyFormatted: '0',
+    floorSegmentSupplyRaw,
+    floorSegmentSupplyFormatted,
     status: 'ACTIVE' as MarketStatus_t,
     isBuyOpen: false,
     isSellOpen: false,
