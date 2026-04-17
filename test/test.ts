@@ -2158,8 +2158,8 @@ describe('Floor Markets Indexer', () => {
       db = await db.processEvents([capsUpdatedEvent, directClaimEvent])
 
       const presaleContract = db.entities.PreSaleContract.get(PRESALE_MODULE_ADDRESS_CHECKSUM)
-      assert.equal(presaleContract?.globalDepositCapRaw, 1_000_000n)
-      assert.equal(presaleContract?.perAddressDepositCapRaw, 200_000n)
+      assert.equal(presaleContract?.globalIssuanceCapRaw, 1_000_000n)
+      assert.equal(presaleContract?.perAddressIssuanceCapRaw, 200_000n)
 
       const claim = db.entities.PresaleClaim.get('0xclaim-0')
       assert.ok(claim, 'PresaleClaim should be recorded for direct token claims')

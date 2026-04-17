@@ -239,10 +239,10 @@ type PreSaleContract {
   totalRaisedFormatted: String!
   totalMintedRaw: BigInt!
   totalMintedFormatted: String!
-  globalDepositCapRaw: BigInt!
-  globalDepositCapFormatted: String!
-  perAddressDepositCapRaw: BigInt!
-  perAddressDepositCapFormatted: String!
+  globalIssuanceCapRaw: BigInt!
+  globalIssuanceCapFormatted: String!
+  perAddressIssuanceCapRaw: BigInt!
+  perAddressIssuanceCapFormatted: String!
   whitelistSize: BigInt!
   commissionBps: [BigInt!]
   priceBreakpointsFlat: [BigInt!]

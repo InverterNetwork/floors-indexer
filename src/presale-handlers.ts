@@ -115,12 +115,10 @@ Presale.CapsUpdated.handler(
       applyPresalePatch(
         presale,
         {
-          // Note: Schema uses globalDepositCapRaw name for backward compatibility
-          // but it actually stores globalIssuanceCap (cap on issuance tokens)
-          globalDepositCapRaw: event.params.globalCap_,
-          globalDepositCapFormatted: nextGlobal.formatted,
-          perAddressDepositCapRaw: event.params.perAddressCap_,
-          perAddressDepositCapFormatted: nextPerAddress.formatted,
+          globalIssuanceCapRaw: event.params.globalCap_,
+          globalIssuanceCapFormatted: nextGlobal.formatted,
+          perAddressIssuanceCapRaw: event.params.perAddressCap_,
+          perAddressIssuanceCapFormatted: nextPerAddress.formatted,
         },
         timestamp
       )
@@ -394,12 +392,10 @@ Presale.ModuleInitialized.handler(
         ...patch,
         lendingFacility: decodedConfig.lendingFacility,
         endTime: decodedConfig.endTime,
-        // Note: Schema uses globalDepositCapRaw name for backward compatibility
-        // but it actually stores globalIssuanceCap (cap on issuance tokens)
-        globalDepositCapRaw: decodedConfig.globalIssuanceCapRaw,
-        globalDepositCapFormatted: globalCapAmount.formatted,
-        perAddressDepositCapRaw: decodedConfig.perAddressIssuanceCapRaw,
-        perAddressDepositCapFormatted: perAddressCapAmount.formatted,
+        globalIssuanceCapRaw: decodedConfig.globalIssuanceCapRaw,
+        globalIssuanceCapFormatted: globalCapAmount.formatted,
+        perAddressIssuanceCapRaw: decodedConfig.perAddressIssuanceCapRaw,
+        perAddressIssuanceCapFormatted: perAddressCapAmount.formatted,
         commissionBps: Array.from(decodedConfig.commissionBps),
         priceBreakpointsFlat: [...decodedConfig.priceBreakpointsFlat],
         priceBreakpointOffsets: [...decodedConfig.priceBreakpointOffsets],
