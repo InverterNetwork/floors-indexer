@@ -9,6 +9,11 @@ type Token {
   decimals: Int!
   maxSupplyRaw: BigInt!
   maxSupplyFormatted: String!
+  """
+  ERC-7572 `contractURI()` — URL to the token metadata JSON (image, description, socials).
+  Populated from ContractURIUpdated events. Empty string for tokens deployed before PR #126.
+  """
+  contractURI: String
 }
 
 enum MarketStatus {
@@ -246,7 +251,6 @@ type PreSaleContract {
   whitelistSize: BigInt!
   commissionBps: [BigInt!]
   priceBreakpointsFlat: [BigInt!]
-  priceBreakpointOffsets: [Int!]
   lendingFacility: String
 
   # Merkle whitelist fields
@@ -646,10 +650,86 @@ type Treasury {
   totalFeesReceivedFormatted: String!
   totalFeesDistributedRaw: BigInt!
   totalFeesDistributedFormatted: String!
+  """
+  Floor-raise slot introduced in contracts PR #126. When set, the splitter routes
+  a portion of incoming fees to the FloorRaiseTreasury before the regular recipient split.
+  """
+  floorRaiseTreasury_id: ID
+  floorRaiseShares: BigInt
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
   feeSplitterReceipts: [FeeSplitterReceipt!]! @derivedFrom(field: "treasury_id")
   feeSplitterPayments: [FeeSplitterPayment!]! @derivedFrom(field: "treasury_id")
+}
+
+"""
+FloorRaiseTreasury_v1 — accumulates collateral and triggers Floor.raiseFloor() once `threshold`
+is reached. `accumulatedRaw` is a snapshot from the last treasury event; authoritative balance
+still lives on-chain.
+"""
+type FloorRaiseTreasury {
+  id: ID!
+  market_id: ID!
+  address: String!
+  floor: String!
+  thresholdRaw: BigInt!
+  thresholdFormatted: String!
+  accumulatedRaw: BigInt!
+  accumulatedFormatted: String!
+  totalRaisedCount: BigInt!
+  lastRaiseAttemptAt: BigInt
+  lastRaiseAttemptSuccess: Boolean
+  createdAt: BigInt!
+  lastUpdatedAt: BigInt!
+  raiseAttempts: [FloorRaiseAttempt!]! @derivedFrom(field: "treasury_id")
+}
+
+"""
+Each `FloorRaiseAttempted` event — one row per raise attempt (success or failure).
+The raise is wrapped in try/catch on-chain so a failure leaves funds accumulated
+and the treasury usable.
+"""
+type FloorRaiseAttempt {
+  id: ID!
+  treasury_id: ID!
+  market_id: ID!
+  amountRaw: BigInt!
+  amountFormatted: String!
+  success: Boolean!
+  timestamp: BigInt!
+  transactionHash: String!
+}
+
+"""
+Current per-factory openDeployment flag + allowlist. One row per factory.
+Factories default to open (openDeployment=true) until an admin flips them off.
+"""
+enum FactoryKind {
+  FLOOR
+  MODULE
+}
+
+type FactoryDeploymentConfig {
+  "Factory contract address"
+  id: ID!
+  kind: FactoryKind!
+  openDeployment: Boolean!
+  lastUpdatedAt: BigInt!
+  deployers: [FactoryDeployerPermission!]! @derivedFrom(field: "factory_id")
+}
+
+"""
+Per-(factory, deployer) allowlist row. `allowed=false` entries are kept so the UI can
+render a full history; filter on `allowed: true` to get the active set.
+"""
+type FactoryDeployerPermission {
+  "<factory>-<deployer>"
+  id: ID!
+  factory_id: ID!
+  deployer: String!
+  allowed: Boolean!
+  updatedAt: BigInt!
+  transactionHash: String!
 }
 
 type FeeSplitterReceipt {

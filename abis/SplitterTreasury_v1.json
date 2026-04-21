@@ -95,6 +95,32 @@
   },
   {
     "type": "function",
+    "name": "getFloorRaiseShares",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "floorRaiseShares_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getFloorRaiseTreasury",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "floorRaiseTreasury_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getFunds",
     "inputs": [
       {
@@ -218,6 +244,24 @@
   },
   {
     "type": "function",
+    "name": "setFloorRaise",
+    "inputs": [
+      {
+        "name": "treasury_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "shares_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setRecipients",
     "inputs": [
       {
@@ -319,6 +363,56 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FloorRaisePayment",
+    "inputs": [
+      {
+        "name": "token_",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FloorRaiseUpdated",
+    "inputs": [
+      {
+        "name": "oldTreasury_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newTreasury_",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "oldShares_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newShares_",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -475,6 +569,16 @@
   {
     "type": "error",
     "name": "Module__SplitterTreasury__FloorFeeTreasuryIsZeroAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__SplitterTreasury__FloorRaiseSharesAreZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Module__SplitterTreasury__FloorRaiseTreasuryIsZeroAddress",
     "inputs": []
   },
   {

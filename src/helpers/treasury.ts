@@ -47,6 +47,8 @@ export function buildTreasury(params: TreasuryParams) {
     totalFeesReceivedFormatted: '0',
     totalFeesDistributedRaw: 0n,
     totalFeesDistributedFormatted: '0',
+    floorRaiseTreasury_id: undefined,
+    floorRaiseShares: undefined,
     createdAt: params.createdAt,
     lastUpdatedAt: params.lastUpdatedAt,
   }

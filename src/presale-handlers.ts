@@ -3,7 +3,6 @@ import { Presale } from '../generated/src/Handlers.gen'
 import {
   applyPresalePatch,
   decodePresaleConfig,
-  flattenPriceBreakpoints,
   formatAmount,
   handleParticipation,
   handlerErrorWrapper,
@@ -143,18 +142,10 @@ Presale.PriceBreakpointsSet.handler(
     if (!presaleContext) return
     const { presale, timestamp } = presaleContext
 
-    const flattenedBreakpoints = flattenPriceBreakpoints(event.params.priceBreakpoints_)
-    const priceBreakpointsFlat: bigint[] = flattenedBreakpoints?.flat ?? []
-    const priceBreakpointOffsets: number[] = flattenedBreakpoints?.offsets ?? []
+    // Post PR #126: priceBreakpoints_ is a flat uint256[] shared across leverage levels.
+    const priceBreakpointsFlat: bigint[] = Array.from(event.params.priceBreakpoints_)
     context.PreSaleContract.set(
-      applyPresalePatch(
-        presale,
-        {
-          priceBreakpointsFlat,
-          priceBreakpointOffsets,
-        },
-        timestamp
-      )
+      applyPresalePatch(presale, { priceBreakpointsFlat }, timestamp)
     )
   })
 )
@@ -398,7 +389,6 @@ Presale.ModuleInitialized.handler(
         perAddressIssuanceCapFormatted: perAddressCapAmount.formatted,
         commissionBps: Array.from(decodedConfig.commissionBps),
         priceBreakpointsFlat: [...decodedConfig.priceBreakpointsFlat],
-        priceBreakpointOffsets: [...decodedConfig.priceBreakpointOffsets],
         maxLeverage,
       }
     }

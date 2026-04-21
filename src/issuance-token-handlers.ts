@@ -4,6 +4,7 @@
 
 import { ERC20IssuanceToken } from '../generated/src/Handlers.gen'
 import {
+  fetchContractURIEffect,
   fetchFloorPricingEffect,
   formatAmount,
   handlerErrorWrapper,
@@ -11,6 +12,32 @@ import {
   parseFloorPricingResult,
 } from './helpers'
 import { issuanceTokenToMarketId } from './issuance-token-registry'
+
+ERC20IssuanceToken.ContractURIUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const tokenAddress = normalizeAddress(event.srcAddress)
+    const token = await context.Token.get(tokenAddress)
+    if (!token) {
+      context.log.warn(
+        `[ERC20Issuance.ContractURIUpdated] Token not yet indexed | token=${tokenAddress} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    // ERC-7572 events carry no data — pull the new URI via RPC.
+    const result = await fetchContractURIEffect(context.effect)({
+      chainId: event.chainId,
+      tokenAddress,
+    })
+    const uri = result?.uri ?? ''
+
+    context.Token.set({ ...token, contractURI: uri })
+
+    context.log.info(
+      `[ERC20Issuance.ContractURIUpdated] ✅ contractURI set | token=${tokenAddress} | uri=${uri}`
+    )
+  })
+)
 
 ERC20IssuanceToken.Transfer.handler(
   handlerErrorWrapper(async ({ event, context }) => {

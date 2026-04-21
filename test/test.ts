@@ -78,6 +78,7 @@ const USDC_TOKEN: Token_t = {
   decimals: USDC_DECIMALS,
   maxSupplyRaw: 0n,
   maxSupplyFormatted: '0',
+  contractURI: undefined,
 }
 
 const FLOOR_TOKEN: Token_t = {
@@ -87,6 +88,7 @@ const FLOOR_TOKEN: Token_t = {
   decimals: FLOOR_DECIMALS,
   maxSupplyRaw: 0n,
   maxSupplyFormatted: '0',
+  contractURI: undefined,
 }
 
 // Role constants for authorizer tests
@@ -1083,6 +1085,7 @@ describe('Floor Markets Indexer', () => {
           decimals: 8,
           maxSupplyRaw: 0n,
           maxSupplyFormatted: '0',
+          contractURI: undefined,
         })
 
         const setEvent = FloorMarket.CollateralTokenSet.createMockEvent({
@@ -1120,6 +1123,7 @@ describe('Floor Markets Indexer', () => {
           decimals: 18,
           maxSupplyRaw: 0n,
           maxSupplyFormatted: '0',
+          contractURI: undefined,
         })
 
         const setEvent = FloorMarket.IssuanceTokenSet.createMockEvent({

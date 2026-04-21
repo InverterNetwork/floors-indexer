@@ -9,13 +9,11 @@ import {
   applyFacilityDeltas,
   applyGlobalDebtDelta,
   buildUpdatedUserMarketPosition,
-  fetchLoanStateEffect,
   formatAmount,
   getOrCreateAccount,
   getOrCreateUserMarketPosition,
   handlerErrorWrapper,
   normalizeAddress,
-  parseLoanStateResult,
 } from './helpers'
 
 type FacilityLtvEntry = {
@@ -42,14 +40,10 @@ CreditFacility.LoanCreated.handler(
     const borrower = await getOrCreateAccount(context, event.params.borrower_)
     const loanId = event.params.loanId_.toString()
 
-    const loanStateResult = await fetchLoanStateEffect(context.effect)({
-      chainId: event.chainId,
-      facilityAddress: event.srcAddress,
-      loanId: event.params.loanId_.toString(),
-    })
-    const onChainLoan = parseLoanStateResult(loanStateResult)
-    const lockedCollateralRaw = onChainLoan?.lockedIssuanceTokens ?? 0n
-    const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? event.params.loanAmount_
+    // Post PR #126: LoanCreated carries the full initial state inline.
+    // loanAmount_ == remaining debt, lockedIssuanceTokens_ == locked collateral — no eth_call needed.
+    const lockedCollateralRaw = event.params.lockedIssuanceTokens_
+    const remainingDebtRaw = event.params.loanAmount_
 
     const borrowAmount = formatAmount(event.params.loanAmount_, borrowToken.decimals)
     const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
@@ -156,17 +150,23 @@ CreditFacility.LoanRebalanced.handler(
       return
     }
 
-    // LoanRebalanced now provides the released amount (delta), not the new total
+    // Post PR #126: LoanRebalanced emits released collateral delta + new remaining loan.
     const releasedAmount = event.params.releasedCollateralAmount_
     const newLockedCollateralRaw =
       loan.lockedCollateralRaw > releasedAmount ? loan.lockedCollateralRaw - releasedAmount : 0n
     const lockedCollateralDelta = -releasedAmount
     const lockedCollateral = formatAmount(newLockedCollateralRaw, collateralToken.decimals)
 
+    const newRemainingDebtRaw = event.params.newRemainingLoanAmount_
+    const newRemainingDebt = formatAmount(newRemainingDebtRaw, borrowToken.decimals)
+    const debtDelta = newRemainingDebtRaw - loan.remainingDebtRaw
+
     const updatedLoan = {
       ...loan,
       lockedCollateralRaw: newLockedCollateralRaw,
       lockedCollateralFormatted: lockedCollateral.formatted,
+      remainingDebtRaw: newRemainingDebtRaw,
+      remainingDebtFormatted: newRemainingDebt.formatted,
       lastUpdatedAt: timestamp,
     }
     context.Loan.set(updatedLoan)
@@ -177,11 +177,12 @@ CreditFacility.LoanRebalanced.handler(
       collateralTokenDecimals: collateralToken.decimals,
       timestamp,
       lockedCollateralDeltaRaw: lockedCollateralDelta,
+      debtDeltaRaw: debtDelta,
     })
     context.CreditFacilityContract.set(updatedFacility)
 
     await applyGlobalDebtDelta(context, {
-      debtDeltaRaw: 0n,
+      debtDeltaRaw: debtDelta,
       collateralDeltaRaw: lockedCollateralDelta,
       debtTokenDecimals: borrowToken.decimals,
       collateralTokenDecimals: collateralToken.decimals,
@@ -197,6 +198,7 @@ CreditFacility.LoanRebalanced.handler(
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       lockedCollateralDelta,
+      totalDebtDelta: debtDelta,
       issuanceTokenDecimals: collateralToken.decimals,
       reserveTokenDecimals: borrowToken.decimals,
       timestamp,
@@ -206,7 +208,7 @@ CreditFacility.LoanRebalanced.handler(
     recordLoanStatusHistory(context, {
       loanId,
       status: loan.status,
-      remainingDebtRaw: loan.remainingDebtRaw,
+      remainingDebtRaw: newRemainingDebtRaw,
       lockedCollateralRaw: newLockedCollateralRaw,
       borrowTokenDecimals: borrowToken.decimals,
       collateralTokenDecimals: collateralToken.decimals,
@@ -215,11 +217,8 @@ CreditFacility.LoanRebalanced.handler(
       logIndex: event.logIndex,
     })
 
-    // Note: currentFloorPrice is not in LoanRebalanced event params
-    // Floor price updates are handled by FloorPriceUpdated events from the Floor contract
-
     context.log.info(
-      `[LoanRebalanced] ✅ Loan collateral updated | loanId=${loanId} | locked=${lockedCollateral.formatted} | delta=${lockedCollateralDelta}`
+      `[LoanRebalanced] ✅ Loan updated | loanId=${loanId} | locked=${lockedCollateral.formatted} | collDelta=${lockedCollateralDelta} | remainingDebt=${newRemainingDebt.formatted}`
     )
   })
 )
@@ -251,9 +250,12 @@ CreditFacility.LoanRepaid.handler(
     const repaymentAmountRaw = event.params.repaymentAmount_
     const repaymentAmount = formatAmount(repaymentAmountRaw, borrowToken.decimals)
 
-    const nextRemainingDebtRaw =
-      loan.remainingDebtRaw > repaymentAmountRaw ? loan.remainingDebtRaw - repaymentAmountRaw : 0n
+    // Post PR #126: LoanRepaid emits the post-state directly — no local recomputation needed.
+    const nextRemainingDebtRaw = event.params.remainingLoanAmount_
+    const nextLockedCollateralRaw = event.params.remainingLockedTokens_
+    const issuanceTokensUnlockedRaw = event.params.issuanceTokensUnlocked_
     const nextRemainingDebt = formatAmount(nextRemainingDebtRaw, borrowToken.decimals)
+    const nextLockedCollateral = formatAmount(nextLockedCollateralRaw, collateralToken.decimals)
     const nextStatus: LoanStatus_t = nextRemainingDebtRaw === 0n ? 'REPAID' : loan.status
     const nextClosedAt = nextStatus === 'REPAID' ? timestamp : loan.closedAt
 
@@ -261,6 +263,8 @@ CreditFacility.LoanRepaid.handler(
       ...loan,
       remainingDebtRaw: nextRemainingDebtRaw,
       remainingDebtFormatted: nextRemainingDebt.formatted,
+      lockedCollateralRaw: nextLockedCollateralRaw,
+      lockedCollateralFormatted: nextLockedCollateral.formatted,
       status: nextStatus,
       closedAt: nextClosedAt,
       lastUpdatedAt: timestamp,
@@ -273,12 +277,13 @@ CreditFacility.LoanRepaid.handler(
       collateralTokenDecimals: collateralToken.decimals,
       timestamp,
       debtDeltaRaw: -repaymentAmountRaw,
+      lockedCollateralDeltaRaw: -issuanceTokensUnlockedRaw,
     })
     context.CreditFacilityContract.set(updatedFacility)
 
     await applyGlobalDebtDelta(context, {
       debtDeltaRaw: -repaymentAmountRaw,
-      collateralDeltaRaw: 0n,
+      collateralDeltaRaw: -issuanceTokensUnlockedRaw,
       debtTokenDecimals: borrowToken.decimals,
       collateralTokenDecimals: collateralToken.decimals,
       timestamp,
@@ -293,6 +298,7 @@ CreditFacility.LoanRepaid.handler(
     )
     const updatedPosition = buildUpdatedUserMarketPosition(position, {
       totalDebtDelta: -repaymentAmountRaw,
+      lockedCollateralDelta: -issuanceTokensUnlockedRaw,
       issuanceTokenDecimals: collateralToken.decimals,
       reserveTokenDecimals: borrowToken.decimals,
       timestamp,
@@ -303,7 +309,7 @@ CreditFacility.LoanRepaid.handler(
       loanId,
       status: nextStatus,
       remainingDebtRaw: nextRemainingDebtRaw,
-      lockedCollateralRaw: loan.lockedCollateralRaw,
+      lockedCollateralRaw: nextLockedCollateralRaw,
       borrowTokenDecimals: borrowToken.decimals,
       collateralTokenDecimals: collateralToken.decimals,
       timestamp,
@@ -312,7 +318,7 @@ CreditFacility.LoanRepaid.handler(
     })
 
     context.log.info(
-      `[LoanRepaid] ✅ Loan updated | loanId=${loanId} | repayment=${repaymentAmount.formatted} | remainingDebt=${nextRemainingDebt.formatted}`
+      `[LoanRepaid] ✅ Loan updated | loanId=${loanId} | repayment=${repaymentAmount.formatted} | remainingDebt=${nextRemainingDebt.formatted} | unlocked=${issuanceTokensUnlockedRaw}`
     )
   })
 )
@@ -441,85 +447,10 @@ CreditFacility.LoanToValueRatioUpdated.handler(
   })
 )
 
-CreditFacility.IssuanceTokensLocked.handler(
-  handlerErrorWrapper(async ({ event, context }) => {
-    const facilityId = normalizeAddress(event.srcAddress)
-    const timestamp = BigInt(event.block.timestamp)
-
-    context.log.debug(
-      `[IssuanceTokensLocked] Handler entry | block=${event.block.number} | tx=${event.transaction.hash}`
-    )
-
-    const facilityContext = await loadFacilityContext(context, facilityId)
-    if (!facilityContext) {
-      context.log.warn(`[IssuanceTokensLocked] Facility context missing | facilityId=${facilityId}`)
-      return
-    }
-
-    const { facility, borrowToken, collateralToken } = facilityContext
-    const user = await getOrCreateAccount(context, event.params.user_)
-
-    const position = await getOrCreateUserMarketPosition(
-      context,
-      user.id,
-      facility.market_id,
-      collateralToken.decimals,
-      timestamp
-    )
-    const updatedPosition = buildUpdatedUserMarketPosition(position, {
-      lockedCollateralDelta: event.params.amount_,
-      issuanceTokenDecimals: collateralToken.decimals,
-      reserveTokenDecimals: borrowToken.decimals,
-      timestamp,
-    })
-    context.UserMarketPosition.set(updatedPosition)
-
-    context.log.info(
-      `[IssuanceTokensLocked] ✅ Collateral locked | facility=${facilityId} | user=${user.id} | amount=${event.params.amount_}`
-    )
-  })
-)
-
-CreditFacility.IssuanceTokensUnlocked.handler(
-  handlerErrorWrapper(async ({ event, context }) => {
-    const facilityId = normalizeAddress(event.srcAddress)
-    const timestamp = BigInt(event.block.timestamp)
-
-    context.log.debug(
-      `[IssuanceTokensUnlocked] Handler entry | block=${event.block.number} | tx=${event.transaction.hash}`
-    )
-
-    const facilityContext = await loadFacilityContext(context, facilityId)
-    if (!facilityContext) {
-      context.log.warn(
-        `[IssuanceTokensUnlocked] Facility context missing | facilityId=${facilityId}`
-      )
-      return
-    }
-
-    const { facility, borrowToken, collateralToken } = facilityContext
-    const user = await getOrCreateAccount(context, event.params.user_)
-
-    const position = await getOrCreateUserMarketPosition(
-      context,
-      user.id,
-      facility.market_id,
-      collateralToken.decimals,
-      timestamp
-    )
-    const updatedPosition = buildUpdatedUserMarketPosition(position, {
-      lockedCollateralDelta: -event.params.amount_,
-      issuanceTokenDecimals: collateralToken.decimals,
-      reserveTokenDecimals: borrowToken.decimals,
-      timestamp,
-    })
-    context.UserMarketPosition.set(updatedPosition)
-
-    context.log.info(
-      `[IssuanceTokensUnlocked] ✅ Collateral unlocked | facility=${facilityId} | user=${user.id} | amount=${event.params.amount_}`
-    )
-  })
-)
+// IssuanceTokensLocked/Unlocked were removed from CreditFacility_v1 in contracts PR #126.
+// Locked-collateral deltas now flow through LoanCreated (initial lock),
+// LoanRebalanced (released collateral delta), and LoanRepaid
+// (issuanceTokensUnlocked_ + remainingLockedTokens_).
 
 CreditFacility.LoanTransferred.handler(
   handlerErrorWrapper(async ({ event, context }) => {
@@ -624,17 +555,11 @@ CreditFacility.LoansConsolidated.handler(
       }
     }
 
-    // Fetch on-chain state for the new consolidated loan
-    const loanStateResult = await fetchLoanStateEffect(context.effect)({
-      chainId: event.chainId,
-      facilityAddress: event.srcAddress,
-      loanId: newLoanId,
-    })
-    const onChainLoan = parseLoanStateResult(loanStateResult)
-
-    const lockedCollateralRaw =
-      onChainLoan?.lockedIssuanceTokens ?? event.params.totalLockedIssuanceTokens_
-    const remainingDebtRaw = onChainLoan?.remainingLoanAmount ?? 0n
+    // Post PR #126: LoansConsolidated emits both aggregates inline. The ABI calls the
+    // loan-amount field `totalCollateralAmount_` but the contract actually passes
+    // `totalRemainingLoanAmount` — see CreditFacility_v1.sol:867.
+    const lockedCollateralRaw = event.params.totalLockedIssuanceTokens_
+    const remainingDebtRaw = event.params.totalCollateralAmount_
 
     const lockedCollateral = formatAmount(lockedCollateralRaw, collateralToken.decimals)
     const remainingDebt = formatAmount(remainingDebtRaw, borrowToken.decimals)
