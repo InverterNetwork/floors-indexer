@@ -83,7 +83,6 @@ type GlobalRegistry {
   moduleFactoryAddress: String!
   trustedForwarderAddress: String!
   governorAddress: String!
-  registeredStrategies: [String!]!
   createdAt: BigInt!
   lastUpdatedAt: BigInt!
 }
