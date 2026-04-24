@@ -1335,11 +1335,16 @@ describe('Floor Markets Indexer', () => {
 
       db = await db.processEvents([loanCreatedEvent])
 
-      // Partial repayment
+      // Partial repayment — post-PR-126 LoanRepaid carries remaining state inline;
+      // passing non-zero remainingLoanAmount_ keeps status ACTIVE.
       const partialRepayment = LOAN_AMOUNT / 2n
       const loanRepaidEvent = CreditFacility.LoanRepaid.createMockEvent({
         loanId_: 2n,
+        borrower_: Addresses.defaultAddress,
         repaymentAmount_: partialRepayment,
+        issuanceTokensUnlocked_: 0n,
+        remainingLoanAmount_: LOAN_AMOUNT - partialRepayment,
+        remainingLockedTokens_: 0n,
         mockEventData: {
           srcAddress: CREDIT_FACILITY_ADDRESS,
           chainId: 31337,
@@ -1354,6 +1359,11 @@ describe('Floor Markets Indexer', () => {
       const loan = db.entities.Loan.get('2')
       assert.ok(loan, 'Loan should exist')
       assert.equal(loan?.status, 'ACTIVE', 'status should still be ACTIVE after partial repayment')
+      assert.equal(
+        loan?.remainingDebtRaw,
+        LOAN_AMOUNT - partialRepayment,
+        'remainingDebtRaw should reflect post-repayment state from event params'
+      )
     })
 
     it('handles LoanRepaid with full repayment', async () => {
@@ -1384,10 +1394,14 @@ describe('Floor Markets Indexer', () => {
         })
       }
 
-      // Full repayment
+      // Full repayment — remainingLoanAmount_ = 0n flips status to REPAID.
       const loanRepaidEvent = CreditFacility.LoanRepaid.createMockEvent({
         loanId_: 3n,
+        borrower_: Addresses.defaultAddress,
         repaymentAmount_: LOAN_AMOUNT,
+        issuanceTokensUnlocked_: LOAN_AMOUNT,
+        remainingLoanAmount_: 0n,
+        remainingLockedTokens_: 0n,
         mockEventData: {
           srcAddress: CREDIT_FACILITY_ADDRESS,
           chainId: 31337,
@@ -3187,6 +3201,499 @@ describe('Floor Markets Indexer', () => {
       // Facility may not be fully set up without tokens
       const facility = db.entities.CreditFacilityContract.get(CREDIT_FACILITY_ADDRESS_CHECKSUM)
       // Handler handles missing token context gracefully
+    })
+  })
+
+  // =========================================================================
+  // PR #126 HANDLERS (B4 ContractURIUpdated, B5 FloorRaiseTreasury,
+  // B6 SplitterTreasury floor-raise, B7 Factory deployer allowlist)
+  // =========================================================================
+
+  describe('PR #126 Handlers', () => {
+    const FLOOR_RAISE_TREASURY_ADDRESS = '0x9999999999999999999999999999999999999999' as const
+    const FLOOR_RAISE_TREASURY_CHECKSUM = getAddress(FLOOR_RAISE_TREASURY_ADDRESS)
+    const ISSUANCE_TOKEN_ADDRESS = FLOOR_ADDRESS
+    const ISSUANCE_TOKEN_CHECKSUM = FLOOR_ADDRESS_CHECKSUM
+    const DEPLOYER_ADDRESS = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const
+    const DEPLOYER_CHECKSUM = getAddress(DEPLOYER_ADDRESS)
+
+    /**
+     * Bootstrap a market + module-address mapping for a given module so
+     * `getMarketIdForModule` can resolve it. Mirrors what the real
+     * ModuleCreated handler would write.
+     */
+    async function bootstrapMarketWithModule(moduleAddress: string, moduleType: string) {
+      let db = MockDb.createMockDb()
+
+      const bcModuleEvent = ModuleFactory.ModuleCreated.createMockEvent({
+        floor_: MARKET_ADDRESS,
+        module_: BC_MODULE_ADDRESS,
+        metadata_: [
+          1n,
+          0n,
+          0n,
+          'https://github.com/InverterNetwork/floors-sc',
+          'BC_Discrete_Redeeming_VirtualSupply_v1',
+        ],
+        mockEventData: { block: { timestamp: 1000 } },
+      })
+
+      db = await db.processEvents([bcModuleEvent])
+      db = db.entities.Token.set(USDC_TOKEN).entities.Token.set(FLOOR_TOKEN)
+
+      const market = db.entities.Market.get(MARKET_ADDRESS_CHECKSUM)
+      if (market) {
+        db = db.entities.Market.set({
+          ...market,
+          reserveToken_id: USDC_ADDRESS_CHECKSUM,
+          issuanceToken_id: FLOOR_ADDRESS_CHECKSUM,
+        })
+      }
+
+      // Seed the ModuleAddress mapping the real factory handler would write.
+      db = db.entities.ModuleAddress.set({
+        id: getAddress(moduleAddress as `0x${string}`),
+        market_id: MARKET_ADDRESS_CHECKSUM,
+        moduleType,
+        createdAt: 1500n,
+        lastUpdatedAt: 1500n,
+      })
+
+      return db
+    }
+
+    // ---------------------------------------------------------------------
+    // B4 — ERC-7572 ContractURIUpdated
+    // ---------------------------------------------------------------------
+
+    describe('B4 · ERC20Issuance ContractURIUpdated', () => {
+      it('returns early without writing when token is not yet indexed', async () => {
+        const db = MockDb.createMockDb()
+
+        const event = TestHelpers.ERC20IssuanceToken.ContractURIUpdated.createMockEvent({
+          mockEventData: {
+            srcAddress: ISSUANCE_TOKEN_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xuri-noop' },
+            logIndex: 0,
+          },
+        })
+
+        const updated = await db.processEvents([event])
+        // Token entry must not be created out of nowhere — handler logs and exits.
+        assert.equal(
+          updated.entities.Token.get(ISSUANCE_TOKEN_CHECKSUM),
+          undefined,
+          'Token should remain unindexed when handler hits the early-return path'
+        )
+      })
+
+      it('updates Token.contractURI on the indexed token', async () => {
+        let db = MockDb.createMockDb()
+        db = db.entities.Token.set(FLOOR_TOKEN)
+
+        const event = TestHelpers.ERC20IssuanceToken.ContractURIUpdated.createMockEvent({
+          mockEventData: {
+            srcAddress: ISSUANCE_TOKEN_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xuri-set' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const token = db.entities.Token.get(ISSUANCE_TOKEN_CHECKSUM)
+        assert.ok(token, 'Token should still exist after handler runs')
+        // ERC-7572 carries no payload; the effect returns undefined under MOCK_RPC,
+        // so the handler writes the empty-string fallback. The important assertion is
+        // that contractURI is no longer `undefined`: the handler ran and touched the field.
+        assert.notEqual(
+          token?.contractURI,
+          undefined,
+          'contractURI should be set (even to empty string) after the handler runs'
+        )
+      })
+    })
+
+    // ---------------------------------------------------------------------
+    // B5 — FloorRaiseTreasury_v1
+    // ---------------------------------------------------------------------
+
+    describe('B5 · FloorRaiseTreasury handlers', () => {
+      it('ThresholdUpdated creates entity and stores threshold in reserve-token decimals', async () => {
+        let db = await bootstrapMarketWithModule(FLOOR_RAISE_TREASURY_ADDRESS, 'feeTreasury')
+
+        const newThresholdRaw = 1_000_000_000n // 1000 USDC at 6 decimals
+        const event = TestHelpers.FloorRaiseTreasury.ThresholdUpdated.createMockEvent({
+          oldThreshold_: 0n,
+          newThreshold_: newThresholdRaw,
+          mockEventData: {
+            srcAddress: FLOOR_RAISE_TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xthreshold' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const treasury = db.entities.FloorRaiseTreasury.get(FLOOR_RAISE_TREASURY_CHECKSUM)
+        assert.ok(treasury, 'FloorRaiseTreasury entity should be created')
+        assert.equal(treasury?.market_id, MARKET_ADDRESS_CHECKSUM, 'market_id should resolve via ModuleAddress mapping')
+        assert.equal(treasury?.thresholdRaw, newThresholdRaw, 'thresholdRaw should match event param')
+        assert.equal(
+          treasury?.thresholdFormatted,
+          '1000',
+          'thresholdFormatted should use reserve-token (USDC) decimals'
+        )
+        assert.equal(treasury?.totalRaisedCount, 0n, 'totalRaisedCount initial value is 0')
+      })
+
+      it('FloorRaiseAttempted with success=true resets accumulated and bumps totalRaisedCount', async () => {
+        let db = await bootstrapMarketWithModule(FLOOR_RAISE_TREASURY_ADDRESS, 'feeTreasury')
+
+        // Seed a treasury with non-zero accumulated balance.
+        db = db.entities.FloorRaiseTreasury.set({
+          id: FLOOR_RAISE_TREASURY_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          address: FLOOR_RAISE_TREASURY_CHECKSUM,
+          floor: '',
+          thresholdRaw: 1_000_000_000n,
+          thresholdFormatted: '1000',
+          accumulatedRaw: 1_500_000_000n,
+          accumulatedFormatted: '1500',
+          totalRaisedCount: 0n,
+          lastRaiseAttemptAt: undefined,
+          lastRaiseAttemptSuccess: undefined,
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+
+        const event = TestHelpers.FloorRaiseTreasury.FloorRaiseAttempted.createMockEvent({
+          amount_: 1_500_000_000n,
+          success_: true,
+          mockEventData: {
+            srcAddress: FLOOR_RAISE_TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 3000 },
+            transaction: { hash: '0xraise-ok' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const treasury = db.entities.FloorRaiseTreasury.get(FLOOR_RAISE_TREASURY_CHECKSUM)
+        assert.equal(treasury?.accumulatedRaw, 0n, 'accumulatedRaw should reset on success')
+        assert.equal(treasury?.totalRaisedCount, 1n, 'totalRaisedCount should increment')
+        assert.equal(treasury?.lastRaiseAttemptSuccess, true, 'lastRaiseAttemptSuccess should be true')
+
+        const attempt = db.entities.FloorRaiseAttempt.get('0xraise-ok-0')
+        assert.ok(attempt, 'FloorRaiseAttempt entity should be created')
+        assert.equal(attempt?.success, true)
+        assert.equal(attempt?.amountRaw, 1_500_000_000n)
+      })
+
+      it('FloorRaiseAttempted with success=false leaves accumulated untouched', async () => {
+        let db = await bootstrapMarketWithModule(FLOOR_RAISE_TREASURY_ADDRESS, 'feeTreasury')
+
+        db = db.entities.FloorRaiseTreasury.set({
+          id: FLOOR_RAISE_TREASURY_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          address: FLOOR_RAISE_TREASURY_CHECKSUM,
+          floor: '',
+          thresholdRaw: 1_000_000_000n,
+          thresholdFormatted: '1000',
+          accumulatedRaw: 800_000_000n,
+          accumulatedFormatted: '800',
+          totalRaisedCount: 0n,
+          lastRaiseAttemptAt: undefined,
+          lastRaiseAttemptSuccess: undefined,
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+
+        const event = TestHelpers.FloorRaiseTreasury.FloorRaiseAttempted.createMockEvent({
+          amount_: 0n,
+          success_: false,
+          mockEventData: {
+            srcAddress: FLOOR_RAISE_TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 3000 },
+            transaction: { hash: '0xraise-fail' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const treasury = db.entities.FloorRaiseTreasury.get(FLOOR_RAISE_TREASURY_CHECKSUM)
+        assert.equal(treasury?.accumulatedRaw, 800_000_000n, 'accumulatedRaw should be unchanged on failure')
+        assert.equal(treasury?.totalRaisedCount, 0n, 'totalRaisedCount should not increment on failure')
+        assert.equal(treasury?.lastRaiseAttemptSuccess, false, 'lastRaiseAttemptSuccess should be false')
+      })
+    })
+
+    // ---------------------------------------------------------------------
+    // B6 — SplitterTreasury floor-raise slot
+    // ---------------------------------------------------------------------
+
+    describe('B6 · SplitterTreasury floor-raise slot', () => {
+      it('FloorRaiseUpdated wires the splitter to a FloorRaiseTreasury', async () => {
+        let db = await bootstrapMarketWithModule(TREASURY_ADDRESS, 'feeTreasury')
+
+        const event = TestHelpers.SplitterTreasury.FloorRaiseUpdated.createMockEvent({
+          newTreasury_: FLOOR_RAISE_TREASURY_ADDRESS,
+          newShares_: 250n,
+          mockEventData: {
+            srcAddress: TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xfr-update' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const treasury = db.entities.Treasury.get(TREASURY_ADDRESS_CHECKSUM)
+        assert.ok(treasury, 'Treasury entity should be created on first FloorRaiseUpdated')
+        assert.equal(
+          treasury?.floorRaiseTreasury_id,
+          FLOOR_RAISE_TREASURY_CHECKSUM,
+          'floorRaiseTreasury_id should reference the new treasury'
+        )
+        assert.equal(treasury?.floorRaiseShares, 250n, 'floorRaiseShares should match event param')
+      })
+
+      it('FloorRaiseUpdated with zero address clears the slot', async () => {
+        let db = await bootstrapMarketWithModule(TREASURY_ADDRESS, 'feeTreasury')
+
+        // Seed an existing wired treasury.
+        const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+        db = db.entities.Treasury.set({
+          id: TREASURY_ADDRESS_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          treasuryAddress: TREASURY_ADDRESS_CHECKSUM,
+          totalFeesReceivedRaw: 0n,
+          totalFeesReceivedFormatted: '0',
+          totalFeesDistributedRaw: 0n,
+          totalFeesDistributedFormatted: '0',
+          floorRaiseTreasury_id: FLOOR_RAISE_TREASURY_CHECKSUM,
+          floorRaiseShares: 250n,
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+
+        const event = TestHelpers.SplitterTreasury.FloorRaiseUpdated.createMockEvent({
+          newTreasury_: ZERO_ADDRESS,
+          newShares_: 0n,
+          mockEventData: {
+            srcAddress: TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 3000 },
+            transaction: { hash: '0xfr-clear' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const treasury = db.entities.Treasury.get(TREASURY_ADDRESS_CHECKSUM)
+        assert.equal(
+          treasury?.floorRaiseTreasury_id,
+          undefined,
+          'floorRaiseTreasury_id should clear when set to zero address'
+        )
+        assert.equal(treasury?.floorRaiseShares, 0n, 'floorRaiseShares should drop to 0')
+      })
+
+      it('FloorRaisePayment bumps accumulated on the wired FloorRaiseTreasury', async () => {
+        let db = await bootstrapMarketWithModule(TREASURY_ADDRESS, 'feeTreasury')
+
+        // Splitter is already wired to FRT.
+        db = db.entities.Treasury.set({
+          id: TREASURY_ADDRESS_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          treasuryAddress: TREASURY_ADDRESS_CHECKSUM,
+          totalFeesReceivedRaw: 0n,
+          totalFeesReceivedFormatted: '0',
+          totalFeesDistributedRaw: 0n,
+          totalFeesDistributedFormatted: '0',
+          floorRaiseTreasury_id: FLOOR_RAISE_TREASURY_CHECKSUM,
+          floorRaiseShares: 250n,
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+
+        // FRT exists with non-zero accumulated.
+        db = db.entities.FloorRaiseTreasury.set({
+          id: FLOOR_RAISE_TREASURY_CHECKSUM,
+          market_id: MARKET_ADDRESS_CHECKSUM,
+          address: FLOOR_RAISE_TREASURY_CHECKSUM,
+          floor: '',
+          thresholdRaw: 1_000_000_000n,
+          thresholdFormatted: '1000',
+          accumulatedRaw: 200_000_000n,
+          accumulatedFormatted: '200',
+          totalRaisedCount: 0n,
+          lastRaiseAttemptAt: undefined,
+          lastRaiseAttemptSuccess: undefined,
+          createdAt: 1500n,
+          lastUpdatedAt: 1500n,
+        })
+
+        const event = TestHelpers.SplitterTreasury.FloorRaisePayment.createMockEvent({
+          token_: USDC_ADDRESS,
+          amount_: 100_000_000n, // 100 USDC
+          mockEventData: {
+            srcAddress: TREASURY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 4000 },
+            transaction: { hash: '0xfr-pay' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const frt = db.entities.FloorRaiseTreasury.get(FLOOR_RAISE_TREASURY_CHECKSUM)
+        assert.equal(frt?.accumulatedRaw, 300_000_000n, 'accumulatedRaw should add the payment amount')
+        assert.equal(frt?.accumulatedFormatted, '300', 'accumulatedFormatted should reflect 300 USDC')
+
+        const payment = db.entities.FeeSplitterPayment.get('0xfr-pay-0')
+        assert.ok(payment, 'FeeSplitterPayment entity should be created for the floor-raise payment')
+        assert.equal(payment?.isFloorFee, true, 'isFloorFee should be true for floor-raise payments')
+      })
+    })
+
+    // ---------------------------------------------------------------------
+    // B7 — Factory deployer allowlist (FloorFactory + ModuleFactory)
+    // ---------------------------------------------------------------------
+
+    describe('B7 · Factory deployer allowlist', () => {
+      it('FloorFactory.DeployerSet creates FactoryDeploymentConfig + FactoryDeployerPermission', async () => {
+        let db = await bootstrapWithFactory()
+
+        const event = TestHelpers.FloorFactory.FloorFactory__DeployerSet.createMockEvent({
+          deployer_: DEPLOYER_ADDRESS,
+          allowed_: true,
+          mockEventData: {
+            srcAddress: FLOOR_FACTORY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xff-allow' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const factoryChecksum = getAddress(FLOOR_FACTORY_ADDRESS)
+        const cfg = db.entities.FactoryDeploymentConfig.get(factoryChecksum)
+        assert.ok(cfg, 'FactoryDeploymentConfig should exist for FloorFactory')
+        assert.equal(cfg?.kind, 'FLOOR', 'kind should be FLOOR')
+
+        const perm = db.entities.FactoryDeployerPermission.get(`${factoryChecksum}-${DEPLOYER_CHECKSUM}`)
+        assert.ok(perm, 'FactoryDeployerPermission should exist')
+        assert.equal(perm?.factory_id, factoryChecksum, 'factory_id should match')
+        assert.equal(perm?.deployer, DEPLOYER_CHECKSUM, 'deployer should match')
+        assert.equal(perm?.allowed, true, 'allowed should be true')
+      })
+
+      it('FloorFactory.OpenDeploymentSet flips openDeployment on the config', async () => {
+        let db = await bootstrapWithFactory()
+
+        const event = TestHelpers.FloorFactory.FloorFactory__OpenDeploymentSet.createMockEvent({
+          open_: false,
+          mockEventData: {
+            srcAddress: FLOOR_FACTORY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xff-open' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const cfg = db.entities.FactoryDeploymentConfig.get(getAddress(FLOOR_FACTORY_ADDRESS))
+        assert.ok(cfg, 'FactoryDeploymentConfig should be created on first OpenDeploymentSet')
+        assert.equal(cfg?.openDeployment, false, 'openDeployment should reflect event param')
+        assert.equal(cfg?.kind, 'FLOOR', 'kind should be FLOOR')
+      })
+
+      it('ModuleFactory.DeployerSet records permission with kind=MODULE', async () => {
+        let db = await bootstrapWithFactory()
+
+        const event = TestHelpers.ModuleFactory.ModuleFactory__DeployerSet.createMockEvent({
+          deployer_: DEPLOYER_ADDRESS,
+          allowed_: true,
+          mockEventData: {
+            srcAddress: MODULE_FACTORY_ADDRESS,
+            chainId: 31337,
+            block: { timestamp: 2000 },
+            transaction: { hash: '0xmf-allow' },
+            logIndex: 0,
+          },
+        })
+
+        db = await db.processEvents([event])
+
+        const factoryChecksum = getAddress(MODULE_FACTORY_ADDRESS)
+        const cfg = db.entities.FactoryDeploymentConfig.get(factoryChecksum)
+        assert.ok(cfg, 'FactoryDeploymentConfig should exist for ModuleFactory')
+        assert.equal(cfg?.kind, 'MODULE', 'kind should be MODULE')
+
+        const perm = db.entities.FactoryDeployerPermission.get(`${factoryChecksum}-${DEPLOYER_CHECKSUM}`)
+        assert.ok(perm, 'FactoryDeployerPermission should exist for ModuleFactory deployer')
+        assert.equal(perm?.allowed, true)
+      })
+
+      it('DeployerSet with allowed=false keeps the row (history preservation)', async () => {
+        let db = await bootstrapWithFactory()
+
+        const factoryChecksum = getAddress(FLOOR_FACTORY_ADDRESS)
+        const permId = `${factoryChecksum}-${DEPLOYER_CHECKSUM}`
+
+        // Allow first.
+        db = await db.processEvents([
+          TestHelpers.FloorFactory.FloorFactory__DeployerSet.createMockEvent({
+            deployer_: DEPLOYER_ADDRESS,
+            allowed_: true,
+            mockEventData: {
+              srcAddress: FLOOR_FACTORY_ADDRESS,
+              chainId: 31337,
+              block: { timestamp: 2000 },
+              transaction: { hash: '0xff-on' },
+              logIndex: 0,
+            },
+          }),
+        ])
+
+        // Then revoke.
+        db = await db.processEvents([
+          TestHelpers.FloorFactory.FloorFactory__DeployerSet.createMockEvent({
+            deployer_: DEPLOYER_ADDRESS,
+            allowed_: false,
+            mockEventData: {
+              srcAddress: FLOOR_FACTORY_ADDRESS,
+              chainId: 31337,
+              block: { timestamp: 3000 },
+              transaction: { hash: '0xff-off' },
+              logIndex: 0,
+            },
+          }),
+        ])
+
+        const perm = db.entities.FactoryDeployerPermission.get(permId)
+        assert.ok(perm, 'Row should still exist after revoke (UI filters on allowed=true)')
+        assert.equal(perm?.allowed, false, 'allowed should now be false')
+      })
     })
   })
 })
