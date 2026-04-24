@@ -89,7 +89,6 @@ FloorFactory.FloorFactoryInitialized.handler(async ({ event, context }) => {
     moduleFactoryAddress: normalizeAddress(moduleFactoryAddress),
     trustedForwarderAddress: trustedForwarderAddress || '',
     governorAddress: governorAddress || '',
-    registeredStrategies: [],
     createdAt: BigInt(event.block.timestamp),
     lastUpdatedAt: BigInt(event.block.timestamp),
   })
@@ -122,7 +121,6 @@ ModuleFactory.GovernorSet.handler(async ({ event, context }) => {
       moduleFactoryAddress: normalizeAddress(event.srcAddress),
       trustedForwarderAddress: '',
       governorAddress,
-      registeredStrategies: [],
       createdAt: BigInt(event.block.timestamp),
       lastUpdatedAt: BigInt(event.block.timestamp),
     })
@@ -368,7 +366,6 @@ ModuleFactory.ModuleCreated.handler(
         whitelistSize: 0n,
         commissionBps: undefined,
         priceBreakpointsFlat: [],
-        priceBreakpointOffsets: [],
         whitelistedAddresses: [],
         lendingFacility: undefined,
         // Merkle whitelist fields
@@ -449,5 +446,125 @@ ModuleFactory.ModuleCreated.handler(
         `[ModuleCreated] Authorizer contract registered | authorizer=${authorizerId} | floor=${orchestrator}`
       )
     }
+  })
+)
+
+// =============================================================================
+// Factory deployer allowlist (contracts PR #126)
+// =============================================================================
+
+async function upsertFactoryConfig(
+  context: unknown,
+  params: {
+    id: string
+    kind: 'FLOOR' | 'MODULE'
+    timestamp: bigint
+    openDeployment?: boolean
+  }
+): Promise<void> {
+  const ctx = context as {
+    FactoryDeploymentConfig: {
+      get: (id: string) => Promise<
+        | {
+            id: string
+            kind: 'FLOOR' | 'MODULE'
+            openDeployment: boolean
+            lastUpdatedAt: bigint
+          }
+        | undefined
+      >
+      set: (entity: {
+        id: string
+        kind: 'FLOOR' | 'MODULE'
+        openDeployment: boolean
+        lastUpdatedAt: bigint
+      }) => void
+    }
+  }
+
+  const existing = await ctx.FactoryDeploymentConfig.get(params.id)
+  ctx.FactoryDeploymentConfig.set({
+    id: params.id,
+    kind: params.kind,
+    openDeployment: params.openDeployment ?? existing?.openDeployment ?? true,
+    lastUpdatedAt: params.timestamp,
+  })
+}
+
+FloorFactory.FloorFactory__DeployerSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const factoryId = normalizeAddress(event.srcAddress)
+    const deployer = normalizeAddress(event.params.deployer_)
+    const timestamp = BigInt(event.block.timestamp)
+
+    await upsertFactoryConfig(context, { id: factoryId, kind: 'FLOOR', timestamp })
+
+    context.FactoryDeployerPermission.set({
+      id: `${factoryId}-${deployer}`,
+      factory_id: factoryId,
+      deployer,
+      allowed: event.params.allowed_,
+      updatedAt: timestamp,
+      transactionHash: event.transaction.hash,
+    })
+
+    context.log.info(
+      `[FloorFactory.DeployerSet] ✅ Deployer allowlist updated | factory=${factoryId} | deployer=${deployer} | allowed=${event.params.allowed_}`
+    )
+  })
+)
+
+FloorFactory.FloorFactory__OpenDeploymentSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const factoryId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    await upsertFactoryConfig(context, {
+      id: factoryId,
+      kind: 'FLOOR',
+      timestamp,
+      openDeployment: event.params.open_,
+    })
+    context.log.info(
+      `[FloorFactory.OpenDeploymentSet] ✅ openDeployment=${event.params.open_} | factory=${factoryId}`
+    )
+  })
+)
+
+ModuleFactory.ModuleFactory__DeployerSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const factoryId = normalizeAddress(event.srcAddress)
+    const deployer = normalizeAddress(event.params.deployer_)
+    const timestamp = BigInt(event.block.timestamp)
+
+    await upsertFactoryConfig(context, { id: factoryId, kind: 'MODULE', timestamp })
+
+    context.FactoryDeployerPermission.set({
+      id: `${factoryId}-${deployer}`,
+      factory_id: factoryId,
+      deployer,
+      allowed: event.params.allowed_,
+      updatedAt: timestamp,
+      transactionHash: event.transaction.hash,
+    })
+
+    context.log.info(
+      `[ModuleFactory.DeployerSet] ✅ Deployer allowlist updated | factory=${factoryId} | deployer=${deployer} | allowed=${event.params.allowed_}`
+    )
+  })
+)
+
+ModuleFactory.ModuleFactory__OpenDeploymentSet.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const factoryId = normalizeAddress(event.srcAddress)
+    const timestamp = BigInt(event.block.timestamp)
+    await upsertFactoryConfig(context, {
+      id: factoryId,
+      kind: 'MODULE',
+      timestamp,
+      openDeployment: event.params.open_,
+    })
+    context.log.info(
+      `[ModuleFactory.OpenDeploymentSet] ✅ openDeployment=${event.params.open_} | factory=${factoryId}`
+    )
   })
 )

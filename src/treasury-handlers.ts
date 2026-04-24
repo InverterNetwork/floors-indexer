@@ -201,6 +201,96 @@ SplitterTreasury.RecipientsCleared.handler(
   })
 )
 
+SplitterTreasury.FloorRaiseUpdated.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const treasuryId = normalizeAddress(event.srcAddress)
+    const marketId = await getMarketIdForModule(context, treasuryId)
+    if (!marketId) {
+      context.log.warn(
+        `[FloorRaiseUpdated] Unable to resolve market for splitter=${event.srcAddress} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    let treasury = await context.Treasury.get(treasuryId)
+    if (!treasury) {
+      treasury = buildTreasury({
+        id: treasuryId,
+        marketId,
+        treasuryAddress: treasuryId,
+        createdAt: BigInt(event.block.timestamp),
+        lastUpdatedAt: BigInt(event.block.timestamp),
+      })
+    }
+
+    const newTreasury = normalizeAddress(event.params.newTreasury_)
+    const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+    context.Treasury.set({
+      ...treasury,
+      floorRaiseTreasury_id: newTreasury === ZERO_ADDRESS ? undefined : newTreasury,
+      floorRaiseShares: event.params.newShares_,
+      lastUpdatedAt: BigInt(event.block.timestamp),
+    })
+
+    context.log.info(
+      `[FloorRaiseUpdated] ✅ Splitter floor-raise slot set | marketId=${marketId} | newTreasury=${newTreasury} | newShares=${event.params.newShares_.toString()}`
+    )
+  })
+)
+
+SplitterTreasury.FloorRaisePayment.handler(
+  handlerErrorWrapper(async ({ event, context }) => {
+    const treasuryId = normalizeAddress(event.srcAddress)
+    const marketId = await getMarketIdForModule(context, treasuryId)
+    if (!marketId) {
+      context.log.warn(
+        `[FloorRaisePayment] Unable to resolve market for splitter=${event.srcAddress} | tx=${event.transaction.hash}`
+      )
+      return
+    }
+
+    const token = await getOrCreateToken(context, event.chainId, event.params.token_)
+    const amount = formatAmount(event.params.amount_, token.decimals)
+
+    // Record as a payment with the splitter's floor-raise slot as recipient.
+    const treasury = await context.Treasury.get(treasuryId)
+    const floorRaiseRecipient = treasury?.floorRaiseTreasury_id ?? treasuryId
+
+    context.FeeSplitterPayment.set(
+      buildFeeSplitterPayment({
+        id: `${event.transaction.hash}-${event.logIndex}`,
+        marketId,
+        treasuryId,
+        tokenId: token.id,
+        recipient: floorRaiseRecipient,
+        isFloorFee: true,
+        amountRaw: event.params.amount_,
+        amountFormatted: amount.formatted,
+        timestamp: BigInt(event.block.timestamp),
+        transactionHash: event.transaction.hash,
+      })
+    )
+
+    // Bump accumulated on the target FloorRaiseTreasury if we're already tracking it.
+    if (treasury?.floorRaiseTreasury_id) {
+      const frt = await context.FloorRaiseTreasury.get(treasury.floorRaiseTreasury_id)
+      if (frt) {
+        const newAccumulatedRaw = frt.accumulatedRaw + event.params.amount_
+        context.FloorRaiseTreasury.set({
+          ...frt,
+          accumulatedRaw: newAccumulatedRaw,
+          accumulatedFormatted: formatAmount(newAccumulatedRaw, token.decimals).formatted,
+          lastUpdatedAt: BigInt(event.block.timestamp),
+        })
+      }
+    }
+
+    context.log.info(
+      `[FloorRaisePayment] Recorded floor-raise payment | marketId=${marketId} | amount=${amount.formatted} ${token.symbol}`
+    )
+  })
+)
+
 SplitterTreasury.Treasury_FundsReceived.handler(
   handlerErrorWrapper(async ({ event, context }) => {
     const marketId = await getMarketIdForModule(context, normalizeAddress(event.srcAddress))

@@ -167,6 +167,42 @@ export const fetchTokenMetadataEffect = wrapEffect(
 )
 
 // =============================================================================
+// Contract URI Effect (ERC-7572)
+// =============================================================================
+//
+// ContractURIUpdated emits no event data per ERC-7572, so handlers need to
+// read the current URI via RPC. Disable cache — the URI changes on every set.
+
+export const fetchContractURIEffect = wrapEffect(
+  createEffect(
+    {
+      name: 'fetchContractURI',
+      input: { chainId: S.number, tokenAddress: S.string },
+      output: S.nullable(S.schema({ uri: S.string })),
+      rateLimit: { calls: 50, per: 'second' },
+      cache: false,
+    },
+    async ({ input, context }) => {
+      try {
+        const client = getPublicClient(input.chainId)
+        const result = await client.readContract({
+          address: input.tokenAddress as `0x${string}`,
+          abi: ERC20IssuanceABI,
+          functionName: 'contractURI',
+        })
+        if (typeof result === 'string') {
+          return { uri: result }
+        }
+        return undefined
+      } catch {
+        context.cache = false
+        return undefined
+      }
+    }
+  )
+)
+
+// =============================================================================
 // Token Addresses from BC Effect
 // =============================================================================
 
@@ -429,6 +465,7 @@ export async function getOrCreateToken(
       decimals,
       maxSupplyRaw,
       maxSupplyFormatted: formatAmount(maxSupplyRaw, decimals).formatted,
+      contractURI: undefined,
     }
     context.Token.set(token)
   }

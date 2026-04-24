@@ -9,6 +9,8 @@ import './market-handlers'
 import './credit-handlers'
 // Treasury handlers
 import './treasury-handlers'
+// FloorRaiseTreasury handlers (threshold + raise attempts)
+import './floor-raise-treasury-handlers'
 // Staking handlers
 import './staking-handlers'
 // Presale handlers

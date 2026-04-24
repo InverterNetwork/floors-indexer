@@ -13,6 +13,8 @@ contracts:
     handler: src/index.ts
     events:
       - event: FloorFactoryInitialized
+      - event: FloorFactory__DeployerSet
+      - event: FloorFactory__OpenDeploymentSet
   - name: ModuleFactory
     abi_file_path: abis/ModuleFactory_v1.json
     handler: src/index.ts
@@ -23,6 +25,8 @@ contracts:
       - event: Initialized
       - event: OwnershipTransferStarted
       - event: OwnershipTransferred
+      - event: ModuleFactory__DeployerSet
+      - event: ModuleFactory__OpenDeploymentSet
 
   - name: FloorMarket
     abi_file_path: abis/Floor_v1.json
@@ -64,8 +68,6 @@ contracts:
       - event: MaxLoopsUpdated
       - event: LoanToValueRatioLowered
       - event: DynamicFeeCalculatorUpdated
-      - event: IssuanceTokensLocked
-      - event: IssuanceTokensUnlocked
       - event: ModuleInitialized
 
   - name: SplitterTreasury
@@ -79,6 +81,16 @@ contracts:
       - event: RecipientAdded
       - event: RecipientsCleared
       - event: Treasury_FundsReceived
+      - event: FloorRaisePayment
+      - event: FloorRaiseUpdated
+      - event: ModuleInitialized
+
+  - name: FloorRaiseTreasury
+    abi_file_path: abis/FloorRaiseTreasury_v1.json
+    handler: src/index.ts
+    events:
+      - event: ThresholdUpdated
+      - event: FloorRaiseAttempted
       - event: ModuleInitialized
 
   - name: Presale
@@ -138,6 +150,7 @@ contracts:
     handler: src/index.ts
     events:
       - event: Transfer
+      - event: ContractURIUpdated
 
 networks:
   - id: 31337 # Local Anvil (forked) or Remote Avalanche Fork
@@ -147,7 +160,7 @@ networks:
       url: '${RPC_URL_31337:-https://vfgvanuabr.eu-central-1.awsapprunner.com/}'
     contracts:
       - name: FloorFactory
-        address: '${FLOOR_FACTORY:-0x74ce7de1fa752420ec437709a23dc810faab9b65}'
+        address: '${FLOOR_FACTORY:-0x06e8d95ebb9704108a0296fc1f5e8fb606631824}'
       - name: ModuleFactory
 
         address:
@@ -156,6 +169,8 @@ networks:
       - name: CreditFacility
         address:
       - name: SplitterTreasury
+        address:
+      - name: FloorRaiseTreasury
         address:
       - name: Presale
         address:

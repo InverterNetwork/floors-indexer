@@ -186,44 +186,13 @@ export async function handleParticipation(
   )
 }
 
-export type FlattenedPriceBreakpoints = {
-  flat: bigint[]
-  offsets: number[]
-}
-
-/**
- * Flatten jagged breakpoint arrays into a single array plus cumulative
- * offsets for compact storage. Consumers can reconstruct row i by slicing
- * `flat[start:end]`, where start is the previous offset (or 0) and end is
- * offsets[i].
- */
-export function flattenPriceBreakpoints(
-  breakpoints: readonly (readonly bigint[])[] | undefined
-): FlattenedPriceBreakpoints | undefined {
-  if (!breakpoints) {
-    return undefined
-  }
-
-  const flat: bigint[] = []
-  const offsets: number[] = []
-  let runningLength = 0
-
-  breakpoints.forEach((row) => {
-    flat.push(...row)
-    runningLength += row.length
-    offsets.push(runningLength)
-  })
-
-  return { flat, offsets }
-}
-
 const PRESALE_CONFIG_PARAMS = [
   { type: 'address' },
   { type: 'uint16[]' },
   { type: 'uint64' },
   { type: 'uint256' },
   { type: 'uint256' },
-  { type: 'uint256[][]' },
+  { type: 'uint256[]' },
 ] as const
 
 export type DecodedPresaleConfig = {
@@ -232,8 +201,12 @@ export type DecodedPresaleConfig = {
   endTime: bigint
   globalIssuanceCapRaw: bigint
   perAddressIssuanceCapRaw: bigint
+  /**
+   * Flat price breakpoints shared across all leverage levels (post PR #126).
+   * Retained the `Flat` suffix to avoid a schema rename; the array is now
+   * always a single list.
+   */
   priceBreakpointsFlat: bigint[]
-  priceBreakpointOffsets: number[]
   maxLeverage: number
 }
 
@@ -255,21 +228,13 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
     const commissionValues = (commissionBps as readonly (number | bigint)[]).map((bps) =>
       BigInt(bps)
     )
-    const priceBreakpointsValues = (
-      priceBreakpoints as readonly (readonly (number | bigint)[])[]
-    ).map((row) => row.map((value) => BigInt(value)) as readonly bigint[])
+    const priceBreakpointsValues = (priceBreakpoints as readonly (number | bigint)[]).map(
+      (value) => BigInt(value)
+    )
 
-    const flattened = flattenPriceBreakpoints(priceBreakpointsValues)
-
-    // Calculate maxLeverage: commissionBps.length - 1 (index 0 = non-leveraged)
-    // Fallback to priceBreakpoints.length if commissionBps is empty
-    let maxLeverage = 0
-    if (commissionValues.length > 0) {
-      maxLeverage = commissionValues.length - 1
-    } else if (priceBreakpointsValues.length > 0) {
-      // priceBreakpoints array length equals max leverage (one sub-array per leverage level)
-      maxLeverage = priceBreakpointsValues.length
-    }
+    // commissionBps includes the direct (non-leveraged) entry at index 0,
+    // so maxLeverage = commissionBps.length - 1.
+    const maxLeverage = commissionValues.length > 0 ? commissionValues.length - 1 : 0
 
     return {
       lendingFacility: normalizeAddress(lendingFacility as string),
@@ -277,8 +242,7 @@ export function decodePresaleConfig(encoded: string): DecodedPresaleConfig | nul
       endTime: endTime as bigint,
       globalIssuanceCapRaw: globalIssuanceCapRaw as bigint,
       perAddressIssuanceCapRaw: perAddressIssuanceCapRaw as bigint,
-      priceBreakpointsFlat: flattened?.flat ?? [],
-      priceBreakpointOffsets: flattened?.offsets ?? [],
+      priceBreakpointsFlat: priceBreakpointsValues,
       maxLeverage,
     }
   } catch (error) {
